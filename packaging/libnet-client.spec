@@ -7,6 +7,7 @@ Release:    1
 Group:      System/Network
 License:    Samsung Proprietary License
 Source0:    %{name}-%{version}.tar.gz
+Source1001: packaging/libnet-client.manifest 
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(dbus-glib-1)
@@ -30,6 +31,7 @@ Network (ConnMan) Client library (Development)
 ./autogen.sh
 
 %build
+cp %{SOURCE1001} .
 
 ./configure --prefix=/usr
 
@@ -40,11 +42,13 @@ rm -rf %{buildroot}
 %make_install
 
 %files
+%manifest libnet-client.manifest
 %defattr(-,root,root,-)
 %{_libdir}/libnetwork.so
 %{_libdir}/libnetwork.so.0
 %attr(644,-,-) %{_libdir}/libnetwork.so.0.0.0
 
 %files devel
+%manifest libnet-client.manifest
 %{_includedir}/network/*.h
 %{_libdir}/pkgconfig/network.pc
