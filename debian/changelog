@@ -1,0 +1,8 @@
+libnet-client (0.1.64) unstable; urgency=low
+
+  * Update license
+  * Git: pkgs/l/libnet-client
+  * Tag: libnet-client_0.1.64
+
+ -- JaeHyun Kim <jeik01.kim@samsung.com>  Wed, 02 May 2012 17:13:07 +0900
+

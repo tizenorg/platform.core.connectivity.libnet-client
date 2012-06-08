@@ -1,0 +1,24 @@
+Source: libnet-client
+Section: libs
+Priority: extra
+Maintainer: Jaehyun Kim <jeik01.kim@samsung.com>, Danny Jeongseok Seo <s.seo@samsung.com>
+Uploaders: Jaehyun Kim <jeik01.kim@samsung.com>, Misun Kim <ms0123.kim@samsung.com>, DongHoo Park <donghoo.park@samsung.com>
+Build-Depends: debhelper (>= 5), libslp-setting-dev, libglib2.0-dev, dlog-dev, libdbus-glib-1-dev
+Standards-Version: 3.7.2
+
+Package: libnetwork-0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libglib2.0-0, libdbus-glib-1-2
+Description: network(connman) client library (Shared Library)
+
+Package: libnetwork-dev
+Section: libs
+Architecture: any
+Depends: libnetwork-0 (= ${Source-Version}), ${misc:Depends} 
+Description: network(connman) client library (Development)
+
+Package: libnetwork-dbg
+Architecture: any
+Depends: libnetwork-0 (= ${Source-Version}), ${misc:Depends}
+Description: debug symbols for network(connman) client library
