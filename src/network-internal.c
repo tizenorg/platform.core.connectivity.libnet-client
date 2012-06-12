@@ -665,8 +665,7 @@ net_wifi_state_t _net_get_wifi_state()
 		goto state_done;
 	}
 
-	if (tech_state.EnabledTechnology == TRUE &&
-	    tech_state.AvailableTechnology == TRUE)
+	if (tech_state.EnabledTechnology == TRUE)
 		wifi_state = WIFI_ON;
 	else
 		wifi_state = WIFI_OFF;

@@ -251,6 +251,10 @@ static int __net_handle_wifi_power_rsp(const char *state)
 		wifi_state_flag = 1;
 		event_data.Error = NET_ERR_NONE;
 		usleep(300000); /* This will be removed after connman upgrade */
+	} else if (strcmp(state, "available") == 0 && NetworkInfo.wifi_state != WIFI_OFF) {
+		NetworkInfo.wifi_state = WIFI_OFF;
+		wifi_state_flag = 1;
+		event_data.Error = NET_ERR_NONE;
 	}
 
 	if (wifi_state_flag != 0) {
