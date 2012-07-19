@@ -1,3 +1,11 @@
+libnet-client (0.1.65) unstable; urgency=low
+
+  * Revise some DBus declarations and profile prefix to fit ConnMan 0.78
+  * Git: slp/pkgs/l/libnet-client
+  * Tag: libnet-client_0.1.65
+
+ -- Danny Jeongseok Seo <s.seo@samsung.com>  Tue, 08 May 2012 15:59:37 +0900
+
 libnet-client (0.1.64) unstable; urgency=low
 
   * Update license

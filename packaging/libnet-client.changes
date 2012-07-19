@@ -1,3 +1,5 @@
+* Thu Jul 19 2012 Danny JS Seo <S.Seo@samsung.com> - 0.1.65
+- Upgrade libnet-client according to the ConnMan 0.78
+
 * Tue Jun 12 2012 Prajwal Mohan <prajwal.karur.mohan@intel.com> - 0.1.63
 - spec file cleanup
-

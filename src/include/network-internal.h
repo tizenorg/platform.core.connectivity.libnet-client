@@ -63,8 +63,8 @@
 #define CONNMAN_ERROR_INTERFACE		CONNMAN_SERVICE ".Error"
 
 
-#define CONNMAN_MANAGER_PATH            "/" 
-#define CONNMAN_PROFILE_PATH            "/profile/default" 
+#define CONNMAN_MANAGER_PATH			"/"
+#define CONNMAN_PATH					"/net/connman"
 #define CONNMAN_TECHNOLOGY_PATH			"/net/connman/technology"
 
 /** Network related Daemon interfaces */

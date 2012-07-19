@@ -1837,7 +1837,7 @@ int _net_check_profile_name(const char* ProfileName)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	const char *profileHeader = "/profile/";
+	const char *profileHeader = CONNMAN_PATH"/service/";
 	int i = 0;
 	int stringLen = 0;
 

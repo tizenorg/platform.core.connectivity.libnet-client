@@ -2,7 +2,7 @@
 
 Name:       libnet-client
 Summary:    Network (ConnMan) Client library (Shared Library)
-Version:    0.1.63
+Version:    0.1.65
 Release:    1
 Group:      System/Network
 License:    Samsung Proprietary License
