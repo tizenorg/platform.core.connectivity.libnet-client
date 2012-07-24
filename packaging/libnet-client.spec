@@ -5,7 +5,7 @@ Summary:    Network (ConnMan) Client library (Shared Library)
 Version:    0.1.65
 Release:    1
 Group:      System/Network
-License:    Samsung Proprietary License
+License:    Flora Software License
 Source0:    %{name}-%{version}.tar.gz
 Source1001: packaging/libnet-client.manifest 
 BuildRequires:  cmake
