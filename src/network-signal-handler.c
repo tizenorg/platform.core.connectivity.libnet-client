@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -60,6 +63,7 @@ static int __net_handle_wifi_power_rsp(const char *state);
 static int __net_svc_error_string_to_enum(const char *error);
 static void __net_handle_svc_failure_ind(const char *profile_name, const char *svc_error);
 static void __net_handle_state_ind(const char* profile_name, net_state_type_t profile_state);
+static void __net_init_dbus_thread();
 
 /*****************************************************************************
  * 	Global Functions
@@ -238,14 +242,12 @@ static int __net_handle_wifi_power_rsp(const char *state)
 		event_data.Error = NET_ERR_NONE;
 
 		if(request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE)
-			memset(&request_table[NETWORK_REQUEST_TYPE_SCAN],
-					0, sizeof(network_request_table_t));
+			memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0, sizeof(network_request_table_t));
 
 	} else if (strcmp(state, "enabled") == 0 && NetworkInfo.wifi_state != WIFI_ON) {
 		NetworkInfo.wifi_state = WIFI_ON;
 		wifi_state_flag = 1;
 		event_data.Error = NET_ERR_NONE;
-		usleep(300000); /* This will be removed after connman upgrade */
 	}
 
 	if (wifi_state_flag != 0) {
@@ -257,6 +259,7 @@ static int __net_handle_wifi_power_rsp(const char *state)
 			NETWORK_LOG(NETWORK_LOW,
 					"Sending NET_EVENT_WIFI_POWER_RSP  wifi state : %d\n",
 					NetworkInfo.wifi_state);
+			_net_dbus_clear_pending_call();
 		} else {
 			event_data.Event = NET_EVENT_WIFI_POWER_IND;
 			NETWORK_LOG(NETWORK_LOW,
@@ -273,21 +276,47 @@ static int __net_handle_wifi_power_rsp(const char *state)
 	return NET_ERR_NONE;
 }
 
+static int __net_handle_specific_scan_resp(GSList *bss_info_list)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_event_info_t event_data = {0,};
+
+	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN],
+				0, sizeof(network_request_table_t));
+
+		_net_dbus_clear_pending_call();
+
+		event_data.Event = NET_EVENT_SPECIFIC_SCAN_IND;
+		NETWORK_LOG(NETWORK_LOW,
+				"Sending NET_EVENT_SPECIFIC_SCAN_IND  wifi state : %d\n",
+				NetworkInfo.wifi_state);
+
+		NETWORK_LOG(NETWORK_LOW, "bss_info_list : 0x%x\n", bss_info_list);
+		event_data.Data = bss_info_list;
+		_net_client_callback(&event_data);
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
 static int __net_svc_error_string_to_enum(const char *error)
 {
 	if (strcmp(error, "out-of-range") == 0)
 		return NET_ERR_CONNECTION_OUT_OF_RANGE;
-	else if(strcmp(error, "pin-missing") == 0)
+	else if (strcmp(error, "pin-missing") == 0)
 		return NET_ERR_CONNECTION_PIN_MISSING;
-	else if(strcmp(error, "dhcp-failed") == 0)
+	else if (strcmp(error, "dhcp-failed") == 0)
 		return NET_ERR_CONNECTION_DHCP_FAILED;
-	else if(strcmp(error, "connect-failed") == 0)
+	else if (strcmp(error, "connect-failed") == 0)
 		return NET_ERR_CONNECTION_CONNECT_FAILED;
-	else if(strcmp(error, "login-failed") == 0)
+	else if (strcmp(error, "login-failed") == 0)
 		return NET_ERR_CONNECTION_LOGIN_FAILED;
-	else if(strcmp(error, "auth-failed") == 0)
+	else if (strcmp(error, "auth-failed") == 0)
 		return NET_ERR_CONNECTION_AUTH_FAILED;
-	else if(strcmp(error, "invalid-key") == 0)
+	else if (strcmp(error, "invalid-key") == 0)
 		return NET_ERR_CONNECTION_INVALID_KEY;
 
 	return NET_ERR_UNKNOWN;
@@ -304,13 +333,14 @@ static void __net_handle_svc_failure_ind(const char *profile_name, const char *s
 	char *svc_name2 = request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName;
 
 	if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
-	    strcmp(profile_name, svc_name1) == 0) {
+	    strstr(profile_name, svc_name1) != NULL) {
 
 		memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION], 0,
 				sizeof(network_request_table_t));
 
 		event_data.Event = NET_EVENT_OPEN_RSP;
 		g_strlcpy(event_string, "Sending NET_EVENT_OPEN_RSP", 64);
+		_net_dbus_clear_pending_call();
 	} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
 	           strcmp(profile_name, svc_name2) == 0) {
 
@@ -319,6 +349,7 @@ static void __net_handle_svc_failure_ind(const char *profile_name, const char *s
 
 		event_data.Event = NET_EVENT_WIFI_WPS_RSP;
 		g_strlcpy(event_string, "Sending NET_EVENT_WIFI_WPS_RSP", 64);
+		_net_dbus_clear_pending_call();
 	} else {
 		__net_handle_state_ind(profile_name, NET_STATE_TYPE_FAILURE);
 		__NETWORK_FUNC_EXIT__;
@@ -361,6 +392,20 @@ static void __net_handle_state_ind(const char* profile_name, net_state_type_t pr
 	__NETWORK_FUNC_EXIT__;
 }
 
+static wlan_security_mode_type_t __net_get_wlan_sec_mode(int security)
+{
+	switch (security) {
+	default:
+		return WLAN_SEC_MODE_NONE;
+	case 2:
+		return WLAN_SEC_MODE_WEP;
+	case 3:
+		return WLAN_SEC_MODE_WPA_PSK;
+	case 4:
+		return WLAN_SEC_MODE_IEEE8021X;
+	}
+}
+
 static DBusHandlerResult
 __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 {
@@ -382,139 +427,173 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 	net_err_t Error = NET_ERR_NONE;
 	net_device_t device_type = NET_DEVICE_UNKNOWN;
 	
-	if(msg == NULL)
-	{
-		NETWORK_LOG( NETWORK_LOW, "Invalid Message. Ignore\n");
+	if (msg == NULL) {
+		NETWORK_LOG(NETWORK_LOW, "Invalid Message. Ignore\n");
 		/* We have handled this message, don't pass it on */
 		__NETWORK_FUNC_EXIT__;
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
-				
-	if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE, CONNMAN_SIGNAL_PROPERTY_CHANGED))
-	{
+
+	if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE, CONNMAN_SIGNAL_PROPERTY_CHANGED)) {
 		sigvalue = _net_get_string(msg);
-		if(sigvalue == NULL)
-		{
+		if (sigvalue == NULL) {
 			/* We have handled this message, don't pass it on */
 			__NETWORK_FUNC_EXIT__;
 			return DBUS_HANDLER_RESULT_HANDLED;
 		}
-		NETWORK_LOG( NETWORK_LOW, "[Manager : PropertyChanged] Got Signal with value [%s]\n", sigvalue);
 
-		if(strcmp(sigvalue, "Services") == 0)
-		{
+		NETWORK_LOG(NETWORK_LOW, "[Manager : PropertyChanged] Got Signal with value [%s]\n", sigvalue);
+
+		if (strcmp(sigvalue, "Services") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "ConnectedTechnologies") == 0)
-		{
+		} else if (strcmp(sigvalue, "ConnectedTechnologies") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "State") == 0)
-		{
+		} else if (strcmp(sigvalue, "State") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "DefaultTechnology") == 0)
-		{
+		} else if (strcmp(sigvalue, "DefaultTechnology") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else
-		{
-			NETWORK_LOG( NETWORK_LOW, "-------[Manager : PropertyChanged]--------\n");
+		} else {
+			NETWORK_LOG(NETWORK_LOW, "-------[Manager : PropertyChanged]--------\n");
 		}
 
 		/* We have handled this message, don't pass it on */
 		__NETWORK_FUNC_EXIT__;
 		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE, CONNMAN_SIGNAL_STATE_CHANGED))
-	{
+	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE, CONNMAN_SIGNAL_STATE_CHANGED)) {
 		sigvalue = _net_get_string(msg);
-		if(sigvalue == NULL)
-		{
+		if (sigvalue == NULL) {
 			/* We have handled this message, don't pass it on */
 			__NETWORK_FUNC_EXIT__;
 			return DBUS_HANDLER_RESULT_HANDLED;
 		}
-		NETWORK_LOG( NETWORK_LOW, "[Manager : StateChanged] Got Signal with value [%s]\n", sigvalue);
 
-		if(strcmp(sigvalue, "online") == 0)
-		{
+		NETWORK_LOG(NETWORK_LOW, "[Manager : StateChanged] Got Signal with value [%s]\n", sigvalue);
+
+		if (strcmp(sigvalue, "online") == 0) {
 			/** Ignore - compared for future use */
 		}
 
 		/* We have handled this message, don't pass it on */
 		__NETWORK_FUNC_EXIT__;
 		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE, CONNMAN_SIGNAL_SCAN_COMPLETED))
-	{
+	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE, CONNMAN_SIGNAL_SCAN_COMPLETED)) {
 		__net_handle_scan_rsp(msg);
 
 		/* We have handled this message, don't pass it on */
 		__NETWORK_FUNC_EXIT__;
 		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	else if (dbus_message_is_signal(msg, CONNMAN_TECHNOLOGY_INTERFACE, CONNMAN_SIGNAL_PROPERTY_CHANGED))
-	{
-		char* property = NULL;
+	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE, NETCONFIG_SIGNAL_POWERON_COMPLETED)) {
+		__net_handle_wifi_power_rsp("enabled");
 
-		sigvalue = __net_get_property(msg, &property);
-		if(sigvalue == NULL)
-		{
-			/* We have handled this message, don't pass it on */
-			__NETWORK_FUNC_EXIT__;
-			return DBUS_HANDLER_RESULT_HANDLED;
-		}
-		
-		memset(ProfileName, 0, sizeof(ProfileName));
-		_net_get_path(msg, ProfileName);
-
-		NETWORK_LOG( NETWORK_LOW,
-				"[Technology : PropertyChanged] Got Signal with value [%s] path [%s] state [%s]\n",
-				sigvalue, ProfileName, property);
-
-		if(strstr(ProfileName, "/wifi") == NULL)
-		{
-			__NETWORK_FUNC_EXIT__;
-			return DBUS_HANDLER_RESULT_HANDLED;
-		}
-
-		if(strcmp(sigvalue, "State") == 0 && property != NULL)
-		{
-			__net_handle_wifi_power_rsp(property);
-		}
 		/* We have handled this message, don't pass it on */
 		__NETWORK_FUNC_EXIT__;
 		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	else if (dbus_message_is_signal(msg, CONNMAN_SERVICE_INTERFACE, CONNMAN_SIGNAL_PROPERTY_CHANGED))
-	{
-		sigvalue = _net_get_string(msg);
-		if(sigvalue == NULL)
-		{
+	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE, NETCONFIG_SIGNAL_POWEROFF_COMPLETED)) {
+		__net_handle_wifi_power_rsp("offline");
+
+		/* We have handled this message, don't pass it on */
+		__NETWORK_FUNC_EXIT__;
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE, NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE)) {
+		DBusMessageIter iter, array;
+		dbus_message_iter_init(msg, &iter);
+		dbus_message_iter_recurse(&iter, &array);
+
+		GSList *bss_info_list = NULL;
+
+		/* The dbus message will be packed in this format: {{"ssid", <ssid name>}{"security", <security mode>}....}*/
+		while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_DICT_ENTRY) {
+			DBusMessageIter entry, dict;
+			const char *key = NULL;
+			const char *ssid = NULL;
+			const int security = 0;
+
+			dbus_message_iter_recurse(&array, &entry);
+			dbus_message_iter_get_basic(&entry, &key);
+
+			if (g_strcmp0(key, "ssid")) {
+				Error = NET_ERR_UNKNOWN;
+				break;
+			}
+			dbus_message_iter_next(&entry);
+			dbus_message_iter_recurse(&entry, &dict);
+			dbus_message_iter_get_basic(&dict, &ssid);
+			NETWORK_LOG(NETWORK_LOW, "Got an ssid: %s", ssid);
+
+			dbus_message_iter_next(&array);
+			if (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_DICT_ENTRY) {
+				Error = NET_ERR_UNKNOWN;
+				break;
+			}
+			dbus_message_iter_recurse(&array, &entry);
+			dbus_message_iter_get_basic(&entry, &key);
+			if (g_strcmp0(key, "security")) {
+				Error = NET_ERR_UNKNOWN;
+				break;
+			}
+			dbus_message_iter_next(&entry);
+			dbus_message_iter_recurse(&entry, &dict);
+			dbus_message_iter_get_basic(&dict, (void *)&security);
+			NETWORK_LOG(NETWORK_LOW, "with security: %d", security);
+
+			net_wifi_connection_info_t *resp_data = g_try_new0(net_wifi_connection_info_t, 1);
+			g_strlcpy(resp_data->essid, ssid, NET_WLAN_ESSID_LEN);
+			resp_data->security_info.sec_mode = __net_get_wlan_sec_mode(security);
+			bss_info_list = g_slist_append(bss_info_list, resp_data);
+
+			dbus_message_iter_next(&array);
+		}
+
+		NETWORK_LOG(NETWORK_LOW, "Received the signal: %s with total bss count = %d(Error = %d)", NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE, g_slist_length(bss_info_list), Error);
+
+		__net_handle_specific_scan_resp(bss_info_list);
+
+		/* Specific Scan response handled. Release/Destroy the list */
+		g_slist_free_full(bss_info_list, g_free);
+
+		/* We have handled this message, don't pass it on */
+		__NETWORK_FUNC_EXIT__;
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else if (dbus_message_is_signal(msg, CONNMAN_TECHNOLOGY_INTERFACE, CONNMAN_SIGNAL_PROPERTY_CHANGED)) {
+		char* property = NULL;
+
+		sigvalue = __net_get_property(msg, &property);
+		if (sigvalue == NULL) {
 			/* We have handled this message, don't pass it on */
 			__NETWORK_FUNC_EXIT__;
 			return DBUS_HANDLER_RESULT_HANDLED;
 		}
-		NETWORK_LOG( NETWORK_LOW, "[Service : PropertyChanged] Got Signal with value [%s]\n", sigvalue);
 
-		if(strcmp(sigvalue, "Strength") == 0)
-		{
-			/** Ignore - compared for future use */
+		memset(ProfileName, 0, sizeof(ProfileName));
+		_net_get_path(msg, ProfileName);
+
+		NETWORK_LOG(NETWORK_LOW,
+				"[Technology : PropertyChanged] Got Signal with value [%s] path [%s] state [%s]\n",
+				sigvalue, ProfileName, property);
+
+		/* We have handled this message, don't pass it on */
+		__NETWORK_FUNC_EXIT__;
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else if (dbus_message_is_signal(msg, CONNMAN_SERVICE_INTERFACE, CONNMAN_SIGNAL_PROPERTY_CHANGED)) {
+		sigvalue = _net_get_string(msg);
+		if (sigvalue == NULL) {
+			/* We have handled this message, don't pass it on */
+			__NETWORK_FUNC_EXIT__;
+			return DBUS_HANDLER_RESULT_HANDLED;
 		}
-		else if(strcmp(sigvalue, "PassphraseRequired") == 0)
-		{
+
+		if(strcmp(sigvalue, "Strength") != 0) /** Ignore Strength signal */
+			NETWORK_LOG(NETWORK_LOW, "[Service : PropertyChanged] Got Signal with value [%s]\n", sigvalue);
+
+		if (strcmp(sigvalue, "PassphraseRequired") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "State") == 0)
-		{
+		} else if (strcmp(sigvalue, "State") == 0) {
 			memset(ProfileName, 0, sizeof(ProfileName));
 			_net_get_path(msg, ProfileName);
 
 			device_type = _net_get_tech_type_from_path(ProfileName);
 
-			if(device_type == NET_DEVICE_UNKNOWN)
-			{
+			if (device_type == NET_DEVICE_UNKNOWN) {
 				/* We have handled this message, don't pass it on */
 				__NETWORK_FUNC_EXIT__;
 				return DBUS_HANDLER_RESULT_HANDLED;
@@ -529,71 +608,57 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 					svc_state, svc_error, ProfileName);
 
 			if (device_type == NET_DEVICE_WIFI &&
-			    NetworkInfo.wifi_state == WIFI_OFF) {
+					NetworkInfo.wifi_state == WIFI_OFF) {
 				NETWORK_LOG(NETWORK_LOW, "Warning!! Wi-Fi is already off!!\n");
 				/* We have handled this message, don't pass it on */
 				__NETWORK_FUNC_EXIT__;
 				return DBUS_HANDLER_RESULT_HANDLED;;
 			}
-		
-			if(strcmp(svc_state, "idle") == 0)
-			{
+
+			if (strcmp(svc_state, "idle") == 0) {
 				service_state_table[device_type] = NET_STATE_TYPE_IDLE;
 				__net_handle_state_ind(ProfileName, NET_STATE_TYPE_IDLE);
-			}
-			else if(strcmp(svc_state, "association") == 0)
-			{
+			} else if (strcmp(svc_state, "association") == 0) {
 				service_state_table[device_type] = NET_STATE_TYPE_ASSOCIATION;
 				__net_handle_state_ind(ProfileName, NET_STATE_TYPE_ASSOCIATION);
-			}
-			else if(strcmp(svc_state, "configuration") == 0)
-			{
+			} else if (strcmp(svc_state, "configuration") == 0) {
 				service_state_table[device_type] = NET_STATE_TYPE_CONFIGURATION;
 				__net_handle_state_ind(ProfileName, NET_STATE_TYPE_CONFIGURATION);
-			}
-			else if(strcmp(svc_state, "ready") == 0 ||
-			        strcmp(svc_state, "online") == 0)
-			{
-				if(service_state_table[device_type] != NET_STATE_TYPE_READY &&
-				   service_state_table[device_type] != NET_STATE_TYPE_ONLINE)
-				{
+			} else if (strcmp(svc_state, "ready") == 0 ||
+					strcmp(svc_state, "online") == 0) {
+				if (service_state_table[device_type] != NET_STATE_TYPE_READY &&
+						service_state_table[device_type] != NET_STATE_TYPE_ONLINE) {
 					svc_name1 = request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName;
 					svc_name2 = request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName;
-					
-					if(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
-					   strcmp(sig_path, svc_name1) == 0)
-					{
+
+					if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
+					    strstr(sig_path, svc_name1) != NULL) {
 						memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION], 0,
 								sizeof(network_request_table_t));
 
 						event_data.Event =  NET_EVENT_OPEN_RSP;
-						NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
-					}
-					else if(request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
-					   strcmp(sig_path, svc_name2) == 0)
-					{
+						NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
+						_net_dbus_clear_pending_call();
+					} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
+							strcmp(sig_path, svc_name2) == 0) {
 						memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
 								sizeof(network_request_table_t));
 
 						event_data.Event =  NET_EVENT_WIFI_WPS_RSP;
-						NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
-					}
-					else
-					{
+						NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
+						_net_dbus_clear_pending_call();
+					} else {
 						event_data.Event =  NET_EVENT_OPEN_IND;
-						NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_OPEN_IND\n");
+						NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_IND\n");
 					}
 
 					net_profile_info_t prof_info;
-					if((Error = net_get_profile_info(ProfileName, &prof_info)) != NET_ERR_NONE)
-					{
-						NETWORK_LOG( NETWORK_ERROR, "Error!!! net_get_profile_info() failed [%s]\n",
+					if ((Error = net_get_profile_info(ProfileName, &prof_info)) != NET_ERR_NONE) {
+						NETWORK_LOG(NETWORK_ERROR, "Error!!! net_get_profile_info() failed [%s]\n",
 								_net_print_error(Error));
 						event_data.Datalength = 0;
 						event_data.Data = NULL;
-					}
-					else
-					{
+					} else {
 						event_data.Datalength = sizeof(net_profile_info_t);
 						event_data.Data = &prof_info;
 					}
@@ -602,9 +667,7 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 					snprintf(event_data.ProfileName, NET_PROFILE_NAME_LEN_MAX + 1, "%s", ProfileName);
 					open_connection_rsp_sent = TRUE;
 					_net_client_callback(&event_data);
-				}
-				else
-				{
+				} else {
 					if (strcmp(svc_state, "ready") == 0)
 						__net_handle_state_ind(ProfileName, NET_STATE_TYPE_READY);
 					else
@@ -615,16 +678,13 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 					service_state_table[device_type] = NET_STATE_TYPE_READY;
 				else
 					service_state_table[device_type] = NET_STATE_TYPE_ONLINE;
-			}
-			else if(strcmp(svc_state, "disconnect") == 0)
-			{
+			} else if (strcmp(svc_state, "disconnect") == 0) {
 				svc_name1 = request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].ProfileName;
 				svc_name2 = request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName;
 				svc_name3 = request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName;
 
-				if(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
-				   strcmp(sig_path, svc_name2) == 0)
-				{
+				if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
+				    strstr(sig_path, svc_name2) != NULL) {
 					memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION], 0,
 							sizeof(network_request_table_t));
 
@@ -636,12 +696,11 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 
 					event_data.Datalength = 0;
 					event_data.Data = NULL;
-					NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
+					NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
+					_net_dbus_clear_pending_call();
 					_net_client_callback(&event_data);
-				}
-				else if(request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
-					strcmp(sig_path, svc_name3) == 0)
-				{
+				} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
+						strcmp(sig_path, svc_name3) == 0) {
 					memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
 							sizeof(network_request_table_t));
 
@@ -653,13 +712,12 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 
 					event_data.Datalength = 0;
 					event_data.Data = NULL;
-					NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
+					NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
+					_net_dbus_clear_pending_call();
 					_net_client_callback(&event_data);
-				}
-				else if(request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
-				   strcmp(sig_path, svc_name1) == 0)
-				{
-					memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION], 0, 
+				} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
+						strcmp(sig_path, svc_name1) == 0) {
+					memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION], 0,
 							sizeof(network_request_table_t));
 
 					/** Send Close Resp */
@@ -670,12 +728,10 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 
 					event_data.Datalength = 0;
 					event_data.Data = NULL;
-					NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_CLOSE_RSP\n");
+					NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_RSP\n");
+					_net_dbus_clear_pending_call();
 					_net_client_callback(&event_data);
-
-				}
-				else
-				{
+				} else {
 					/** Send Close Ind */
 					event_data.Error = Error;
 					event_data.Event =  NET_EVENT_CLOSE_IND;
@@ -684,44 +740,30 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 
 					event_data.Datalength = 0;
 					event_data.Data = NULL;
-					NETWORK_LOG( NETWORK_LOW, "Sending NET_EVENT_CLOSE_IND\n");
+					NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_IND\n");
 					_net_client_callback(&event_data);
 				}
 
 				service_state_table[device_type] = NET_STATE_TYPE_DISCONNECT;
-			}
-			else if(strcmp(svc_state, "failure") == 0)
-			{
+			} else if (strcmp(svc_state, "failure") == 0) {
 				__net_handle_svc_failure_ind(sig_path, (char*)svc_error);
 				service_state_table[device_type] = NET_STATE_TYPE_FAILURE;
 				__NETWORK_FUNC_EXIT__;
 				return DBUS_HANDLER_RESULT_HANDLED;
 			}
-		}
-		else if(strcmp(sigvalue, "Nameservers") == 0)
-		{
+		} else if (strcmp(sigvalue, "Nameservers") == 0) {
 			/* We have handled this message, don't pass it on */
 			__NETWORK_FUNC_EXIT__;
 			return DBUS_HANDLER_RESULT_HANDLED;
-		}
-		else if(strcmp(sigvalue, "IPv4") == 0)
-		{
+		} else if (strcmp(sigvalue, "IPv4") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "Ethernet") == 0)
-		{
+		} else if (strcmp(sigvalue, "Ethernet") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "Domains") == 0)
-		{
+		} else if (strcmp(sigvalue, "Domains") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else if(strcmp(sigvalue, "IPv4.Configuration") == 0)
-		{
+		} else if (strcmp(sigvalue, "IPv4.Configuration") == 0) {
 			/** Ignore - compared for future use */
-		}
-		else
-		{
+		} else {
 			/** Ignore - compared for future use */
 		}
 
@@ -730,18 +772,24 @@ __net_signal_filter (DBusConnection* conn, DBusMessage* msg, void* user_data)
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 
-	if (dbus_message_is_signal(msg, CONNMAN_COUNTER_INTERFACE, "Usage"))
-	{
-		NETWORK_LOG( NETWORK_LOW, "Received [COUNTER_USAGE_SIGNAL] signal from modman\n");
-	}
-	else if (dbus_message_is_signal(msg, CONNMAN_COUNTER_INTERFACE, "Release"))
-	{
-		NETWORK_LOG( NETWORK_LOW, "Received [COUNTER_RELEASE_SIGNAL] signal from modman\n");
+	if (dbus_message_is_signal(msg, CONNMAN_COUNTER_INTERFACE, "Usage")) {
+		NETWORK_LOG(NETWORK_LOW, "Received [COUNTER_USAGE_SIGNAL] signal\n");
+	} else if (dbus_message_is_signal(msg, CONNMAN_COUNTER_INTERFACE, "Release")) {
+		NETWORK_LOG(NETWORK_LOW, "Received [COUNTER_RELEASE_SIGNAL] signal\n");
 	}
 
-	NETWORK_LOG( NETWORK_LOW, "Useless signal. Ignored !!!\n");
+	NETWORK_LOG(NETWORK_LOW, "Useless signal. Ignored !!!\n");
 	__NETWORK_FUNC_EXIT__;
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+static void __net_init_dbus_thread()
+{
+	static dbus_bool_t init_required = TRUE;
+	if (init_required) {
+		dbus_g_thread_init();
+		init_required = FALSE;
+	}
 }
 
 /*****************************************************************************
@@ -752,10 +800,58 @@ int _net_deregister_signal(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
+	DBusError err;
+	dbus_error_init(&err);
+
 	if (signal_conn == NULL) {
 		NETWORK_LOG(NETWORK_HIGH, "Already de-registered. Nothing to be done\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_NONE;
+	}
+
+	dbus_bus_remove_match(signal_conn, CONNMAN_MANAGER_SIGNAL_FILTER, &err);
+	dbus_connection_flush(signal_conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Remove Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	dbus_bus_remove_match(signal_conn, CONNMAN_TECHNOLOGY_SIGNAL_FILTER, &err);
+	dbus_connection_flush(signal_conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Remove Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	dbus_bus_remove_match(signal_conn, CONNMAN_SERVICE_SIGNAL_FILTER, &err);
+	dbus_connection_flush(signal_conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Remove Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	dbus_bus_remove_match(signal_conn, CONNMAN_NETWORK_COUNTER_FILTER, &err);
+	dbus_connection_flush(signal_conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Remove Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	dbus_bus_remove_match(signal_conn, NETCONFIG_WIFI_FILTER, &err);
+	dbus_connection_flush(signal_conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Remove Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
 	}
 
 	dbus_connection_remove_filter(signal_conn, __net_signal_filter, NULL);
@@ -763,26 +859,26 @@ int _net_deregister_signal(void)
 	NETWORK_LOG(NETWORK_LOW, "Successfully removed signal filter rules\n");
 
 	/* If DBusPendingCall remains, it should be released */
-	if (_net_dbus_is_pending_call_used() == TRUE)
-	{
-		dbus_pending_call_cancel(_net_dbus_get_pending_call());
-		_net_dbus_set_pending_call(NULL);
-		_net_dbus_set_pending_call_used(FALSE);
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		_net_dbus_clear_pending_call();
 		NETWORK_LOG(NETWORK_HIGH, "DBus pending call successfully removed\n");
 	}
 
 	dbus_connection_unref(signal_conn);
 	signal_conn = NULL;
+
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
 }
 
 int _net_register_signal(void)
 {
+	__NETWORK_FUNC_ENTER__;
+
 	DBusConnection* conn = NULL;
 	DBusError err;
 
-	__NETWORK_FUNC_ENTER__;
+	__net_init_dbus_thread();
 
 	dbus_error_init(&err);
 	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL); 
@@ -802,7 +898,7 @@ int _net_register_signal(void)
 	dbus_bus_add_match(conn, CONNMAN_MANAGER_SIGNAL_FILTER, &err); 
 	dbus_connection_flush(conn);
 	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Match Error (%s)\n", err.message);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Add Match Error (%s)\n", err.message);
 		dbus_error_free(&err);
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
@@ -811,7 +907,7 @@ int _net_register_signal(void)
 	dbus_bus_add_match(conn, CONNMAN_TECHNOLOGY_SIGNAL_FILTER, &err); 
 	dbus_connection_flush(conn);
 	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Match Error (%s)\n", err.message);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Add Match Error (%s)\n", err.message);
 		dbus_error_free(&err);
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
@@ -820,16 +916,25 @@ int _net_register_signal(void)
 	dbus_bus_add_match(conn, CONNMAN_SERVICE_SIGNAL_FILTER, &err);
 	dbus_connection_flush(conn);
 	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Match Error (%s)\n", err.message);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Add Match Error (%s)\n", err.message);
 		dbus_error_free(&err);
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
 
-	dbus_bus_add_match(conn, CONNMAN_NETWORK_COUNTER_FILTER, &err); 
+	dbus_bus_add_match(conn, CONNMAN_NETWORK_COUNTER_FILTER, &err);
 	dbus_connection_flush(conn);
 	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Match Error (%s)\n", err.message);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Add Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	dbus_bus_add_match(conn, NETCONFIG_WIFI_FILTER, &err);
+	dbus_connection_flush(conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Add Match Error (%s)\n", err.message);
 		dbus_error_free(&err);
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
@@ -842,6 +947,7 @@ int _net_register_signal(void)
 	}
 	
 	NETWORK_LOG(NETWORK_LOW, "Successfully set signal filter rules\n");
+
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
 }
@@ -853,7 +959,7 @@ int _net_init_service_state_table(void)
 	net_err_t Error = NET_ERR_NONE;
 	net_cm_network_status_t network_status;
 
-	Error = net_get_network_status(NET_DEVICE_WIFI, &network_status);
+	Error = _net_dbus_get_network_status(NET_DEVICE_WIFI, &network_status);
 	if (Error != NET_ERR_NONE) {
 		__NETWORK_FUNC_EXIT__;
 		return Error;
@@ -862,7 +968,7 @@ int _net_init_service_state_table(void)
 	if (network_status == NET_STATUS_AVAILABLE)
 		service_state_table[NET_DEVICE_WIFI] = NET_STATE_TYPE_READY;
 
-	Error = net_get_network_status(NET_DEVICE_CELLULAR, &network_status);
+	Error = _net_dbus_get_network_status(NET_DEVICE_CELLULAR, &network_status);
 	if (Error != NET_ERR_NONE) {
 		__NETWORK_FUNC_EXIT__;
 		return Error;

@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -53,31 +56,43 @@
 
 /** ConnMan Daemon Management interface */
 
-#define CONNMAN_SERVICE                 "net.connman" 
+#define CONNMAN_SERVICE                 "net.connman"
 
-#define CONNMAN_MANAGER_INTERFACE       CONNMAN_SERVICE ".Manager" 
-#define CONNMAN_TECHNOLOGY_INTERFACE    CONNMAN_SERVICE ".Technology"
-#define CONNMAN_SERVICE_INTERFACE       CONNMAN_SERVICE ".Service" 
-#define CONNMAN_PROFILE_INTERFACE       CONNMAN_SERVICE ".Profile" 
-#define CONNMAN_COUNTER_INTERFACE       CONNMAN_SERVICE ".Counter" 
-#define CONNMAN_ERROR_INTERFACE		CONNMAN_SERVICE ".Error"
+#define CONNMAN_MANAGER_INTERFACE		CONNMAN_SERVICE ".Manager"
+#define CONNMAN_TECHNOLOGY_INTERFACE	CONNMAN_SERVICE ".Technology"
+#define CONNMAN_SERVICE_INTERFACE		CONNMAN_SERVICE ".Service"
+#define CONNMAN_PROFILE_INTERFACE		CONNMAN_SERVICE ".Profile"
+#define CONNMAN_COUNTER_INTERFACE		CONNMAN_SERVICE ".Counter"
+#define CONNMAN_ERROR_INTERFACE			CONNMAN_SERVICE ".Error"
 
-
-#define CONNMAN_MANAGER_PATH            "/" 
-#define CONNMAN_PROFILE_PATH            "/profile/default" 
+#define CONNMAN_MANAGER_PATH			"/"
+#define CONNMAN_PATH					"/net/connman"
 #define CONNMAN_TECHNOLOGY_PATH			"/net/connman/technology"
 
 /** Network related Daemon interfaces */
 
 #define NETCONFIG_SERVICE				"net.netconfig"
 #define NETCONFIG_WIFI_INTERFACE		NETCONFIG_SERVICE ".wifi"
+#define NETCONFIG_STATISTICS_INTERFACE		NETCONFIG_SERVICE ".network_statistics"
+
 #define NETCONFIG_WIFI_PATH				"/net/netconfig/wifi"
+#define NETCONFIG_STATISTICS_PATH			"/net/netconfig/network_statistics"
 
 #define TELEPHONY_SERVCE				"com.tcore.ps"
 #define TELEPHONY_MASTER_INTERFACE		TELEPHONY_SERVCE ".master"
 #define TELEPHONY_NETWORK_INTERFACE		TELEPHONY_SERVCE ".network"
 #define TELEPHONY_PROFILE_INTERFACE		TELEPHONY_SERVCE ".context"
 #define TELEPHONY_MASTER_PATH			"/"
+
+/** Network related Daemon Signal Filters */
+
+#define NETCONFIG_WIFI_FILTER			"type='signal',interface='net.netconfig.wifi'"
+
+/** Network related Daemon Signals */
+
+#define NETCONFIG_SIGNAL_POWERON_COMPLETED	"PowerOnCompleted"
+#define NETCONFIG_SIGNAL_POWEROFF_COMPLETED	"PowerOffCompleted"
+#define NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE	"SpecificScanCompleted"
 
 /** ConnMan Daemon Signal Filters */
 
@@ -87,11 +102,22 @@
 #define CONNMAN_PROFILE_SIGNAL_FILTER		"type='signal',interface='net.connman.Profile'"
 #define CONNMAN_NETWORK_COUNTER_FILTER		"type='signal',interface='net.connman.Counter'"
 
-/** ConnMan Daemon SignalS */
+/** ConnMan Daemon Signals */
 
 #define CONNMAN_SIGNAL_PROPERTY_CHANGED		"PropertyChanged"
 #define CONNMAN_SIGNAL_STATE_CHANGED		"StateChanged"
 #define CONNMAN_SIGNAL_SCAN_COMPLETED		"ScanCompleted"
+
+/** ConnMan technology and profile prefixes for ConnMan 0.78 */
+
+#define CONNMAN_CELLULAR_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/cellular"
+#define CONNMAN_WIFI_TECHNOLOGY_PREFIX			CONNMAN_PATH "/technology/wifi"
+#define CONNMAN_ETHERNET_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/ethernet"
+
+#define CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/cellular_"
+#define CONNMAN_WIFI_SERVICE_PROFILE_PREFIX		CONNMAN_PATH "/service/wifi_"
+#define CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/ethernet_"
+
 
 #ifdef VITA_FEATURE
 #include <dlog.h>
@@ -119,13 +145,6 @@
 
 #endif /** VITA_FEATURE */
 
-#define NETWORK_CALLBACK(x,y) \
-	if (NetworkInfo.ClientEventCb != NULL) { \
-		NetworkInfo.ClientEventCb(x, y); \
-	} else { \
-		NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! NetworkInfo.ClientEventCb is NULL\n"); \
-	}
-
 
 /*****************************************************************************
  * 	Global Enums
@@ -138,6 +157,7 @@ typedef enum
 	NETWORK_REQUEST_TYPE_CLOSE_CONNECTION,
 	NETWORK_REQUEST_TYPE_WIFI_POWER,
 	NETWORK_REQUEST_TYPE_ENROLL_WPS,
+	NETWORK_REQUEST_TYPE_SPECIFIC_SCAN,
 	NETWORK_REQUEST_TYPE_MAX
 } network_async_request_type_t;
 
@@ -162,6 +182,11 @@ typedef struct {
 	net_wifi_state_t wifi_state;
 	net_event_cb_t ClientEventCb;
 	void* user_data;
+	net_event_cb_t ClientEventCb_conn;
+	void* user_data_conn;
+	net_event_cb_t ClientEventCb_wifi;
+	void* user_data_wifi;
+	int ref_count;
 } network_info_t;
 
 typedef struct
@@ -197,6 +222,7 @@ typedef struct
  *****************************************************************************/
 net_device_t _net_get_tech_type_from_path(const char *profile_name);
 char* _net_get_string(DBusMessage* msg);
+unsigned long long _net_get_uint64(DBusMessage* msg);
 char* _net_get_object(DBusMessage* msg);
 int _net_get_boolean(DBusMessage* msg);
 int _net_get_path(DBusMessage *msg, char *profile_name);
@@ -205,12 +231,12 @@ char* _net_print_error(net_err_t error);
 int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_info);
 int _net_check_profile_name(const char* ProfileName);
 int _net_get_profile_list(net_device_t device_type, net_profile_info_t** profile_info, int* profile_count);
-int _net_mutex_init();
-void _net_mutex_destroy();
+int _net_mutex_init(void);
+void _net_mutex_destroy(void);
 void _net_client_callback(net_event_info_t *event_data);
 int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t *profile_name);
 int _net_get_default_profile_info(net_profile_info_t *profile_info);
-net_wifi_state_t _net_get_wifi_state();
-void _net_clear_request_table();
+net_wifi_state_t _net_get_wifi_state(void);
+void _net_clear_request_table(void);
 
 #endif /** __NETWORK_INTERNAL_H_ */

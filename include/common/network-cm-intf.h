@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -126,6 +129,12 @@ typedef enum
 	/** Wi-Fi interface Power On/Off Response Event */
 	NET_EVENT_WIFI_POWER_RSP,
 
+	/** Specific Scan Response Event */
+	NET_EVENT_SPECIFIC_SCAN_RSP,
+
+	/** Wi-Fi interface Scan Indication Event(Specific scan) */
+	NET_EVENT_SPECIFIC_SCAN_IND,
+
 	/** Wi-Fi interface Power On/Off Indication Event */
 	NET_EVENT_WIFI_POWER_IND,
 
@@ -156,6 +165,17 @@ typedef enum
 	/** Active */
 	NET_STATUS_AVAILABLE,
 } net_cm_network_status_t;
+
+/**
+ * @brief Enumerations of statistics type.
+ */
+typedef enum
+{
+	NET_STATISTICS_TYPE_LAST_RECEIVED_DATA = 0,  /**< Last received data */
+	NET_STATISTICS_TYPE_LAST_SENT_DATA = 1,  /**< Last sent data */
+	NET_STATISTICS_TYPE_TOTAL_RECEIVED_DATA = 2,  /**< Total received data */
+	NET_STATISTICS_TYPE_TOTAL_SENT_DATA = 3,  /**< Total sent data */
+} net_statistics_type_e;
 
 /**
  * \}
@@ -924,6 +944,79 @@ int net_get_network_status(net_device_t device_type, net_cm_network_status_t* ne
  *
 ******************************************************************************************/
 int net_is_connected(void);
+
+/**
+ * \}
+ */
+
+/**
+ * \addtogroup  pdp_specific
+ * \{
+*/
+
+/**
+ * \}
+ */
+
+/**
+ * \addtogroup  common_extended
+ * \{
+*/
+
+/**
+ * \brief 	This API is only for Connection/Wi-Fi CAPI. Don't use this.
+ *
+ * \param[in] event_cb     Application Callback function pointer to receive ConnMan events
+ * \param[in] client_type  NET_DEVICE_DEFAULT : Connection CAPI, NET_DEVICE_WIFI : Wi-Fi CAPI
+ * \param[in] user_data    user data
+ *
+ ******************************************************************************************/
+int net_register_client_ext(net_event_cb_t event_cb, net_device_t client_type, void *user_data);
+
+/**
+ * \brief 	This API is only for Connection/Wi-Fi CAPI. Don't use this.
+ *
+ * \param[in] client_type  NET_DEVICE_DEFAULT : Connection CAPI, NET_DEVICE_WIFI : Wi-Fi CAPI
+ *
+ ******************************************************************************************/
+int net_deregister_client_ext(net_device_t client_type);
+
+/**
+ * \brief 	This API is only for Connection/Wi-Fi CAPI. Don't use this.
+ *
+ * \param[in]  service_type specific service type
+ * \param[out] profile_info The information of requested network profile.
+ *
+ ******************************************************************************************/
+int net_open_connection_with_preference_ext(net_service_type_t service_type, net_profile_name_t *prof_name);
+
+/**
+ * \}
+ */
+
+/**
+ * \addtogroup  common_info
+ * \{
+*/
+
+/**
+ * \brief 	Gets the statistics information.
+ *
+ * \param[in]  device_type     specific device type(cellular/wifi).
+ * \param[in]  statistics_type specific statistics type.
+ * \param[out] statistics_type statistics value requested.
+ *
+ ******************************************************************************************/
+int net_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size);
+
+/**
+ * \brief 	Resets the statistics information.
+ *
+ * \param[in]  device_type     specific device type(cellular/wifi).
+ * \param[in]  statistics_type specific statistics type.
+ *
+ ******************************************************************************************/
+int net_set_statistics(net_device_t device_type, net_statistics_type_e statistics_type);
 
 /**
  * \}

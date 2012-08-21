@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -59,11 +62,14 @@ static int __net_extract_wifi_services(DBusMessage* message,
 		DBusMessageIter* dict, network_services_list_t* service_info);
 static int __net_extract_mobile_services(DBusMessage* message, DBusMessageIter* dict, 
 		network_services_list_t* service_info, net_service_type_t network_type);
+static int __net_extract_ethernet_services(DBusMessage* message,
+		DBusMessageIter* dict, network_services_list_t* service_info);
 static int __net_extract_services(DBusMessage *message, net_device_t device_type,
 		net_profile_info_t** profile_info, int* profile_count);
 static int __net_extract_ip(DBusMessageIter *iter, net_addr_t *ipAddr);
 static int __net_extract_common_info(const char *key, DBusMessageIter *variant, net_profile_info_t* ProfInfo);
 static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
+static int __net_extract_ethernet_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
 static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_name_t* PdpProfName);
 static int __net_telephony_modify_profile(const char* ProfileName,
 		net_profile_info_t* ProfInfo, net_profile_info_t* exProfInfo);
@@ -101,7 +107,9 @@ static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_inf
 	net_dev_info_t* net_info = NULL;
 	
 	if (ProfInfo == NULL ||
-		(profile_type != NET_DEVICE_WIFI && profile_type != NET_DEVICE_CELLULAR)) {
+	   (profile_type != NET_DEVICE_WIFI &&
+	    profile_type != NET_DEVICE_CELLULAR &&
+	    profile_type != NET_DEVICE_ETHERNET)) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid Parameter\n");
 		return NET_ERR_INVALID_PARAM;
 	}
@@ -148,6 +156,8 @@ static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_inf
 		ProfInfo->ProfileInfo.Pdp.SetupRequired = FALSE;
 
 		net_info = &(ProfInfo->ProfileInfo.Pdp.net_info);
+	} else if(profile_type == NET_DEVICE_ETHERNET) {
+		net_info = &(ProfInfo->ProfileInfo.Ethernet.net_info);
 	}
 	
 	memset(net_info->ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX+1);
@@ -217,18 +227,11 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	char request[] = TELEPHONY_PROFILE_INTERFACE ".GetProfile";
-	char* param_array[] = {NULL, NULL, NULL};
-	
-	param_array[0] = ProfileName->ProfileName;
-	param_array[1] = request;
+	result = _net_invoke_dbus_method(TELEPHONY_SERVCE, ProfileName->ProfileName,
+			TELEPHONY_PROFILE_INTERFACE, "GetProfile", NULL, &Error);
 
-	NETWORK_LOG(NETWORK_HIGH,  "Requesting [%s %s]\n",
-		param_array[0],
-		param_array[1]);
-	
-	if ((Error = _net_send_dbus_request(TELEPHONY_SERVCE, param_array, &result)) != NET_ERR_NONE) {
-		NETWORK_LOG(NETWORK_ERROR,  "Error!!! _net_send_dbus_request failed\n");
+	if (result == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! _net_invoke_dbus_method failed\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -333,28 +336,18 @@ static int __net_telephony_get_profile_list(net_profile_name_t** ProfileName, in
 	DBusMessageIter iter, array;
 	int count = 0;
 
-	char request[] = TELEPHONY_MASTER_INTERFACE ".GetProfileList";
-	char path[] = TELEPHONY_MASTER_PATH;
-	char* param_array[] = {NULL, NULL, NULL};
-	
-	param_array[0] = path;
-	param_array[1] = request;
+	result = _net_invoke_dbus_method(TELEPHONY_SERVCE, TELEPHONY_MASTER_PATH,
+			TELEPHONY_MASTER_INTERFACE, "GetProfileList", NULL, &Error);
 
-	NETWORK_LOG(NETWORK_HIGH,  "Requesting [%s %s]\n",
-		param_array[0],
-		param_array[1]);
-	
-	Error = _net_send_dbus_request(TELEPHONY_SERVCE, param_array, &result);
-
-	if (Error != NET_ERR_NONE) {
-		NETWORK_LOG(NETWORK_ERROR,  "Error!!! _net_send_dbus_request failed\n");
+	if (result == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! _net_invoke_dbus_method failed\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
 
 	dbus_message_iter_init(result, &iter);
 	if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
-		NETWORK_LOG(NETWORK_HIGH,  "There is no profiles\n");
+		NETWORK_LOG(NETWORK_HIGH, "There is no profiles\n");
 		*ProfileCount = 0;
 		dbus_message_unref(result);
 		__NETWORK_FUNC_EXIT__;
@@ -475,17 +468,15 @@ static int __net_extract_wifi_services(DBusMessage* message,
 	int count = 0;
 	int i = 0;
 
-	__NETWORK_FUNC_ENTER__;	
+	__NETWORK_FUNC_ENTER__;
 
-	if(message == NULL || dict == NULL || service_info == NULL)
-	{
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid prarameter \n");
+	if (message == NULL || dict == NULL || service_info == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid parameter \n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
-	
-	while(dbus_message_iter_get_arg_type(dict) == DBUS_TYPE_DICT_ENTRY)
-	{
+
+	while (dbus_message_iter_get_arg_type(dict) == DBUS_TYPE_DICT_ENTRY) {
 		DBusMessageIter keyValue, array, value;
 		const char *key = NULL;
 		const char *objPath = NULL;
@@ -493,41 +484,38 @@ static int __net_extract_wifi_services(DBusMessage* message,
 		dbus_message_iter_recurse(dict, &keyValue);
 		dbus_message_iter_get_basic(&keyValue, &key);
 
-		if(strcmp(key, "Services") == 0)
-		{
+		if (strcmp(key, "Services") == 0) {
 			dbus_message_iter_next(&keyValue);
 			dbus_message_iter_recurse(&keyValue, &array);
-			if(dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_ARRAY)
-			{
-				NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get service list\n");
-				__NETWORK_FUNC_EXIT__;
-				return NET_ERR_NO_SERVICE;
-			}
-				
-			dbus_message_iter_recurse(&array, &value);
-			if(dbus_message_iter_get_arg_type(&value) != DBUS_TYPE_OBJECT_PATH)
-			{
+
+			if (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_ARRAY) {
 				NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get service list\n");
 				__NETWORK_FUNC_EXIT__;
 				return NET_ERR_NO_SERVICE;
 			}
 
-			while(dbus_message_iter_get_arg_type(&value) == DBUS_TYPE_OBJECT_PATH)
-			{
+			dbus_message_iter_recurse(&array, &value);
+
+			if (dbus_message_iter_get_arg_type(&value) != DBUS_TYPE_OBJECT_PATH) {
+				NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get service list\n");
+				__NETWORK_FUNC_EXIT__;
+				return NET_ERR_NO_SERVICE;
+			}
+
+			while (dbus_message_iter_get_arg_type(&value) == DBUS_TYPE_OBJECT_PATH) {
 				dbus_message_iter_get_basic(&value, &objPath);
 
-				if(strstr(objPath, "wifi_") != NULL)
-				{
+				if (g_str_has_prefix(objPath, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE) {
 					service_info->ProfileName[count] = (char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
-					if(service_info->ProfileName[count] == NULL)
-					{
+
+					if (service_info->ProfileName[count] == NULL) {
 						NETWORK_LOG(NETWORK_EXCEPTION,
 								"Error!!! Failed to allocate memory\n");
 
-						for(i = 0;i < count;i++)
+						for (i = 0; i < count; i++)
 							NET_MEMFREE(service_info->ProfileName[i]);
-						
-						__NETWORK_FUNC_EXIT__;	
+
+						__NETWORK_FUNC_EXIT__;
 						return NET_ERR_UNKNOWN;
 					}
 
@@ -541,10 +529,10 @@ static int __net_extract_wifi_services(DBusMessage* message,
 
 			service_info->num_of_services = count;
 			return NET_ERR_NONE;
-		}				
+		}
 
 		dbus_message_iter_next(dict);
-	}		
+	}
 
 	__NETWORK_FUNC_EXIT__;
 
@@ -564,7 +552,7 @@ static int __net_extract_mobile_services(DBusMessage* message, DBusMessageIter* 
 	__NETWORK_FUNC_ENTER__;	
 	
 	if (message == NULL || dict == NULL || service_info == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid prarameter \n");
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid parameter \n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
@@ -599,7 +587,7 @@ static int __net_extract_mobile_services(DBusMessage* message, DBusMessageIter* 
 			while (dbus_message_iter_get_arg_type(&value) == DBUS_TYPE_OBJECT_PATH) {
 				dbus_message_iter_get_basic(&value, &objPath);
 
-				if (strstr(objPath, "cellular_") != NULL) {
+				if (g_str_has_prefix(objPath, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
 					found = FALSE;
 
 					suffix = strrchr(objPath, '_');
@@ -619,7 +607,7 @@ static int __net_extract_mobile_services(DBusMessage* message, DBusMessageIter* 
 							NETWORK_LOG(NETWORK_EXCEPTION,
 									"Error!!! Failed to allocate memory\n");
 
-							for (i = 0;i < count;i++)
+							for (i = 0; i < count; i++)
 								NET_MEMFREE(service_info->ProfileName[i]);
 							
 							__NETWORK_FUNC_EXIT__;	
@@ -638,6 +626,83 @@ static int __net_extract_mobile_services(DBusMessage* message, DBusMessageIter* 
 				dbus_message_iter_next(&value);
 			}
 			service_info->num_of_services = count;
+		}
+
+		dbus_message_iter_next(dict);
+	}
+
+	__NETWORK_FUNC_EXIT__;
+
+	return NET_ERR_NONE;
+}
+
+static int __net_extract_ethernet_services(DBusMessage* message,
+		DBusMessageIter* dict, network_services_list_t* service_info)
+{
+	int count = 0;
+	int i = 0;
+
+	__NETWORK_FUNC_ENTER__;
+
+	if (message == NULL || dict == NULL || service_info == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid parameter \n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	while (dbus_message_iter_get_arg_type(dict) == DBUS_TYPE_DICT_ENTRY) {
+		DBusMessageIter keyValue, array, value;
+		const char *key = NULL;
+		const char *objPath = NULL;
+
+		dbus_message_iter_recurse(dict, &keyValue);
+		dbus_message_iter_get_basic(&keyValue, &key);
+
+		if (strcmp(key, "Services") == 0) {
+			dbus_message_iter_next(&keyValue);
+			dbus_message_iter_recurse(&keyValue, &array);
+
+			if (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_ARRAY) {
+				NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get service list\n");
+				__NETWORK_FUNC_EXIT__;
+				return NET_ERR_NO_SERVICE;
+			}
+
+			dbus_message_iter_recurse(&array, &value);
+
+			if (dbus_message_iter_get_arg_type(&value) != DBUS_TYPE_OBJECT_PATH) {
+				NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get service list\n");
+				__NETWORK_FUNC_EXIT__;
+				return NET_ERR_NO_SERVICE;
+			}
+
+			while (dbus_message_iter_get_arg_type(&value) == DBUS_TYPE_OBJECT_PATH) {
+				dbus_message_iter_get_basic(&value, &objPath);
+
+				if (g_str_has_prefix(objPath, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE) {
+					service_info->ProfileName[count] = (char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
+
+					if (service_info->ProfileName[count] == NULL) {
+						NETWORK_LOG(NETWORK_EXCEPTION,
+								"Error!!! Failed to allocate memory\n");
+
+						for(i = 0; i < count; i++)
+							NET_MEMFREE(service_info->ProfileName[i]);
+
+						__NETWORK_FUNC_EXIT__;
+						return NET_ERR_UNKNOWN;
+					}
+
+					g_strlcpy(service_info->ProfileName[count], objPath, NET_PROFILE_NAME_LEN_MAX);
+
+					count++;
+				}
+
+				dbus_message_iter_next(&value);
+			}
+
+			service_info->num_of_services = count;
+			return NET_ERR_NONE;
 		}
 
 		dbus_message_iter_next(dict);
@@ -673,6 +738,9 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 		break;
 	case NET_DEVICE_CELLULAR :
 		Error = __net_extract_mobile_services(message, &dict, &service_info, NET_SERVICE_UNKNOWN);
+		break;
+	case NET_DEVICE_ETHERNET :
+		Error = __net_extract_ethernet_services(message, &dict, &service_info);
 		break;
 	default :
 		__NETWORK_FUNC_EXIT__;
@@ -790,6 +858,8 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		net_info = &(ProfInfo->ProfileInfo.Pdp.net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_WIFI) {
 		net_info = &(ProfInfo->ProfileInfo.Wlan.net_info);
+	} else if (ProfInfo->profile_type == NET_DEVICE_ETHERNET) {
+		net_info = &(ProfInfo->ProfileInfo.Ethernet.net_info);
 	} else {
 		NETWORK_LOG(NETWORK_ERROR,
 				"Error!!! Invalid Profile type. [%d]\n", ProfInfo->profile_type);
@@ -1069,6 +1139,44 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 	return Error;
 }
 
+static wlan_eap_type_t __convert_eap_type_from_string(const char *eap_type)
+{
+	if (eap_type == NULL)
+		return WLAN_SEC_EAP_TYPE_PEAP;
+	else if (g_str_equal(eap_type, "peap") == TRUE)
+		return WLAN_SEC_EAP_TYPE_PEAP;
+	else if (g_str_equal(eap_type, "tls") == TRUE)
+		return WLAN_SEC_EAP_TYPE_TLS;
+	else if (g_str_equal(eap_type, "ttls") == TRUE)
+		return WLAN_SEC_EAP_TYPE_TTLS;
+	else if (g_str_equal(eap_type, "sim") == TRUE)
+		return WLAN_SEC_EAP_TYPE_SIM;
+	else if (g_str_equal(eap_type, "aka") == TRUE)
+		return WLAN_SEC_EAP_TYPE_AKA;
+	else
+		return WLAN_SEC_EAP_TYPE_PEAP;
+}
+
+static wlan_eap_auth_type_t __convert_eap_auth_from_string(const char *eap_auth)
+{
+	if (eap_auth == NULL)
+		return WLAN_SEC_EAP_AUTH_NONE;
+	else if (g_str_equal(eap_auth, "NONE") == TRUE)
+		return WLAN_SEC_EAP_AUTH_NONE;
+	else if (g_str_equal(eap_auth, "PAP") == TRUE)
+		return WLAN_SEC_EAP_AUTH_PAP;
+	else if (g_str_equal(eap_auth, "MSCHAP") == TRUE)
+		return WLAN_SEC_EAP_AUTH_MSCHAP;
+	else if (g_str_equal(eap_auth, "MSCHAPV2") == TRUE)
+		return WLAN_SEC_EAP_AUTH_MSCHAPV2;
+	else if (g_str_equal(eap_auth, "GTC") == TRUE)
+		return WLAN_SEC_EAP_AUTH_GTC;
+	else if (g_str_equal(eap_auth, "MD5") == TRUE)
+		return WLAN_SEC_EAP_AUTH_MD5;
+	else
+		return WLAN_SEC_EAP_AUTH_NONE;
+}
+
 static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* ProfInfo)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -1190,6 +1298,62 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 
 			Wlan->frequency = (unsigned int)frequency;
 
+		} else if (g_str_equal(key, "EAP") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				Wlan->security_info.authentication.eap.eap_type =
+						__convert_eap_type_from_string(value);
+
+		} else if (g_str_equal(key, "Phase2") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				Wlan->security_info.authentication.eap.eap_auth =
+						__convert_eap_auth_from_string(value);
+
+		} else if (g_str_equal(key, "Identity") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				g_strlcpy(Wlan->security_info.authentication.eap.username,
+						value, NETPM_WLAN_USERNAME_LEN+1);
+
+		} else if (g_str_equal(key, "Password") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				g_strlcpy(Wlan->security_info.authentication.eap.password,
+						value, NETPM_WLAN_PASSWORD_LEN+1);
+
+		} else if (g_str_equal(key, "CACertFile") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				g_strlcpy(Wlan->security_info.authentication.eap.ca_cert_filename,
+						value, NETPM_WLAN_CA_CERT_FILENAME_LEN+1);
+
+		} else if (g_str_equal(key, "ClientCertFile") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				g_strlcpy(Wlan->security_info.authentication.eap.client_cert_filename,
+						value, NETPM_WLAN_CLIENT_CERT_FILENAME_LEN+1);
+
+		} else if (g_str_equal(key, "PrivateKeyFile") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				g_strlcpy(Wlan->security_info.authentication.eap.private_key_filename,
+						value, NETPM_WLAN_PRIVATE_KEY_FILENAME_LEN+1);
+
+		} else if (g_str_equal(key, "PrivateKeyPassphrase") == TRUE) {
+			dbus_message_iter_get_basic(&variant, &value);
+
+			if (value != NULL)
+				g_strlcpy(Wlan->security_info.authentication.eap.private_key_passwd,
+						value, NETPM_WLAN_PRIVATE_KEY_PASSWD_LEN+1);
+
 		} else {
 			__net_extract_common_info(key, &variant, ProfInfo);
 		}
@@ -1206,7 +1370,7 @@ static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t*
 {
 	net_err_t Error = NET_ERR_NONE;
 
-	__NETWORK_FUNC_ENTER__;	
+	__NETWORK_FUNC_ENTER__;
 
 	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_DICT_ENTRY) {
 		DBusMessageIter entry, variant;
@@ -1303,6 +1467,32 @@ static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t*
 	return Error;
 }
 
+static int __net_extract_ethernet_info(DBusMessageIter *array, net_profile_info_t* ProfInfo)
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	__NETWORK_FUNC_ENTER__;
+
+	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_DICT_ENTRY) {
+		DBusMessageIter entry, variant;
+		const char *key = NULL;
+
+		dbus_message_iter_recurse(array, &entry);
+		dbus_message_iter_get_basic(&entry, &key);
+
+		dbus_message_iter_next(&entry);
+		dbus_message_iter_recurse(&entry, &variant);
+
+		__net_extract_common_info(key, &variant, ProfInfo);
+
+		dbus_message_iter_next(array);
+	}
+
+	__NETWORK_FUNC_EXIT__;
+
+	return Error;
+}
+
 static int __net_extract_service_info(const char* ProfileName, DBusMessage *message, net_profile_info_t* ProfInfo)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -1330,6 +1520,8 @@ static int __net_extract_service_info(const char* ProfileName, DBusMessage *mess
 				profileType = NET_DEVICE_WIFI;
 			else if (strcmp(temp, "cellular") == 0)
 				profileType = NET_DEVICE_CELLULAR;
+			else if (strcmp(temp, "ethernet") == 0)
+				profileType = NET_DEVICE_ETHERNET;
 
 			break;
 		}
@@ -1367,6 +1559,19 @@ static int __net_extract_service_info(const char* ProfileName, DBusMessage *mess
 				ProfileName, NET_PROFILE_NAME_LEN_MAX);
 		
 		Error = __net_extract_mobile_info(&array, ProfInfo);
+	} else if (profileType == NET_DEVICE_ETHERNET) {
+		if ((Error = __net_pm_init_profile_info(NET_DEVICE_ETHERNET, ProfInfo)) != NET_ERR_NONE) {
+			NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't init profile\n");
+			__NETWORK_FUNC_EXIT__;
+			return Error;
+		}
+
+		ProfInfo->profile_type = NET_DEVICE_ETHERNET;
+		g_strlcpy(ProfInfo->ProfileName, ProfileName, NET_PROFILE_NAME_LEN_MAX);
+		g_strlcpy(ProfInfo->ProfileInfo.Ethernet.net_info.ProfileName,
+				ProfileName, NET_PROFILE_NAME_LEN_MAX);
+
+		Error = __net_extract_ethernet_info(&array, ProfInfo);
 	} else {
 		NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Not supported profile type\n");
 		__NETWORK_FUNC_EXIT__;
@@ -1390,66 +1595,48 @@ static int __net_get_profile_info(const char* ProfileName, net_profile_info_t* P
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusConnection* conn = NULL;
 	DBusMessage *message = NULL;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL); 
-	
-	if (conn == NULL) {
-		NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get on system bus\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE, conn, ProfileName,
-			CONNMAN_SERVICE_INTERFACE, "GetProperties", &Error);
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, ProfileName,
+			CONNMAN_SERVICE_INTERFACE, "GetProperties", NULL, &Error);
 
 	if (message == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Error!!! Failed to get service(profile) information\n");
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Failed to get service(profile) information\n");
 		goto done;
 	}
 
 	Error = __net_extract_service_info(ProfileName, message, ProfInfo);
-
-	dbus_message_unref(message); 
+	dbus_message_unref(message);
 done:
-	dbus_connection_unref(conn); 
-
 	__NETWORK_FUNC_EXIT__;
 
 	return Error;
 }
-
 
 static int __net_set_profile_property(char* path, char* key, char* value)
 {
 	__NETWORK_FUNC_ENTER__;
 	
 	net_err_t Error = NET_ERR_NONE;
+	DBusMessage *message = NULL;
 
-	char request[] = CONNMAN_SERVICE_INTERFACE ".SetProperty";
-	char* param_array[] = {NULL, NULL, NULL, NULL, NULL};
-	
-	param_array[0] = path;
-	param_array[1] = request;
-	param_array[2] = key;
-	param_array[3] = value;
+	char* param_array[] = {NULL, NULL, NULL};
 
-	NETWORK_LOG(NETWORK_HIGH,  "Requesting [%s %s %s %s]\n",
-		param_array[0],
-		param_array[1],
-		param_array[2],
-		param_array[3]);
-	
-	Error = _net_send_dbus_request(CONNMAN_SERVICE, param_array, NULL);
-	if (Error != NET_ERR_NONE) {
-		NETWORK_LOG(NETWORK_ERROR,  "Error!!! _net_send_dbus_request failed\n");
+	param_array[0] = key;
+	param_array[1] = value;
+
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, path,
+			CONNMAN_SERVICE_INTERFACE, "SetProperty", param_array, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR,  "Error!!! _net_invoke_dbus_method failed\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
 
+	dbus_message_unref(message);
 	__NETWORK_FUNC_EXIT__;
+
 	return NET_ERR_NONE;
 }
 
@@ -1566,30 +1753,18 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusConnection* conn = NULL;
 	DBusMessage *message = NULL;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-
-	if (conn == NULL) {
-		NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get on system bus\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE, conn, WifiProfName->ProfileName,
-			CONNMAN_SERVICE_INTERFACE, "Remove", &Error);
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, WifiProfName->ProfileName,
+			CONNMAN_SERVICE_INTERFACE, "Remove", NULL, &Error);
 
 	if (message == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Error!!! Failed to Remove service(profile)\n");
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Failed to Remove service(profile)\n");
 		goto done;
 	}
 
 	dbus_message_unref(message);
 done:
-	dbus_connection_unref(conn);
-
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -1650,23 +1825,13 @@ static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusConnection* conn = NULL;
 	DBusMessage *message = NULL;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-
-	if (conn == NULL) {
-		NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Can't get on system bus\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	message = _net_invoke_dbus_method(TELEPHONY_SERVCE, conn, PdpProfName->ProfileName,
-			TELEPHONY_PROFILE_INTERFACE, "RemoveProfile", &Error);
+	message = _net_invoke_dbus_method(TELEPHONY_SERVCE, PdpProfName->ProfileName,
+			TELEPHONY_PROFILE_INTERFACE, "RemoveProfile", NULL, &Error);
 
 	if (message == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Error!!! Failed to Remove service(profile)\n");
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Failed to Remove service(profile)\n");
 		goto done;
 	}
 
@@ -1688,8 +1853,6 @@ static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName)
 	dbus_message_unref(message);
 
 done:
-	dbus_connection_unref(conn);
-
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -1731,6 +1894,8 @@ static int __net_extract_defult_device(DBusMessageIter* dict, net_device_t *devi
 				*device_type = NET_DEVICE_WIFI;
 			else if (strcmp(objPath, "cellular") == 0)
 				*device_type = NET_DEVICE_CELLULAR;
+			else if (strcmp(objPath, "ethernet") == 0)
+				*device_type = NET_DEVICE_ETHERNET;
 
 			break;
 		}
@@ -1756,7 +1921,7 @@ static int __net_extract_defult_profile(DBusMessageIter* iter, net_profile_name_
 	const char *objPath = NULL;
 
 	if (iter == NULL || profile_name == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid prarameter \n");
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid parameter \n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
@@ -1796,16 +1961,16 @@ static int __net_extract_defult_profile(DBusMessageIter* iter, net_profile_name_
 				dbus_message_iter_get_basic(&value, &objPath);
 
 				if (device_type == NET_DEVICE_CELLULAR &&
-				    strstr(objPath, "/cellular_") != NULL) {
-
+						g_str_has_prefix(objPath, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
 					suffix = strrchr(objPath, '_');
 
-					if (strcmp(suffix, net_suffix) == 0) {
+					if (strcmp(suffix, net_suffix) == 0)
 						goto found;
-					}
-
 				} else if (device_type == NET_DEVICE_WIFI &&
-				           strstr(objPath, "/wifi_") != NULL)
+						g_str_has_prefix(objPath, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
+					goto found;
+				else if (device_type == NET_DEVICE_ETHERNET &&
+						g_str_has_prefix(objPath, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
 					goto found;
 				else
 					break;
@@ -1837,7 +2002,7 @@ int _net_check_profile_name(const char* ProfileName)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	const char *profileHeader = "/profile/";
+	const char *profileHeader = CONNMAN_PATH"/service/";
 	int i = 0;
 	int stringLen = 0;
 
@@ -1872,23 +2037,12 @@ int _net_get_profile_list(net_device_t device_type, net_profile_info_t** profile
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusConnection* conn = NULL;
 	DBusMessage *message = NULL;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL); 
-	if (conn == NULL) {
-		NETWORK_LOG(NETWORK_EXCEPTION,
-				"Error!!! Can't get on system bus\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE, conn, CONNMAN_MANAGER_PATH,
-			CONNMAN_MANAGER_INTERFACE, "GetProperties", &Error);
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, CONNMAN_MANAGER_PATH,
+			CONNMAN_MANAGER_INTERFACE, "GetProperties", NULL, &Error);
 	if (message == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Error!!! Failed to get service(profile) list\n");
-		dbus_connection_unref(conn);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Failed to get service(profile) list\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -1896,6 +2050,7 @@ int _net_get_profile_list(net_device_t device_type, net_profile_info_t** profile
 	switch (device_type) {
 	case NET_DEVICE_CELLULAR:
 	case NET_DEVICE_WIFI:
+	case NET_DEVICE_ETHERNET:
 		Error = __net_extract_services(message, device_type, profile_info, profile_count);
 		break;
 	default :
@@ -1904,9 +2059,7 @@ int _net_get_profile_list(net_device_t device_type, net_profile_info_t** profile
 	}
 
 	NETWORK_LOG(NETWORK_HIGH, "Error = %d\n", Error);
-
-	dbus_message_unref(message); 
-	dbus_connection_unref(conn); 
+	dbus_message_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1917,26 +2070,15 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusConnection* conn = NULL;
 	DBusMessage *message = NULL;
 	DBusMessageIter iter, dict;
 	network_services_list_t service_info = {0,};
 	int i = 0;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-	if (conn == NULL) {
-		NETWORK_LOG(NETWORK_EXCEPTION,
-				"Error!!! Can't get on system bus\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE, conn, CONNMAN_MANAGER_PATH,
-			CONNMAN_MANAGER_INTERFACE, "GetProperties", &Error);
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, CONNMAN_MANAGER_PATH,
+			CONNMAN_MANAGER_INTERFACE, "GetProperties", NULL, &Error);
 	if (message == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Error!!! Failed to get service(profile) list\n");
-		dbus_connection_unref(conn);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Failed to get service(profile) list\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -1960,7 +2102,6 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 
 done:
 	dbus_message_unref(message);
-	dbus_connection_unref(conn);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1971,26 +2112,15 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusConnection* conn = NULL;
 	DBusMessage *message = NULL;
 	DBusMessageIter iter;
 	net_profile_name_t profile_name;
 	const char *prof_name = NULL;
 
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-	if (conn == NULL) {
-		NETWORK_LOG(NETWORK_EXCEPTION,
-				"Error!!! Can't get on system bus\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE, conn, CONNMAN_MANAGER_PATH,
-			CONNMAN_MANAGER_INTERFACE, "GetProperties", &Error);
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, CONNMAN_MANAGER_PATH,
+			CONNMAN_MANAGER_INTERFACE, "GetProperties", NULL, &Error);
 	if (message == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Error!!! Failed to get service(profile) list\n");
-		dbus_connection_unref(conn);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Failed to get service(profile) list\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -2006,7 +2136,6 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 
 done:
 	dbus_message_unref(message);
-	dbus_connection_unref(conn);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -2023,7 +2152,7 @@ EXPORT_API int net_add_profile(net_service_type_t network_type, net_profile_info
 	
 	__NETWORK_FUNC_ENTER__;
 	
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2061,7 +2190,7 @@ EXPORT_API int net_delete_profile(const char* profile_name)
 	net_profile_name_t wifi_prof_name;
 	net_profile_info_t prof_info;
 	
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2128,7 +2257,7 @@ EXPORT_API int net_get_profile_info(const char *profile_name, net_profile_info_t
 	
 	net_err_t Error = NET_ERR_NONE;
 	
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2158,7 +2287,7 @@ EXPORT_API int net_modify_profile(const char* profile_name, net_profile_info_t* 
 	net_err_t Error = NET_ERR_NONE;
 	net_profile_info_t exProfInfo;
 	
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2214,13 +2343,15 @@ EXPORT_API int net_get_profile_list(net_device_t device_type, net_profile_info_t
 		return NET_ERR_INVALID_PARAM;
 	}
 	
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
 	}	
 
-	if (device_type != NET_DEVICE_CELLULAR && device_type != NET_DEVICE_WIFI) {
+	if (device_type != NET_DEVICE_CELLULAR &&
+	    device_type != NET_DEVICE_WIFI &&
+	    device_type != NET_DEVICE_ETHERNET) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Not Supported\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_NOT_SUPPORTED;

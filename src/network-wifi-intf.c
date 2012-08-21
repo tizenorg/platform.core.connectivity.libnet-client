@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -129,6 +132,56 @@ static net_wifi_state_t __net_get_wifi_service_state(char *profile_name)
  * 	ConnMan Wi-Fi Client Interface Async API Definition
  *****************************************************************************/
 
+EXPORT_API int net_specific_scan_wifi(const char *ssid)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	if (ssid == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! Find hidden AP request already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_get_wifi_state() != WIFI_ON) {
+		NETWORK_LOG( NETWORK_ERROR, "Error!!! wifi is powered off!\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_OPERATION;
+	}
+
+	request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag = TRUE;
+	Error = _net_dbus_specific_scan_request(ssid);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! _net_dbus_specific_scan_request() failed. Error [%s]\n",
+				_net_print_error(Error));
+
+		memset(&request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN], 0, sizeof(network_request_table_t));
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+
 EXPORT_API int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_info)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -141,10 +194,22 @@ EXPORT_API int net_open_connection_with_wifi_info(const net_wifi_connection_info
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! Connection open request already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
 	}
 
 	if (_net_get_wifi_state() != WIFI_ON) {
@@ -153,10 +218,14 @@ EXPORT_API int net_open_connection_with_wifi_info(const net_wifi_connection_info
 		return NET_ERR_INVALID_OPERATION;
 	}
 
+	request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag = TRUE;
 	Error = _net_open_connection_with_wifi_info(wifi_info);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! net_open_connection_with_wifi_info() failed. Error [%s]\n",
 				_net_print_error(Error));
+
+		memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION], 0, sizeof(network_request_table_t));
+
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -173,7 +242,7 @@ EXPORT_API int net_wifi_power_on(void)
 	net_err_t Error = NET_ERR_NONE;
 	int hotspot_state = 0;
 
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -195,13 +264,19 @@ EXPORT_API int net_wifi_power_on(void)
 	if (request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag == TRUE) {
 		NETWORK_LOG(NETWORK_ASSERT, "Error!! Request already in progress\n");
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_OPERATION;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
 	}
 
 	request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag = TRUE;
 
 	Error = _net_dbus_load_wifi_driver();
-	if (Error != NET_ERR_NONE ) {
+	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_EXCEPTION,
 				"Error!!! Failed to request wifi power on/off. Error [%s]\n",
 				_net_print_error(Error));
@@ -221,7 +296,7 @@ EXPORT_API int net_wifi_power_off(void)
 
 	net_err_t Error = NET_ERR_NONE;
 
-	if(NetworkInfo.ClientEventCb == NULL) {
+	if(g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -236,7 +311,27 @@ EXPORT_API int net_wifi_power_off(void)
 	if (request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag == TRUE) {
 		NETWORK_LOG(NETWORK_ASSERT, "Error!! Request already in progress\n");
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_OPERATION;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE) {
+			_net_dbus_clear_pending_call();
+			memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION],
+							0, sizeof(network_request_table_t));
+		} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE) {
+			_net_dbus_clear_pending_call();
+			memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS],
+							0, sizeof(network_request_table_t));
+		} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE) {
+			_net_dbus_clear_pending_call();
+			memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION],
+							0, sizeof(network_request_table_t));
+		} else {
+			NETWORK_LOG(NETWORK_ASSERT, "Error!! pending call already in progress\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_IN_PROGRESS;
+		}
 	}
 
 	request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag = TRUE;
@@ -264,7 +359,7 @@ EXPORT_API int net_scan_wifi(void)
 
 	net_err_t Error = NET_ERR_NONE;
 
-	if(NetworkInfo.ClientEventCb == NULL) {
+	if(g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -273,7 +368,7 @@ EXPORT_API int net_scan_wifi(void)
 	if(request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
 		NETWORK_LOG(NETWORK_ASSERT, "Error!! Request already in progress\n");
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_OPERATION;
+		return NET_ERR_IN_PROGRESS;
 	}
 
 	if (_net_get_wifi_state() != WIFI_ON) {
@@ -312,10 +407,22 @@ EXPORT_API int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! Request already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ASSERT, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
 	}
 
 	if (_net_get_wifi_state() != WIFI_ON) {
@@ -324,12 +431,6 @@ EXPORT_API int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t
 		return NET_ERR_INVALID_OPERATION;
 	}
 
-	if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE) {
-		NETWORK_LOG(NETWORK_ASSERT, "Error!! Request already in progress\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_OPERATION;
-	}
-	
 	request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag = TRUE;
 	snprintf(request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName,
 			NET_PROFILE_NAME_LEN_MAX+1, "%s", profile_name);
@@ -360,6 +461,7 @@ EXPORT_API int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t
 	return NET_ERR_NONE;
 }
 
+
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Sync Function Definition
  *****************************************************************************/
@@ -371,7 +473,7 @@ EXPORT_API int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_n
 
 	net_wifi_state_t wifi_state;
 
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -408,7 +510,7 @@ EXPORT_API int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t
 
 	net_err_t Error = NET_ERR_NONE;
 		
-	if (NetworkInfo.ClientEventCb == NULL) {
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -436,7 +538,6 @@ EXPORT_API int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t
 	__NETWORK_FUNC_EXIT__;	
 	return NET_ERR_NONE;
 }
-
 
 #ifdef __cplusplus
 }

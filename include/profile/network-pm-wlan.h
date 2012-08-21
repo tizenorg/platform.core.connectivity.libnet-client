@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -172,8 +175,7 @@ typedef enum
  * EAP type
  * @see wlan_eap_info_t
  */
- typedef enum
-{
+typedef enum {
 	/** EAP PEAP type */
 	WLAN_SEC_EAP_TYPE_PEAP = 0x01,
 	/** EAP TLS type */
@@ -191,8 +193,7 @@ typedef enum
  * EAP phase2 authentication type
  * @see wlan_eap_info_t
  */
-typedef enum
-{
+typedef enum {
 	/** EAP phase2 authentication none */
 	WLAN_SEC_EAP_AUTH_NONE = 0x01,
 	/** EAP phase2 authentication PAP */

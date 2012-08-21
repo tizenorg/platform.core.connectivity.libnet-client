@@ -1,20 +1,23 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
-
+ 
 #ifndef __NETWORK_PM_INTF_H__
 #define __NETWORK_PM_INTF_H__
 
@@ -129,6 +132,15 @@ typedef struct
 } net_pdp_profile_info_t;
 
 /**
+ * Profile data structures: Ethernet Interface
+ */
+typedef struct
+{
+	/** network information */
+	net_dev_info_t net_info;
+} net_eth_profile_info_t;
+
+/**
  * Specific profile information related to each technology type
  */
 typedef union
@@ -137,6 +149,8 @@ typedef union
 	net_pdp_profile_info_t       Pdp;
 	/** Wifi Profile Information */
 	net_wifi_profile_info_t      Wlan;
+	/** Wifi Profile Information */
+	net_eth_profile_info_t       Ethernet;
 } net_specific_profile_info_t;
 
 /**

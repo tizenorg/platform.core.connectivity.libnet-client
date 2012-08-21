@@ -1,3 +1,11 @@
+libnet-client (0.1.73-2) unstable; urgency=low
+
+  * Change libnet-client package license to 'Flora'
+  * Git: slp/pkgs/l/libnet-client
+  * Tag: libnet-client_0.1.73-2
+
+ -- Kim sun il <sunil85.kim@samsung.com>  Fri, 10 Aug 2012 14:04:56 +0900
+
 libnet-client (0.1.64) unstable; urgency=low
 
   * Update license

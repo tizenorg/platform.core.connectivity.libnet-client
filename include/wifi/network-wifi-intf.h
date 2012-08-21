@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -75,12 +78,10 @@ typedef enum {
 * This enum indicates background scanning mode.
 */
 typedef enum {
-	/** scan cycle : 300s */
-	WIFI_BGSCAN_MODE_DEFAULT = 0x00,
+	/** scan cycle : 4, 8, 16, ...128s */
+	WIFI_BGSCAN_MODE_EXPONENTIAL = 0x00,
 	/** scan cycle : 10s */
 	WIFI_BGSCAN_MODE_PERIODIC,
-	/** scan cycle : 4, 8, 16, ...128s */
-	WIFI_BGSCAN_MODE_EXPONENTIAL,
 } net_wifi_background_scan_mode_t;
 
 /**
@@ -175,6 +176,23 @@ int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_name_t *prof
  */
 
 int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t scan_mode);
+
+/**
+ * @fn   int net_specific_scan_wifi(const char *ssid)
+ *
+ * This function sends specific scan request to NetConfig daemon,
+ * with ssid - any AP name
+ *
+ * \par Sync (or) Async:
+ * This is Asynchronous API.
+ *
+ * @param[in]    ssid  Wi-Fi AP name
+ * @param[out]   none
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+
+int net_specific_scan_wifi(const char *ssid);
 
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Asynchronous Function Declaration

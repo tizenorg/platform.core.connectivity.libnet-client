@@ -1,20 +1,23 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
-
+ 
 #ifdef HAVE_CONFIG_H 
 #include <config.h> 
 #endif 
@@ -70,6 +73,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 {
 	net_pdp_profile_info_t *pdp_info = &ProfInfo->ProfileInfo.Pdp;
 	net_wifi_profile_info_t *wlan_info = &ProfInfo->ProfileInfo.Wlan;
+	net_eth_profile_info_t *eth_info = &ProfInfo->ProfileInfo.Ethernet;
 
 	int di = 0;
 	unsigned char *ipaddr;
@@ -87,6 +91,11 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 		netmaskaddr = (unsigned char *)&pdp_info->net_info.SubnetMask.Data.Ipv4.s_addr;
 		gwaddr = (unsigned char *)&pdp_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
 		net_info = &(pdp_info->net_info);
+	} else if (ProfInfo->profile_type == NET_DEVICE_ETHERNET) {
+		ipaddr = (unsigned char *)&eth_info->net_info.IpAddr.Data.Ipv4.s_addr;
+		netmaskaddr = (unsigned char *)&eth_info->net_info.SubnetMask.Data.Ipv4.s_addr;
+		gwaddr = (unsigned char *)&eth_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
+		net_info = &(eth_info->net_info);
 	} else {
 		debug_print("Error!!! Invalid profile type\n");
 		return ;
@@ -187,6 +196,8 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 			debug_print("Profile Setup Required = [%d]\n",
 					(int)pdp_info->SetupRequired);
 		}
+	} else if (ProfInfo->profile_type == NET_DEVICE_ETHERNET) {
+		debug_print("Profile Type = [ethernet]\n");
 	}
 
 	if (print_type == PROFILE_FULL_INFO) {
@@ -1142,7 +1153,7 @@ static gpointer network_main_gthread(gpointer data)
 			break;
 
 		case 'd':
-			debug_print("\nInput profile type - 1:wifi, 2:mobile (Enter for skip):\n");
+			debug_print("\nInput profile type - 1:wifi, 2:mobile 3:ethernet(Enter for skip):\n");
 			memset(input_str, 0, 100);
 			read(0, input_str, 100);
 
@@ -1160,6 +1171,8 @@ static gpointer network_main_gthread(gpointer data)
 					deviceType = NET_DEVICE_WIFI;
 				else if (strcmp(input_str, "2") == 0)
 					deviceType = NET_DEVICE_CELLULAR;
+				else if (strcmp(input_str, "3") == 0)
+					deviceType = NET_DEVICE_ETHERNET;
 
 				net_error = net_get_profile_list(deviceType,
 						&profList, &profListCount);
@@ -1309,7 +1322,7 @@ static gpointer network_main_gthread(gpointer data)
 		case 'i': {
 			net_wifi_connection_info_t wifi_info = {{0,}, };
 
-			debug_print("Enter essid: \n");
+			debug_print("Enter essid:\n");
 			scanf("%s", wifi_info.essid);
 
 			wifi_info.wlan_mode = NETPM_WLAN_CONNMODE_INFRA;
@@ -1350,7 +1363,7 @@ static gpointer network_main_gthread(gpointer data)
 			wps_info.type = WIFI_WPS_PBC;
 
 			if (net_wifi_enroll_wps(ProfileName, &wps_info) != NET_ERR_NONE) {
-				debug_print(	"Error!! net_wifi_enroll_wps() failed.\n");
+				debug_print("Error!! net_wifi_enroll_wps() failed.\n");
 				break;
 			}
 
@@ -1363,17 +1376,42 @@ static gpointer network_main_gthread(gpointer data)
 			break;
 
 		case 'l': {
+			int eap_type = 0;
+			int eap_auth = 0;
 			net_wifi_connection_info_t info;
 			memset(&info, 0, sizeof(net_wifi_connection_info_t));
 
 			info.wlan_mode = NETPM_WLAN_CONNMODE_INFRA;
 			info.security_info.sec_mode = WLAN_SEC_MODE_IEEE8021X;
-			memcpy(info.essid,  "test01", strlen("test01")+1);
 
-			info.security_info.authentication.eap.eap_type = WLAN_SEC_EAP_TYPE_TLS;
-			info.security_info.authentication.eap.eap_auth = WLAN_SEC_EAP_AUTH_MSCHAP;
-			memcpy(info.security_info.authentication.eap.username, "test01", strlen("test01")+1);
-			memcpy(info.security_info.authentication.eap.password, "test01", strlen("test01")+1);
+			debug_print("Enter essid:\n");
+			scanf("%s", info.essid);
+
+			debug_print("Enter EAP type PEAP 1, TLS 2, TTLS 3, SIM 4, AKA 5:\n");
+			scanf("%d", &eap_type);
+			info.security_info.authentication.eap.eap_type = (wlan_eap_type_t) eap_type;
+
+			debug_print("Enter EAP auth None 1, PAP 2, MSCHAP 3, MSCHAPV2 4, GTC 5, MD5 6:\n");
+			scanf("%d", &eap_auth);
+			info.security_info.authentication.eap.eap_auth = (wlan_eap_auth_type_t) eap_auth;
+
+			debug_print("Enter user name:\n");
+			scanf("%s", info.security_info.authentication.eap.username);
+
+			debug_print("Enter password:\n");
+			scanf("%s", info.security_info.authentication.eap.password);
+
+			debug_print("Enter CA Cert filename:\n");
+			scanf("%s", info.security_info.authentication.eap.ca_cert_filename);
+
+			debug_print("Enter Client Cert filename:\n");
+			scanf("%s", info.security_info.authentication.eap.client_cert_filename);
+
+			debug_print("Enter private key filename:\n");
+			scanf("%s", info.security_info.authentication.eap.private_key_filename);
+
+			debug_print("Enter private key password:\n");
+			scanf("%s", info.security_info.authentication.eap.private_key_passwd);
 
 			net_open_connection_with_wifi_info(&info);
 		}

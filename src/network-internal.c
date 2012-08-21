@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -51,32 +54,9 @@ extern "C"
  * 	Macros and Typedefs
  *****************************************************************************/
 
-#define EAP_CONFIG_KEY_TYPE			"Type"
-#define EAP_CONFIG_KEY_NAME			"Name"
-#define EAP_CONFIG_KEY_SSID			"SSID"
-#define EAP_CONFIG_KEY_EAP				"EAP"
-#define EAP_CONFIG_KEY_IDENTITY		"Identity"
-#define EAP_CONFIG_KEY_PASSPHRASE	"Passphrase"
-
-#define EAP_CONFIG_KEY_CA_CERT		"CACertFile"
-#define EAP_CONFIG_KEY_CL_CERT		"ClientCertFile"
-#define EAP_CONFIG_KEY_PRV_KEY		"PrivateKeyFile"
-#define EAP_CONFIG_KEY_PRV_KEY_PASS	"PrivateKeyPassphrase"
-#define EAP_CONFIG_KEY_PRV_KEY_PASS_TYPE  "PrivateKeyPassphraseType"
-#define EAP_CONFIG_KEY_PHASE2			"Phase2"
-
-#define EAP_TYPE_LEN_MAX 			8		//tls / ttls / peap
-#define EAP_AUTH_TYPE_LEN_MAX		16
-#define EAP_TYPE_STR_TLS	"tls"
-#define EAP_TYPE_STR_TTLS	"ttls"
-#define EAP_TYPE_STR_PEAP	"peap"
-
-#define CONNMAN_STORAGE_DIR		"/var/lib/connman"
-
 /*****************************************************************************
  * 	Local Functions Declaration
  *****************************************************************************/
-
 
 /*****************************************************************************
  * 	Global Functions
@@ -86,7 +66,6 @@ extern "C"
  * 	Extern Global Variables
  *****************************************************************************/
 extern network_info_t NetworkInfo;
-
 
 /*****************************************************************************
  * 	Global Variables
@@ -104,160 +83,54 @@ struct {
  * 	Local Functions Definition
  *****************************************************************************/
 
-gboolean __convert_eap_type_to_string(gchar eap_type, char * eap_str)
+char *__convert_eap_type_to_string(gchar eap_type)
 {
-	switch(eap_type)
-	{
-		case WLAN_SEC_EAP_TYPE_PEAP:
-			memcpy(eap_str, EAP_TYPE_STR_PEAP, EAP_TYPE_LEN_MAX);
-			return TRUE;
-		case WLAN_SEC_EAP_TYPE_TLS:
-			memcpy(eap_str, EAP_TYPE_STR_TLS, EAP_TYPE_LEN_MAX);
-			return TRUE;
-		case WLAN_SEC_EAP_TYPE_TTLS:
-			memcpy(eap_str, EAP_TYPE_STR_TTLS, EAP_TYPE_LEN_MAX);
-			return TRUE;
-		case WLAN_SEC_EAP_TYPE_SIM:		//Not supported yet
-		case WLAN_SEC_EAP_TYPE_AKA:		//Not supported yet
-		default:
-			return FALSE;
-	}
+	switch (eap_type) {
+	case WLAN_SEC_EAP_TYPE_PEAP:
+		return "peap";
 
-}
+	case WLAN_SEC_EAP_TYPE_TLS:
+		return "tls";
 
-void __convert_eap_auth_to_string(gchar eap_auth, char * auth_str)
-{
-	switch(eap_auth)
-	{
-		case WLAN_SEC_EAP_AUTH_NONE:
-			return ;
-		case WLAN_SEC_EAP_AUTH_PAP:
-			memcpy(auth_str, "PAP", strlen("PAP")+1);
-			break;
-		case WLAN_SEC_EAP_AUTH_MSCHAP:
-			memcpy(auth_str, "MSCHAP", strlen("MSCHAP")+1);
-			break;
-		case WLAN_SEC_EAP_AUTH_MSCHAPV2:
-			memcpy(auth_str, "MSCHAPV2", strlen("MSCHAPV2")+1);
-			break;
-		case WLAN_SEC_EAP_AUTH_GTC:
-			memcpy(auth_str, "GTC", strlen("GTC")+1);
-			break;
-		case WLAN_SEC_EAP_AUTH_MD5:
-			memcpy(auth_str, "MD5", strlen("MD5")+1);
-			break;
-		default:
-			return ;
+	case WLAN_SEC_EAP_TYPE_TTLS:
+		return "ttls";
 
+	case WLAN_SEC_EAP_TYPE_SIM:
+		return "sim";
+
+	case WLAN_SEC_EAP_TYPE_AKA:
+		return "aka";
+
+	default:
+		return NULL;
 	}
 }
 
-static void __update_config(GKeyFile * keyfile, char * group,
-							const wlan_eap_info_t * eap_info, const char * essid,
-							char * eap_type, char * auth_type)
+char *__convert_eap_auth_to_string(gchar eap_auth)
 {
-	g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_TYPE, "wifi");
+	switch (eap_auth) {
+	case WLAN_SEC_EAP_AUTH_NONE:
+		return "NONE";
 
-	NETWORK_LOG(NETWORK_HIGH, "------------eap info------------------");
-	NETWORK_LOG(NETWORK_HIGH, "-essid : %s", essid);
-	NETWORK_LOG(NETWORK_HIGH, "-eap type : %s", eap_type);
-	NETWORK_LOG(NETWORK_HIGH, "-phase2 authentication type : %s", auth_type);
-	NETWORK_LOG(NETWORK_HIGH, "-username : %s", eap_info->username);
-	NETWORK_LOG(NETWORK_HIGH, "-password : %s", eap_info->password);
-	NETWORK_LOG(NETWORK_HIGH, "-ca certi filename : %s", eap_info->ca_cert_filename);
-	NETWORK_LOG(NETWORK_HIGH, "-client certi filename : %s", eap_info->client_cert_filename);
-	NETWORK_LOG(NETWORK_HIGH, "-private key filename : %s", eap_info->private_key_filename);
-	NETWORK_LOG(NETWORK_HIGH, "-private key password : %s", eap_info->private_key_passwd);
-	NETWORK_LOG(NETWORK_HIGH, "--------------------------------------");
+	case WLAN_SEC_EAP_AUTH_PAP:
+		return "PAP";
 
-	if(essid != NULL)
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_NAME, essid);
+	case WLAN_SEC_EAP_AUTH_MSCHAP:
+		return "MSCHAP";
 
-	if(eap_type != NULL)
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_EAP, eap_type);
+	case WLAN_SEC_EAP_AUTH_MSCHAPV2:
+		return "MSCHAPV2";
 
-	if(auth_type != NULL)
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_PHASE2, auth_type);
+	case WLAN_SEC_EAP_AUTH_GTC:
+		return "GTC";
 
-	if((eap_info->username != NULL) && (strlen(eap_info->username) > 0))
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_IDENTITY, eap_info->username);
+	case WLAN_SEC_EAP_AUTH_MD5:
+		return "MD5";
 
-	if((eap_info->password != NULL) && (strlen(eap_info->password) > 0))
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_PASSPHRASE, eap_info->password);
-
-	if((eap_info->ca_cert_filename != NULL) && (strlen(eap_info->ca_cert_filename) > 0))
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_CA_CERT, eap_info->ca_cert_filename);
-
-	if((eap_info->client_cert_filename != NULL) && (strlen(eap_info->client_cert_filename) > 0))
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_CL_CERT, eap_info->client_cert_filename);
-
-	if((eap_info->private_key_filename != NULL) && (strlen(eap_info->private_key_filename) > 0))
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_PRV_KEY, eap_info->private_key_filename);
-
-	if((eap_info->private_key_passwd != NULL) && (strlen(eap_info->private_key_passwd) > 0))
-		g_key_file_set_string(keyfile, group, EAP_CONFIG_KEY_PRV_KEY_PASS, eap_info->private_key_passwd);
+	default:
+		return NULL;
+	}
 }
-
-static net_err_t __net_add_eap_config(const wlan_eap_info_t * eap_info, const char * essid)
-{
-	GKeyFile * keyfile;
-	char group[16];
-	char * eap_str;
-	char * auth_str;
-	gchar *data = NULL;
-	gsize length = 0;
-	net_err_t Error = NET_ERR_NONE;
-
-	__NETWORK_FUNC_ENTER__;
-
-	if((eap_info->eap_type < WLAN_SEC_EAP_TYPE_PEAP) || (eap_info->eap_type > WLAN_SEC_EAP_TYPE_AKA)) {
-		NETWORK_LOG(NETWORK_HIGH, "Invalid EAP type (%d)\n", eap_info->eap_type);
-		return NET_ERR_INVALID_PARAM;
-	}
-
-	eap_str = (char*)calloc(EAP_TYPE_LEN_MAX, sizeof(char));
-	if(eap_str == NULL)
-		return NET_ERR_UNKNOWN;
-
-	if(__convert_eap_type_to_string(eap_info->eap_type, eap_str) == FALSE) {
-		NETWORK_LOG(NETWORK_HIGH, "Invalid EAP type (%d)\n", eap_info->eap_type);
-		NET_MEMFREE(eap_str);
-		return NET_ERR_INVALID_PARAM;
-	}
-
-	auth_str = (char*)calloc(EAP_AUTH_TYPE_LEN_MAX, sizeof(char));
-	if(auth_str == NULL) {
-		NET_MEMFREE(eap_str);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	__convert_eap_auth_to_string(eap_info->eap_auth, auth_str);
-
-	sprintf(group, "service_%s", eap_str);
-	NETWORK_LOG(NETWORK_HIGH, "group (%s)\n", group);
-
-	keyfile = g_key_file_new();
-
-	__update_config(keyfile, group, eap_info, essid, eap_str, auth_str);
-
-	data = g_key_file_to_data(keyfile, &length, NULL);
-
-	NETWORK_LOG(NETWORK_ERROR, "-----length of data : %d\n", length);
-	Error = _net_dbus_provision_service(data, length+1);
-	if(Error != NET_ERR_NONE)
-		NETWORK_LOG(NETWORK_ERROR, "Failed to update EAP info in ConnMan\n");
-
-	NET_MEMFREE(eap_str);
-	NET_MEMFREE(auth_str);
-
-	g_key_file_free(keyfile);
-	g_free(data);
-
-	return Error;
-
-}
-
 
 /*****************************************************************************
  * 	Global Functions Definition
@@ -357,10 +230,12 @@ net_device_t _net_get_tech_type_from_path(const char *profile_name)
 
 	net_device_t device_type = NET_DEVICE_UNKNOWN;
 
-	if (strstr(profile_name, "/wifi_") != NULL)
+	if (g_str_has_prefix(profile_name, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
 		device_type = NET_DEVICE_WIFI;
-	else if (strstr(profile_name, "/cellular_") != NULL)
+	else if (g_str_has_prefix(profile_name, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE)
 		device_type = NET_DEVICE_CELLULAR;
+	else if (g_str_has_prefix(profile_name, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
+		device_type = NET_DEVICE_ETHERNET;
 
 	__NETWORK_FUNC_EXIT__;
 	return device_type;
@@ -382,6 +257,22 @@ char* _net_get_string(DBusMessage* msg)
 	}
 
 	__NETWORK_FUNC_EXIT__;
+	return sigvalue;
+}
+
+unsigned long long _net_get_uint64(DBusMessage* msg)
+{
+	DBusMessageIter args;
+	unsigned long long sigvalue = 0;
+
+	if (!dbus_message_iter_init(msg, &args)) {
+		NETWORK_LOG(NETWORK_LOW, "Message does not have parameters\n");
+	} else if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_UINT64) {
+		NETWORK_LOG(NETWORK_LOW, "Argument is not uint64\n");
+	} else {
+		dbus_message_iter_get_basic(&args, &sigvalue);
+	}
+
 	return sigvalue;
 }
 
@@ -497,9 +388,8 @@ int _net_get_tech_state(DBusMessage* msg, network_get_tech_state_info_t* tech_st
 
 			if (dbus_message_iter_get_arg_type(&sub_iter1) == DBUS_TYPE_STRING) {
 				dbus_message_iter_get_basic(&sub_iter1, &tech_name);
-				if (tech_name != NULL &&
-				    strcmp(tech_name, tech_state->technology) == 0)
-					tech_state->AvailableTechnology = TRUE;
+				if (tech_name != NULL && strcmp(tech_name, tech_state->technology) == 0)
+					tech_state->DefaultTechnology = TRUE;
 			}
 		}
 next_dict:
@@ -511,60 +401,80 @@ done:
 	return Error;
 }
 
-
 /** This function is used only to open Wi-Fi connection with hidden APs */
 int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_info)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	/** path = manager.ConnectService(({ "Type": "wifi", "Mode": "managed",
-	 "SSID": sys.argv[1],
-	 "Security": security,
-	 "Passphrase": passphrase }));
-	*/
-
 	net_err_t Error = NET_ERR_NONE;
-	char type[] = "wifi";
-	char mode[128] = "";
-	char essid[NET_WLAN_ESSID_LEN + 1] = "";
-	char security[128] = "";
-	char passphrase[NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN] = "";
+
 	net_wifi_connect_service_info_t wifi_connection_info;
+	memset(&wifi_connection_info, 0, sizeof(net_wifi_connect_service_info_t));
 
-	snprintf(mode, 128, "%s", (wifi_info->wlan_mode == NETPM_WLAN_CONNMODE_ADHOC)?"adhoc":"managed");
+	wifi_connection_info.type = g_strdup("wifi");
 
-	switch(wifi_info->security_info.sec_mode) {
+	if (wifi_info->wlan_mode == NETPM_WLAN_CONNMODE_ADHOC)
+		wifi_connection_info.mode = g_strdup("adhoc");
+	else
+		wifi_connection_info.mode = g_strdup("managed");
+
+	wifi_connection_info.ssid = g_strdup(wifi_info->essid);
+
+	switch (wifi_info->security_info.sec_mode) {
 	case WLAN_SEC_MODE_NONE:
-		snprintf(security, 128, "%s", "none");
-		snprintf(passphrase, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN, "%s", "");
+		wifi_connection_info.security = g_strdup("none");
 		break;
 
 	case WLAN_SEC_MODE_WEP:
-		snprintf(security, 128, "%s", "wep");
-		snprintf(passphrase, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN, "%s", wifi_info->security_info.authentication.wep.wepKey);
+		wifi_connection_info.security = g_strdup("wep");
+		wifi_connection_info.passphrase = g_strdup(wifi_info->security_info.authentication.wep.wepKey);
 		break;
 
 	/** WPA-PSK(equivalent to WPA-NONE in case of Ad-Hoc) */
 	case WLAN_SEC_MODE_WPA_PSK:
-		snprintf(security, 128, "%s", "psk");
-		snprintf(passphrase, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN, "%s", wifi_info->security_info.authentication.psk.pskKey);
+		wifi_connection_info.security = g_strdup("psk");
+		wifi_connection_info.passphrase = g_strdup(wifi_info->security_info.authentication.psk.pskKey);
 		break;
 
 	/** WPA2-PSK */
 	/** WPA-PSK / WPA2-PSK supported */
 	case WLAN_SEC_MODE_WPA2_PSK:
-		snprintf(security, 128, "%s", "rsn");
-		snprintf(passphrase, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN, "%s", wifi_info->security_info.authentication.psk.pskKey);
+		wifi_connection_info.security = g_strdup("rsn");
+		wifi_connection_info.passphrase = g_strdup(wifi_info->security_info.authentication.psk.pskKey);
 		break;
 
 	case WLAN_SEC_MODE_IEEE8021X:
-		snprintf(security, 128, "%s", "ieee8021x");
-		snprintf(passphrase, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN, "%s", "");
-		Error = __net_add_eap_config(&(wifi_info->security_info.authentication.eap), wifi_info->essid);
-		if(Error != NET_ERR_NONE) {
-			__NETWORK_FUNC_EXIT__;
-			return Error;
-		}
+		wifi_connection_info.security = g_strdup("ieee8021x");
+
+		wifi_connection_info.eap_type = g_strdup(
+				__convert_eap_type_to_string(wifi_info->security_info.authentication.eap.eap_type));
+		wifi_connection_info.eap_auth = g_strdup(
+				__convert_eap_auth_to_string(wifi_info->security_info.authentication.eap.eap_auth));
+
+		if (wifi_info->security_info.authentication.eap.username != NULL)
+			if (strlen(wifi_info->security_info.authentication.eap.username) > 0)
+				wifi_connection_info.identity = g_strdup(wifi_info->security_info.authentication.eap.username);
+
+		if (wifi_info->security_info.authentication.eap.password != NULL)
+			if (strlen(wifi_info->security_info.authentication.eap.password) > 0)
+				wifi_connection_info.password = g_strdup(wifi_info->security_info.authentication.eap.password);
+
+		if (wifi_info->security_info.authentication.eap.ca_cert_filename != NULL)
+			if (strlen(wifi_info->security_info.authentication.eap.ca_cert_filename) > 0)
+				wifi_connection_info.ca_cert_file = g_strdup(wifi_info->security_info.authentication.eap.ca_cert_filename);
+
+		if (wifi_info->security_info.authentication.eap.client_cert_filename != NULL)
+			if (strlen(wifi_info->security_info.authentication.eap.client_cert_filename) > 0)
+				wifi_connection_info.client_cert_file = g_strdup(wifi_info->security_info.authentication.eap.client_cert_filename);
+
+		if (wifi_info->security_info.authentication.eap.private_key_filename != NULL)
+			if (strlen(wifi_info->security_info.authentication.eap.private_key_filename) > 0)
+				wifi_connection_info.private_key_file = g_strdup(wifi_info->security_info.authentication.eap.private_key_filename);
+
+		if (wifi_info->security_info.authentication.eap.private_key_passwd != NULL)
+			if (strlen(wifi_info->security_info.authentication.eap.private_key_passwd) > 0)
+				wifi_connection_info.private_key_password = g_strdup(wifi_info->security_info.authentication.eap.private_key_passwd);
+
 		break;
 
 	default:
@@ -573,34 +483,48 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	snprintf(essid, NET_WLAN_ESSID_LEN + 1, "%s", wifi_info->essid);
-
-	wifi_connection_info.type = type;
-	wifi_connection_info.mode = mode;
-	wifi_connection_info.ssid = essid;
-	wifi_connection_info.security = security;
-	wifi_connection_info.passphrase = passphrase;
-
-	NETWORK_LOG( NETWORK_HIGH,
+	NETWORK_LOG(NETWORK_HIGH,
 			"Parameters: type:\t%s\nmode:\t%s\nssid:\t%s\nsecurity:\t%s\npassphrase:\t%s\n",
 			wifi_connection_info.type, wifi_connection_info.mode,
 			wifi_connection_info.ssid, wifi_connection_info.security,
 			wifi_connection_info.passphrase);
 
-	if( (Error = _net_dbus_connect_service(&wifi_connection_info)) != NET_ERR_NONE ) {
-		NETWORK_LOG(NETWORK_EXCEPTION, "Error!!! Failed to request connect_service. Error [%s]\n",
-				_net_print_error(Error));
-		__NETWORK_FUNC_EXIT__;
-		return Error;
+	if (wifi_info->security_info.sec_mode == WLAN_SEC_MODE_IEEE8021X) {
+		NETWORK_LOG(NETWORK_HIGH,
+				"Wi-Fi Enterprise type:\t%s\nauth:\t%s\nidentity:\t%s\npassword:\t%s\n",
+				wifi_connection_info.eap_type, wifi_connection_info.eap_auth,
+				wifi_connection_info.identity, wifi_connection_info.password);
+		NETWORK_LOG(NETWORK_HIGH,
+				"CA cert:\t%s\nClient cert:\t%s\nPrivate key:\t%s\nPrivate key password:\t%s\n",
+				wifi_connection_info.ca_cert_file, wifi_connection_info.client_cert_file,
+				wifi_connection_info.private_key_file, wifi_connection_info.private_key_password);
 	}
 
-	NETWORK_LOG(NETWORK_HIGH, "Successfully requested to ConnMan\n");
+	if ((Error = _net_dbus_connect_service(&wifi_connection_info)) != NET_ERR_NONE)
+		NETWORK_LOG(NETWORK_EXCEPTION, "Failed to request connect service. Error [%s]\n",
+				_net_print_error(Error));
+	else
+		NETWORK_LOG(NETWORK_HIGH, "Successfully requested to connect service\n");
+
+	g_free(wifi_connection_info.type);
+	g_free(wifi_connection_info.mode);
+	g_free(wifi_connection_info.ssid);
+	g_free(wifi_connection_info.security);
+	g_free(wifi_connection_info.passphrase);
+	g_free(wifi_connection_info.eap_type);
+	g_free(wifi_connection_info.eap_auth);
+	g_free(wifi_connection_info.identity);
+	g_free(wifi_connection_info.password);
+	g_free(wifi_connection_info.ca_cert_file);
+	g_free(wifi_connection_info.client_cert_file);
+	g_free(wifi_connection_info.private_key_file);
+	g_free(wifi_connection_info.private_key_password);
 
 	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
+	return Error;
 }
 
-int _net_mutex_init()
+int _net_mutex_init(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -621,7 +545,7 @@ int _net_mutex_init()
 	return NET_ERR_NONE;
 }
 
-void _net_mutex_destroy()
+void _net_mutex_destroy(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -636,13 +560,20 @@ void _net_client_callback(net_event_info_t *event_data)
 	pthread_mutex_lock(&networkinfo_mutex.callback_mutex);
 	__NETWORK_FUNC_ENTER__;
 
-	NETWORK_CALLBACK(event_data, NetworkInfo.user_data);
+	if (NetworkInfo.ClientEventCb != NULL)
+		NetworkInfo.ClientEventCb(event_data, NetworkInfo.user_data);
+
+	if (NetworkInfo.ClientEventCb_conn != NULL)
+		NetworkInfo.ClientEventCb_conn(event_data, NetworkInfo.user_data_conn);
+
+	if (NetworkInfo.ClientEventCb_wifi != NULL)
+		NetworkInfo.ClientEventCb_wifi(event_data, NetworkInfo.user_data_wifi);
 
 	__NETWORK_FUNC_EXIT__;
 	pthread_mutex_unlock(&networkinfo_mutex.callback_mutex);
 }
 
-net_wifi_state_t _net_get_wifi_state()
+net_wifi_state_t _net_get_wifi_state(void)
 {
 	pthread_mutex_lock(&networkinfo_mutex.wifi_state_mutex);
 	__NETWORK_FUNC_ENTER__;
@@ -672,7 +603,7 @@ state_done:
 	return wifi_state;
 }
 
-void _net_clear_request_table()
+void _net_clear_request_table(void)
 {
 	__NETWORK_FUNC_ENTER__;
 

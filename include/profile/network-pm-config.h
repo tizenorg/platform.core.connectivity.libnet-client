@@ -1,17 +1,20 @@
 /*
- * Copyright 2012  Samsung Electronics Co., Ltd
+ *  Network Client Library
  *
- * Licensed under the Flora License, Version 1.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+* Copyright 2012  Samsung Electronics Co., Ltd
+
+* Licensed under the Flora License, Version 1.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+
+* http://www.tizenopensource.org/license
+
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
  *
- *     http://www.tizenopensource.org/license
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
 
@@ -107,8 +110,11 @@ typedef enum
 	/** Serial USB device */
 	NET_DEVICE_USB = 0x4,
 
+	/** Ethernet device */
+	NET_DEVICE_ETHERNET = 0x5,
+
 	/** Count of device type */
-	NET_DEVICE_MAX = 0x5,
+	NET_DEVICE_MAX = 0x6,
 } net_device_t;
 
 /**
@@ -296,7 +302,7 @@ typedef struct
 	/** Dns Server Address of the connection link */
 	net_addr_t	DnsAddr[NET_DNS_ADDR_MAX];
 	/** No of DNS Address for the connection link */
-	int			DnsCount;
+	int		DnsCount;
 
 	/** Net IP configuration Type */
 	net_ip_config_type_t IpConfigType;
@@ -315,10 +321,10 @@ typedef struct
 	/** Proxy Method type */
 	net_proxy_type_t	ProxyMethod;
 	/** Proxy address */
-	char		ProxyAddr[NET_PROXY_LEN_MAX+1];
+	char			ProxyAddr[NET_PROXY_LEN_MAX+1];
 
 	/** MAC address */
-	char		MacAddr[NET_MAX_MAC_ADDR_LEN+1];
+	char			MacAddr[NET_MAX_MAC_ADDR_LEN+1];
 } net_dev_info_t;
 
 /**

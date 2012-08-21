@@ -1,11 +1,11 @@
 #sbs-git:slp/pkgs/l/libnet-client
 
 Name:       libnet-client
-Summary:    Network (ConnMan) Client library (Shared Library)
-Version:    0.1.64
+Summary:    Network (ConnMan) Client library (Shared library)
+Version:    0.1.73_2
 Release:    1
 Group:      System/Network
-License:    Flora Software License
+License:    Flora License
 Source0:    %{name}-%{version}.tar.gz
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(glib-2.0)
@@ -14,11 +14,11 @@ BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(vconf)
 
 %description
-Network (ConnMan) Client library (Shared Library)
+Network (ConnMan) Client library (Shared library)
 
 %package devel
 Summary:    Network (ConnMan) Client library (Development)
-Group:      Development/Libraries
+Group:      Development/Library
 Requires:   %{name} = %{version}-%{release}
 
 %description devel
