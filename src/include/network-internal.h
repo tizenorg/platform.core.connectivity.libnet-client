@@ -205,6 +205,8 @@ typedef struct
 	/* Connman 1.x */
 	char Connected;
 	char Powered;
+	/* Tethering */
+	char Tethering;
 } network_tech_state_info_t;
 
 /**

@@ -295,7 +295,10 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 
 				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Connected);
 			} else if (g_strcmp0(key, "Tethering") == 0) {
-				/* For further use */
+				if (data)
+					tech_state->Tethering = TRUE;
+				else
+					tech_state->Tethering = FALSE;
 			}
 		}
 	}
@@ -485,7 +488,8 @@ net_wifi_state_t _net_get_wifi_state(void)
 		goto state_done;
 	}
 
-	if (tech_state.Powered == TRUE)
+	if (tech_state.Powered == TRUE
+			&& tech_state.Tethering != TRUE)
 		wifi_state = WIFI_ON;
 	else
 		wifi_state = WIFI_OFF;

@@ -763,10 +763,11 @@ int _net_dbus_get_technology_state(network_tech_state_info_t* tech_state)
 	Error = _net_get_tech_state(message, tech_state);
 
 	NETWORK_LOG(NETWORK_HIGH,
-			"Technology-[%s] Powered-[%d] Connected-[%d]",
+			"Technology-[%s] Powered-[%d] Connected-[%d] Tethering-[%d]",
 			tech_state->technology,
 			tech_state->Powered,
-			tech_state->Connected);
+			tech_state->Connected,
+			tech_state->Tethering);
 
 	g_variant_unref(message);
 
