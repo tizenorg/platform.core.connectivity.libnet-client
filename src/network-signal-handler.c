@@ -242,23 +242,11 @@ static int __net_handle_services_changed_signal(DBusMessage* msg)
 	 * Temporarily sending below events to the UI.
 	 */
 	event_data.Error = NET_ERR_NONE;
-
-	if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
-		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0,
-			sizeof(network_request_table_t));
-
-		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
-		event_data.Datalength = 0;
-		event_data.Data = NULL;
-		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_RSP\n");
-		_net_client_callback(&event_data);
-	} else {
-		event_data.Event = NET_EVENT_WIFI_SCAN_IND;
-		event_data.Datalength = 0;
-		event_data.Data = NULL;
-		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_IND\n");
-		_net_client_callback(&event_data);
-	}
+	event_data.Event = NET_EVENT_WIFI_SCAN_IND;
+	event_data.Datalength = 0;
+	event_data.Data = NULL;
+	NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_IND\n");
+	_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;

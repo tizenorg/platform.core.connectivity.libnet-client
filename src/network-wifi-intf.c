@@ -390,7 +390,7 @@ EXPORT_API int net_scan_wifi(void)
 		return Error;;
 	}
 
-	NETWORK_LOG(NETWORK_HIGH, "ConnMan successfully finished Wi-Fi scanning\n");
+	NETWORK_LOG(NETWORK_HIGH, "Scan request was sent successfully to connman.\n");
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;

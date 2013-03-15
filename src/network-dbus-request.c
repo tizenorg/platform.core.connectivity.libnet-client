@@ -432,6 +432,44 @@ static void __net_specific_scan_wifi_reply(DBusPendingCall *call, void *user_dat
 	__NETWORK_FUNC_EXIT__;
 }
 
+static void __net_scan_wifi_reply(DBusPendingCall *call, void *user_data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	NETWORK_LOG(NETWORK_LOW, "__net_scan_wifi_reply() called\n");
+
+	net_event_info_t event_data = {0,};
+	net_profile_info_t prof_info;
+
+	DBusMessage *reply = dbus_pending_call_steal_reply(call);
+	net_err_t Error = _net_get_error_from_message(reply);
+
+	if (Error == NET_ERR_IN_PROGRESS)
+		goto done;
+
+	NETWORK_LOG(NETWORK_ERROR,
+		"Error!!! WiFi Scan reply received. Error code : [%d]\n", Error);
+
+	if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
+		event_data.Error = NET_ERR_NONE;
+		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
+
+		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_RSP Error = %s\n",
+				_net_print_error(event_data.Error));
+		_net_client_callback(&event_data);
+		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0, sizeof(network_request_table_t));
+	}
+
+done:
+	dbus_message_unref(reply);
+	dbus_pending_call_unref(call);
+
+	network_dbus_pending_call_data.is_used = FALSE;
+	network_dbus_pending_call_data.pcall = NULL;
+
+	__NETWORK_FUNC_EXIT__;
+}
+
 static char *__net_make_group_name(const char *ssid, const char *net_mode, const char *sec)
 {
 	char *buf;
@@ -704,18 +742,15 @@ int _net_dbus_scan_request(void)
 	net_err_t Error = NET_ERR_NONE;
 	DBusMessage *message = NULL;
 
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE,
+	Error = _net_invoke_dbus_method_nonblock(CONNMAN_SERVICE,
 			CONNMAN_WIFI_TECHNOLOGY_PREFIX,
-			CONNMAN_TECHNOLOGY_INTERFACE, "Scan", NULL, &Error);
+			CONNMAN_TECHNOLOGY_INTERFACE, "Scan", __net_scan_wifi_reply);
 
 	if (Error == NET_ERR_IN_PROGRESS)
 		Error = NET_ERR_NONE;
 
 	if (Error != NET_ERR_NONE)
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! _net_invoke_dbus_method failed\n");
-
-	if (message)
-		dbus_message_unref(message);
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! _net_invoke_dbus_method_nonblock failed\n");
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

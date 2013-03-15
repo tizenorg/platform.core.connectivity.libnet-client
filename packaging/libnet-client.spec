@@ -1,6 +1,6 @@
 Name:       libnet-client
 Summary:    Network Client library (Shared library)
-Version:    0.1.77_13
+Version:    0.1.77_14
 Release:    1
 Group:      System/Network
 License:    Flora License
@@ -28,7 +28,7 @@ Network Client library (Development)
 
 %build
 ./autogen.sh
-./configure --prefix=/usr
+%configure
 
 make %{?_smp_mflags}
 
