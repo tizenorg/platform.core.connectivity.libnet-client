@@ -364,6 +364,22 @@ int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
 
 	net_err_t Error = NET_ERR_NONE;
 	DBusMessageIter iter, array;
+	char *tech_prefix;
+
+	if (g_str_equal(tech_state->technology, "wifi") == TRUE)
+		tech_prefix = CONNMAN_WIFI_TECHNOLOGY_PREFIX;
+	else if (g_str_equal(tech_state->technology, "cellular") == TRUE)
+		tech_prefix = CONNMAN_CELLULAR_TECHNOLOGY_PREFIX;
+	else if (g_str_equal(tech_state->technology, "ethernet") == TRUE)
+		tech_prefix = CONNMAN_ETHERNET_TECHNOLOGY_PREFIX;
+	else if (g_str_equal(tech_state->technology, "bluetooth") == TRUE)
+		tech_prefix = CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX;
+	else {
+		NETWORK_LOG(NETWORK_LOW, "Invalid technology type\n");
+		Error = NET_ERR_INVALID_PARAM;
+		goto done;
+	}
+
 
 	/* array{object, dict}: list of tuples with technology object path and
 	 * dictionary of technology properties */
@@ -386,8 +402,7 @@ int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
 		dbus_message_iter_next(&entry);
 		dbus_message_iter_recurse(&entry, &dict);
 
-		if (path == NULL ||
-			g_str_equal(path, CONNMAN_WIFI_TECHNOLOGY_PREFIX) != TRUE) {
+		if (path == NULL || g_str_equal(path, tech_prefix) != TRUE) {
 			dbus_message_iter_next(&array);
 			continue;
 		}

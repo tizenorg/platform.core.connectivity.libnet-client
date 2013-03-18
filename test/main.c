@@ -895,6 +895,7 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("n	- Add route\n");
 		debug_print("o	- Remove route\n");
 		debug_print("p	- Reqeust specific scan\n");
+		debug_print("q	- Get technology state\n");
 		debug_print("z 	- Exit \n");
 
 		debug_print("ENTER 	- Show options menu.......\n");
@@ -1557,6 +1558,44 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("Total time taken = [%f]\n", finish_time - start_time);
 
 		debug_print("net_specific_scan_wifi() success\n");
+	}
+		break;
+
+	case 'q': {
+		char user_str[20];
+		debug_print("Enter network type (wifi/cellular/eth/bt): \n");
+		scanf("%19s", user_str);
+
+		net_device_t device_type;
+		net_tech_info_t tech_info;
+
+		if (strcmp(user_str, "wifi") == 0)
+			device_type = NET_DEVICE_WIFI;
+		else if (strcmp(user_str, "cellular") == 0)
+			device_type = NET_DEVICE_CELLULAR;
+		else if (strcmp(user_str, "eth") == 0)
+			device_type = NET_DEVICE_ETHERNET;
+		else if (strcmp(user_str, "bt") == 0)
+			device_type = NET_DEVICE_BLUETOOTH;
+		else {
+			debug_print("Invalid string\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		if (net_get_technology_properties(device_type, &tech_info) != NET_ERR_NONE) {
+			debug_print("net_get_network_status() failed\n");
+			break;
+		}
+
+		debug_print("[%s]\n", (tech_info.powered) ? "Power : ON":"Power : OFF");
+		debug_print("[%s]\n", (tech_info.connected) ? "Connected":"Not connected");
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
 	}
 		break;
 

@@ -866,6 +866,49 @@ done:
 	return Error;
 }
 
+int _net_dbus_get_tech_status(net_device_t device_type, net_tech_info_t* tech_status)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	network_tech_state_info_t tech_state = {{0,},};
+
+	if (device_type == NET_DEVICE_WIFI)
+		g_strlcpy(tech_state.technology, "wifi", NET_TECH_LENGTH_MAX);
+	else if (device_type == NET_DEVICE_CELLULAR)
+		g_strlcpy(tech_state.technology, "cellular", NET_TECH_LENGTH_MAX);
+	else if (device_type == NET_DEVICE_ETHERNET)
+		g_strlcpy(tech_state.technology, "ethernet", NET_TECH_LENGTH_MAX);
+	else if (device_type == NET_DEVICE_BLUETOOTH)
+		g_strlcpy(tech_state.technology, "bluetooth", NET_TECH_LENGTH_MAX);
+	else {
+		Error = NET_ERR_INVALID_PARAM;
+		goto done;
+	}
+
+	Error = _net_dbus_get_technology_state(&tech_state);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR,
+			"_net_dbus_get_technology_state() failed. Error [%s]\n",
+			_net_print_error(Error));
+		goto done;
+	}
+
+	if (tech_state.Powered == TRUE)
+		tech_status->powered = TRUE;
+	else
+		tech_status->powered = FALSE;
+
+	if (tech_state.Connected == TRUE)
+		tech_status->connected = TRUE;
+	else
+		tech_status->connected = FALSE;
+
+done:
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 int _net_dbus_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size)
 {
 	net_err_t Error = NET_ERR_NONE;

@@ -724,6 +724,29 @@ EXPORT_API int net_get_network_status(net_device_t device_type, net_cm_network_s
 	return NET_ERR_NONE;
 }
 
+EXPORT_API int net_get_technology_properties(net_device_t tech_type, net_tech_info_t *tech_info)
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	__NETWORK_FUNC_ENTER__;
+
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if ((Error = _net_dbus_get_tech_status(tech_type, tech_info)) != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get technology status. Error [%s]\n",
+				_net_print_error(Error));
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
 EXPORT_API int net_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size)
 {
 	net_err_t Error = NET_ERR_NONE;

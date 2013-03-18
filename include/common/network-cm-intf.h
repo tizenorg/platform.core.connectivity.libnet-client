@@ -209,6 +209,19 @@ typedef struct
 	void *		Data;
 } net_event_info_t;
 
+/**
+ * Technology properties
+ */
+
+typedef struct
+{
+	/** powered state */
+	char		powered;
+	/** connected state */
+	char		connected;
+} net_tech_info_t;
+
+
 /*****************************************************************************************/
 /* Callback function prototype
  * typedef void (*net_event_cb_t ) ( const net_event_info_t* net_event, void* user_data);
@@ -1003,10 +1016,19 @@ int net_add_route(const char *ip_addr, const char *interface);
  * \brief 	This API is only for Connection CAPI. Don't use this.
  *
  * \param[in]  ip_addr     ip address to route.
- * \param[in]  prof_info   profile that including device info.
+ * \param[in]  interface   interface name.
  *
  ******************************************************************************************/
 int net_remove_route(const char *ip_addr, const char *interface);
+
+/**
+ * \brief 	This API is only for Connection CAPI. Don't use this.
+ *
+ * \param[in]  tech_type    specific technology type
+ * \param[out]  tech_info   technology info.
+ *
+ ******************************************************************************************/
+int net_get_technology_properties(net_device_t tech_type, net_tech_info_t *tech_info);
 
 /**
  * \}
