@@ -484,6 +484,27 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 		debug_print("Got WPS Rsp\n");
 		break;
 
+	case NET_EVENT_SPECIFIC_SCAN_RSP:
+		debug_print("Got Specific scan Rsp : %d\n", event_cb->Error);
+		break;
+
+	case NET_EVENT_SPECIFIC_SCAN_IND:
+		debug_print("Got Specific scan Ind : %d\n", event_cb->Error);
+		GSList *bss_info_list = event_cb->Data;
+
+		if (bss_info_list)
+			for (; bss_info_list; bss_info_list = bss_info_list->next){
+				net_wifi_connection_info_t *resp_data = bss_info_list->data;
+				if (resp_data)
+					debug_print("essid:%s, sec type:%d",
+							resp_data->essid,
+							resp_data->security_info.sec_mode);
+			}
+		else
+			debug_print("No AP\n");
+
+		break;
+
 	default :
 		debug_print("Error! Unknown Event\n\n");
 		break;
@@ -873,6 +894,7 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("m	- Set default cellular profile\n");
 		debug_print("n	- Add route\n");
 		debug_print("o	- Remove route\n");
+		debug_print("p	- Reqeust specific scan\n");
 		debug_print("z 	- Exit \n");
 
 		debug_print("ENTER 	- Show options menu.......\n");
@@ -1513,6 +1535,28 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("Total time taken = [%f]\n", finish_time - start_time);
 
 		debug_print("net_remove_route() success\n");
+	}
+		break;
+
+	case 'p': {
+		char essid[40];
+
+		debug_print( "Enter essid to scan : \n");
+		scanf("%39s", essid);
+
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		if (net_specific_scan_wifi(essid) != NET_ERR_NONE) {
+			debug_print("Error!! net_specific_scan_wifi() failed.\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+
+		debug_print("net_specific_scan_wifi() success\n");
 	}
 		break;
 
