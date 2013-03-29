@@ -6,6 +6,8 @@ Group:      System/Network
 License:    Flora License
 Source0:    %{name}-%{version}.tar.gz
 URL:        https://review.tizen.org/git/?p=framework/connectivity/libnet-client.git;a=summary
+Requires(post): /sbin/ldconfig
+Requires(postun): /sbin/ldconfig
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(vconf)
