@@ -316,24 +316,14 @@ EXPORT_API int net_wifi_power_off(void)
 		return NET_ERR_IN_PROGRESS;
 	}
 
-	if (_net_dbus_is_pending_call_used() == TRUE) {
-		if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE) {
-			_net_dbus_clear_pending_call();
-			memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION],
-							0, sizeof(network_request_table_t));
-		} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE) {
-			_net_dbus_clear_pending_call();
-			memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS],
-							0, sizeof(network_request_table_t));
-		} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE) {
-			_net_dbus_clear_pending_call();
-			memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION],
-							0, sizeof(network_request_table_t));
-		} else {
-			NETWORK_LOG(NETWORK_ERROR, "Error!! pending call already in progress\n");
-			__NETWORK_FUNC_EXIT__;
-			return NET_ERR_IN_PROGRESS;
-		}
+	if (_net_dbus_is_pending_call_used() == TRUE &&
+	    request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	} else {
+		_net_dbus_clear_pending_call();
+		memset(request_table, 0, sizeof(request_table));
 	}
 
 	request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag = TRUE;
@@ -369,6 +359,12 @@ EXPORT_API int net_scan_wifi(void)
 
 	if(request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!! Request already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!! pending call already in progress\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_IN_PROGRESS;
 	}

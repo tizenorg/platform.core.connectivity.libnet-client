@@ -57,8 +57,6 @@ static DBusHandlerResult __net_signal_filter
       (DBusConnection *conn, DBusMessage *msg, void *user_data);
 
 static int __net_get_state(DBusMessage *msg, char *state, char *error);
-static char* __net_get_property(DBusMessage* msg, char** prop_value, int *value);
-static int __net_handle_scan_rsp(DBusMessage* msg);
 static int __net_handle_wifi_power_rsp(int value);
 static int __net_svc_error_string_to_enum(const char *error);
 static void __net_handle_svc_failure_ind(const char *profile_name, const char *svc_error);
@@ -153,99 +151,32 @@ done:
 	return Error;
 }
 
-static char* __net_get_property(DBusMessage* msg, char** prop_value, int *value)
-{
-	DBusMessageIter args, variant;
-	char* property = NULL;
-	dbus_bool_t data;
-
-	__NETWORK_FUNC_ENTER__;
-
-	if (!dbus_message_iter_init(msg, &args)) {
-		NETWORK_LOG( NETWORK_LOW, "Message does not have parameters\n");
-	} else if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_STRING) {
-		NETWORK_LOG( NETWORK_LOW, "Argument is not string\n");
-	} else {
-		dbus_message_iter_get_basic(&args, &property);
-		dbus_message_iter_next(&args);
-		dbus_message_iter_recurse(&args, &variant);
-		if (dbus_message_iter_get_arg_type(&variant) == DBUS_TYPE_STRING) {
-			NETWORK_LOG( NETWORK_LOW, "DBUS_TYPE_STRING\n");
-			dbus_message_iter_get_basic(&variant, prop_value);
-		} else if (dbus_message_iter_get_arg_type(&variant) == DBUS_TYPE_BOOLEAN) {
-			NETWORK_LOG( NETWORK_LOW, "DBUS_TYPE_BOOLEAN\n");
-			dbus_message_iter_get_basic(&variant, &data);
-			NETWORK_LOG( NETWORK_LOW, "value - [%s]\n", data ? "True" : "False");
-			if (data)
-				*value = TRUE;
-			else
-				*value = FALSE;
-		} else {
-			NETWORK_LOG( NETWORK_LOW, "Type NULL\n");
-			*prop_value = NULL;
-		}
-	}
-
-	__NETWORK_FUNC_EXIT__;
-	return property;
-}
-
-/* ScanCompleted signal is no more used */
-#if 0
-static int __net_handle_scan_rsp(DBusMessage* msg)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	int boolvalue = FALSE;
-	net_event_info_t event_data = {0,};
-
-	boolvalue = _net_get_boolean(msg);
-	if(boolvalue == TRUE)
-		event_data.Error = NET_ERR_NONE;
-	else
-		event_data.Error = NET_ERR_UNKNOWN;
-
-	NETWORK_LOG( NETWORK_LOW, "[Manager : ScanCompleted] Got Signal with value [%d]\n", boolvalue);
-
-	if(request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE)
-	{
-		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0, sizeof(network_request_table_t));
-
-		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
-		event_data.Datalength = 0;
-		event_data.Data = NULL;
-		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_RSP\n");
-		_net_client_callback(&event_data);
-	}
-	else
-	{
-		event_data.Event = NET_EVENT_WIFI_SCAN_IND;
-		event_data.Datalength = 0;
-		event_data.Data = NULL;
-		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_IND\n");
-		_net_client_callback(&event_data);
-	}
-
-	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
-}
-#endif
-
 static int __net_handle_services_changed_signal(DBusMessage* msg)
 {
 	__NETWORK_FUNC_ENTER__;
+	net_event_info_t event_data = { 0, };
 
-	net_event_info_t event_data = {0,};
+	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE)
+		return NET_ERR_NONE;
+	else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0,
+				sizeof(network_request_table_t));
 
-	/* TODO: Need to analyze further the handling for this signal.
-	 * And also check the contents associated w.r.t the msg received.
-	 * Temporarily sending below events to the UI.
-	 */
+		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
+
+		_net_dbus_clear_pending_call();
+
+		NETWORK_LOG(NETWORK_LOW, "response ScanDone\n");
+	} else {
+		event_data.Event = NET_EVENT_WIFI_SCAN_IND;
+
+		NETWORK_LOG(NETWORK_LOW, "indicate ScanDone\n");
+	}
+
 	event_data.Error = NET_ERR_NONE;
-	event_data.Event = NET_EVENT_WIFI_SCAN_IND;
 	event_data.Datalength = 0;
 	event_data.Data = NULL;
-	NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_IND\n");
+
 	_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;

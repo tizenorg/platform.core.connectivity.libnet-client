@@ -439,25 +439,25 @@ static void __net_scan_wifi_reply(DBusPendingCall *call, void *user_data)
 	NETWORK_LOG(NETWORK_LOW, "__net_scan_wifi_reply() called\n");
 
 	net_event_info_t event_data = {0,};
-	net_profile_info_t prof_info;
 
 	DBusMessage *reply = dbus_pending_call_steal_reply(call);
 	net_err_t Error = _net_get_error_from_message(reply);
 
-	if (Error == NET_ERR_IN_PROGRESS)
+	if (Error == NET_ERR_IN_PROGRESS || Error == NET_ERR_NONE)
 		goto done;
 
 	NETWORK_LOG(NETWORK_ERROR,
 		"Error!!! WiFi Scan reply received. Error code : [%d]\n", Error);
 
 	if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
-		event_data.Error = NET_ERR_NONE;
+		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN],
+				0, sizeof(network_request_table_t));
+		event_data.Error = Error;
 		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
 
 		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_RSP Error = %s\n",
 				_net_print_error(event_data.Error));
 		_net_client_callback(&event_data);
-		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0, sizeof(network_request_table_t));
 	}
 
 done:
@@ -740,7 +740,6 @@ int _net_dbus_scan_request(void)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
 
 	Error = _net_invoke_dbus_method_nonblock(CONNMAN_SERVICE,
 			CONNMAN_WIFI_TECHNOLOGY_PREFIX,
