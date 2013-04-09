@@ -1,6 +1,6 @@
 Name:       libnet-client
 Summary:    Network Client library (Shared library)
-Version:    0.1.77_17
+Version:    0.1.77_18
 Release:    1
 Group:      System/Network
 License:    Flora License
@@ -40,6 +40,11 @@ make %{?_smp_mflags}
 mkdir -p %{buildroot}%{_datadir}/license
 cp LICENSE.Flora %{buildroot}%{_datadir}/license/libnet-client
 
+#Make test app
+cd test
+cp -rf %{buildroot}/usr/lib/ ./
+./build.sh
+cd ..
 
 %files
 %manifest libnet-client.manifest

@@ -407,6 +407,21 @@ int net_get_profile_list(net_device_t device_type, net_profile_info_t **profile_
 ******************************************************************************************/
 int net_set_default_cellular_service_profile(const char *profile_name);
 
+/*****************************************************************************************/
+/**
+ * This function sets the default profile which provides the given cellular service.
+ *
+ * \par Sync (or) Async:
+ * This is a Asynchronous API.
+ *
+ * \param[in]	profile_name    Profile Identifier.
+ *
+ * \par Prospective Clients:
+ * External Apps.
+ *
+******************************************************************************************/
+int net_set_default_cellular_service_profile_async(const char *profile_name);
+
 /**
  * \}
  */

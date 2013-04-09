@@ -129,5 +129,6 @@ void _net_dbus_set_pending_call(DBusPendingCall *call);
 void _net_dbus_clear_pending_call(void);
 gboolean __net_dbus_abort_open_request(const char *profile_name);
 int _net_dbus_specific_scan_request(const char *ssid);
+int _net_dbus_set_default(const char* profile_name);
 
 #endif /** __NETWORK_SIGNAL_HANDLER_H_ */

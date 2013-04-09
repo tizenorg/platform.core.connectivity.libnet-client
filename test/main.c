@@ -505,6 +505,10 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 
 		break;
 
+	case NET_EVENT_CELLULAR_SET_DEFAULT_RSP:
+		debug_print("Got Set cellular default profile Rsp : %d\n", event_cb->Error);
+		break;
+
 	default :
 		debug_print("Error! Unknown Event\n\n");
 		break;
@@ -1470,15 +1474,31 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'm': {
+		int user_sel;
+		debug_print( "Enter API type(1:sync, 2:async) : \n");
+		scanf("%d", &user_sel);
+
+		if (user_sel != 1 && user_sel != 2) {
+			debug_print("Error!! Invalid input.\n");
+			break;
+		}
+
 		debug_print( "Enter Profile Name: \n");
 		scanf("%s", ProfileName);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_set_default_cellular_service_profile(ProfileName) != NET_ERR_NONE) {
-			debug_print("Error!! net_set_default_cellular_service_profile() failed.\n");
-			break;
+		if (user_sel == 1) {
+			if (net_set_default_cellular_service_profile(ProfileName) != NET_ERR_NONE) {
+				debug_print("Error!! net_set_default_cellular_service_profile() failed.\n");
+				break;
+			}
+		} else {
+			if (net_set_default_cellular_service_profile_async(ProfileName) != NET_ERR_NONE) {
+				debug_print("Error!! net_set_default_cellular_service_profile_async() failed.\n");
+				break;
+			}
 		}
 
 		gettimeofday(&timevar, NULL);

@@ -141,6 +141,8 @@ typedef enum
 	/** Wi-Fi interface WPS Response Event */
 	NET_EVENT_WIFI_WPS_RSP,
 
+	/** Set default cellular profile Response Event */
+	NET_EVENT_CELLULAR_SET_DEFAULT_RSP,
 } net_event_t;
 
 /**

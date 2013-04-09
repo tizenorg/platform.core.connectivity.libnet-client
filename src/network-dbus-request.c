@@ -470,6 +470,51 @@ done:
 	__NETWORK_FUNC_EXIT__;
 }
 
+static void __net_set_default_reply(DBusPendingCall *call, void *user_data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	NETWORK_LOG(NETWORK_LOW, "__net_set_default_reply() called\n");
+
+	net_event_info_t event_data = {0,};
+	int rv;
+
+	DBusMessage *reply = dbus_pending_call_steal_reply(call);
+	net_err_t Error = _net_get_error_from_message(reply);
+
+	NETWORK_LOG(NETWORK_ERROR, "Error code : [%d]\n", Error);
+
+	if (request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT].flag == TRUE) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT],
+						0, sizeof(network_request_table_t));
+		event_data.Event = NET_EVENT_CELLULAR_SET_DEFAULT_RSP;
+
+		if (Error == NET_ERR_NONE) {
+			rv = _net_get_boolean(reply);
+
+			NETWORK_LOG(NETWORK_LOW, "Reply : [%s]\n", rv ? "TRUE" : "FALSE");
+
+			if (rv)
+				event_data.Error = NET_ERR_NONE;
+			else
+				event_data.Error = NET_ERR_UNKNOWN;
+		} else
+			event_data.Error = Error;
+
+		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CELLULAR_SET_DEFAULT_RSP Error = %s\n",
+				_net_print_error(event_data.Error));
+		_net_client_callback(&event_data);
+	}
+
+	dbus_message_unref(reply);
+	dbus_pending_call_unref(call);
+
+	network_dbus_pending_call_data.is_used = FALSE;
+	network_dbus_pending_call_data.pcall = NULL;
+
+	__NETWORK_FUNC_EXIT__;
+}
+
 static char *__net_make_group_name(const char *ssid, const char *net_mode, const char *sec)
 {
 	char *buf;
@@ -750,6 +795,20 @@ int _net_dbus_scan_request(void)
 
 	if (Error != NET_ERR_NONE)
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! _net_invoke_dbus_method_nonblock failed\n");
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+int _net_dbus_set_default(const char* profile_name)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	Error = _net_invoke_dbus_method_nonblock(TELEPHONY_SERVCE,
+			profile_name, TELEPHONY_PROFILE_INTERFACE,
+			"SetDefaultConnection", __net_set_default_reply);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

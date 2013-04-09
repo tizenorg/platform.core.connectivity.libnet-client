@@ -73,7 +73,8 @@ static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName);
 static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 		wlan_security_mode_type_t sec_mode);
 static int __net_telephony_add_profile(net_profile_info_t *ProfInfo, net_service_type_t network_type);
-static int __net_set_default_cellular_service_profile(const char* ProfileName);
+static int __net_set_default_cellular_service_profile_sync(const char* ProfileName);
+static int __net_set_default_cellular_service_profile_async(const char* ProfileName);
 
 /*****************************************************************************
  * 	Global Functions
@@ -84,6 +85,7 @@ static int __net_set_default_cellular_service_profile(const char* ProfileName);
  *****************************************************************************/
 
 extern network_info_t NetworkInfo;
+extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
  * 	Global Variables
@@ -1680,7 +1682,7 @@ done:
 	return Error;
 }
 
-static int __net_set_default_cellular_service_profile(const char* ProfileName)
+static int __net_set_default_cellular_service_profile_sync(const char* ProfileName)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -1725,7 +1727,29 @@ static int __net_set_default_cellular_service_profile(const char* ProfileName)
 
 done:
 	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
 
+static int __net_set_default_cellular_service_profile_async(const char* ProfileName)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	net_profile_name_t telephony_profile;
+	char connman_profile[NET_PROFILE_NAME_LEN_MAX+1] = {0,};
+
+	g_strlcpy(connman_profile, ProfileName, NET_PROFILE_NAME_LEN_MAX+1);
+
+	Error = __net_telephony_search_pdp_profile((char*)connman_profile, &telephony_profile);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_HIGH, "__net_telephony_search_pdp_profile() failed\n");
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	Error = _net_dbus_set_default(telephony_profile.ProfileName);
+
+	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
@@ -2414,11 +2438,55 @@ EXPORT_API int net_set_default_cellular_service_profile(const char *profile_name
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	Error = __net_set_default_cellular_service_profile(profile_name);
+	Error = __net_set_default_cellular_service_profile_sync(profile_name);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR,
 				"Error!!! failed to set default cellular service(profile). Error [%s]\n",
 				_net_print_error(Error));
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	return NET_ERR_NONE;
+}
+
+EXPORT_API int net_set_default_cellular_service_profile_async(const char *profile_name)
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (_net_check_profile_name(profile_name) != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid Parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	if(request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT].flag == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!! Request already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT].flag = TRUE;
+
+	Error = __net_set_default_cellular_service_profile_async(profile_name);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR,
+			"Error!!! failed to set default cellular service(profile). Error [%s]\n",
+			_net_print_error(Error));
+		memset(&request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT],
+					0, sizeof(network_request_table_t));
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
