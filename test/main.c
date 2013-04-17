@@ -41,6 +41,9 @@
 
 #define	MAIN_MEMFREE(x)	do {if (x != NULL) free(x); x = NULL;} while(0)
 
+#define PROFILE_NAME_LEN 256
+#define FORMAT_SIZE 32
+
 typedef enum {
 	PROFILE_FULL_INFO = 0x01,
 	PROFILE_PARTIAL_INFO,
@@ -59,6 +62,26 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 static void __network_print_ipaddress(net_addr_t* ip_address);
 
 static void __network_evt_cb (net_event_info_t*  event_cb, void* user_data);
+
+static int __network_get_user_string(char *buf, int buf_size)
+{
+	if (buf == NULL || buf_size < 2)
+		return FALSE;
+
+	int rv = EOF;
+	char format[FORMAT_SIZE] = {0,};
+
+	memset(buf, 0, buf_size);
+
+	snprintf(format, sizeof(format), "%%%ds", buf_size - 1);
+
+	rv = scanf(format, buf);
+
+	if (rv == EOF)
+		return FALSE;
+
+	return TRUE;
+}
 
 static void __network_print_ipaddress(net_addr_t* ip_address)
 {
@@ -844,9 +867,8 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 static gboolean network_main_gthread(gpointer data)
 {
-	char ProfileName[NET_PROFILE_NAME_LEN_MAX+1] = {0,};
+	char ProfileName[PROFILE_NAME_LEN] = {0,};
 	int input_int = 0;
-	char input_str[100] = {0,};
 	int net_error = 0;
 	net_profile_info_t profile_info;
 
@@ -955,7 +977,7 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case '3':
-		debug_print("Enter BG Scan Mode(0:default, 1:periodic, 2:exponential):");
+		debug_print("Enter BG Scan Mode(0:default, 1:periodic, 2:exponential):\n");
 		scanf("%d", &input_int);
 
 		gettimeofday(&timevar, NULL);
@@ -1009,8 +1031,10 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case '5':
-		debug_print( "Enter Profile Name: \n");
-		scanf("%s", ProfileName);
+		debug_print("Enter Profile Name: \n");
+
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1029,8 +1053,10 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case '6':
-		debug_print( "Enter Profile Name: \n");
-		scanf("%s", ProfileName);
+		debug_print("Enter Profile Name: \n");
+
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1105,24 +1131,28 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'b':
-		debug_print("Enter network type (wifi/cellular/eth/bt): \n");
-		scanf("%s", input_str);
+		debug_print("Enter network type - 1:wifi, 2:mobile, 3:ethernet 4:bluetooth : \n");
+		scanf("%d", &input_int);
 
 		net_device_t device_type = NET_DEVICE_UNKNOWN;
 		net_cm_network_status_t NetworkStatus;
 
-		if (strcmp(input_str, "wifi") == 0)
+		switch (input_int) {
+		case 1:
 			device_type = NET_DEVICE_WIFI;
-		else if (strcmp(input_str, "cellular") == 0)
-			device_type = NET_DEVICE_CELLULAR;
-		else if (strcmp(input_str, "eth") == 0)
-			device_type = NET_DEVICE_ETHERNET;
-		else if (strcmp(input_str, "bt") == 0)
-			device_type = NET_DEVICE_BLUETOOTH;
-		else {
-			debug_print("Error!!! Invalid string!\n");
 			break;
+		case 2:
+			device_type = NET_DEVICE_CELLULAR;
+			break;
+		case 3:
+			device_type = NET_DEVICE_ETHERNET;
+			break;
+		case 4:
+			device_type = NET_DEVICE_BLUETOOTH;
 		}
+
+		if (device_type == NET_DEVICE_UNKNOWN)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1206,9 +1236,8 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'd':
-		debug_print("\nInput profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth (Enter for skip):\n");
-		memset(input_str, 0, 100);
-		read(0, input_str, 100);
+		debug_print("Input profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth : \n");
+		scanf("%d", &input_int);
 
 		net_device_t deviceType = NET_DEVICE_UNKNOWN;
 		int profListCount = 0;
@@ -1217,29 +1246,36 @@ static gboolean network_main_gthread(gpointer data)
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
-			input_str[strlen(input_str)-1] = '\0';
-
-			if (strcmp(input_str, "1") == 0)
-				deviceType = NET_DEVICE_WIFI;
-			else if (strcmp(input_str, "2") == 0)
-				deviceType = NET_DEVICE_CELLULAR;
-			else if (strcmp(input_str, "3") == 0)
-				deviceType = NET_DEVICE_ETHERNET;
-			else if (strcmp(input_str, "4") == 0)
-				deviceType = NET_DEVICE_BLUETOOTH;
-
-			net_error = net_get_profile_list(deviceType,
-					&profList, &profListCount);
-
-			if (net_error != NET_ERR_NONE) {
-				debug_print("Error!!! net_get_profile_list() failed\n");
-				break;
-			}
-
-			__print_profile_list(profListCount, profList, PROFILE_BASIC_INFO);
-			MAIN_MEMFREE(profList);
+		switch (input_int) {
+		case 1:
+			deviceType = NET_DEVICE_WIFI;
+			break;
+		case 2:
+			deviceType = NET_DEVICE_CELLULAR;
+			break;
+		case 3:
+			deviceType = NET_DEVICE_ETHERNET;
+			break;
+		case 4:
+			deviceType = NET_DEVICE_BLUETOOTH;
+			break;
+		default:
+			deviceType = NET_DEVICE_UNKNOWN;
 		}
+
+		if (deviceType == NET_DEVICE_UNKNOWN)
+			break;
+
+		net_error = net_get_profile_list(deviceType,
+				&profList, &profListCount);
+
+		if (net_error != NET_ERR_NONE) {
+			debug_print("Error!!! net_get_profile_list() failed\n");
+			break;
+		}
+
+		__print_profile_list(profListCount, profList, PROFILE_BASIC_INFO);
+		MAIN_MEMFREE(profList);
 
 		gettimeofday(&timevar, NULL);
 		finish_time = Convert_time2double(timevar);
@@ -1248,14 +1284,10 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'e':
-		debug_print("\nInput profile Name((Enter for skip) :\n");
-		memset(ProfileName, 0, NET_PROFILE_NAME_LEN_MAX);
-		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
+		debug_print("Input profile Name : \n");
 
-		if (ProfileName[0] == '\0' || *ProfileName == '\n' || *ProfileName == '\r')
-			debug_print("\nCanceled!\n\n");
-
-		ProfileName[strlen(ProfileName)-1] = '\0';
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1274,22 +1306,15 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'f':
-		debug_print("\nInput profile Name(Enter for skip) :\n");
-		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX);
-		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
+		debug_print("Input profile Name : \n");
 
-		if (ProfileName[0] != '\0' &&
-		    *ProfileName != '\n' &&
-		    *ProfileName != '\r') {
-			ProfileName[strlen(ProfileName) - 1] = '\0';
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
-			net_error = net_get_profile_info(ProfileName, &profile_info);
-			if (net_error != NET_ERR_NONE) {
-				debug_print("Error!!! net_get_profile_info() failed\n");
-				break;
-			}
-		} else {
-			debug_print("\nCanceled!\n\n");
+		net_error = net_get_profile_info(ProfileName, &profile_info);
+
+		if (net_error != NET_ERR_NONE) {
+			debug_print("Error!!! net_get_profile_info() failed\n");
 			break;
 		}
 
@@ -1311,18 +1336,13 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'g':
-		debug_print("\nInput profile Name(Enter for skip) :\n");
+		debug_print("Input profile Name : \n");
 
-		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX);
-		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
-
-		if (ProfileName[0] == '\0' || *ProfileName == '\n' || *ProfileName == '\r')
-			debug_print("\nCanceled!\n\n");
-
-		ProfileName[strlen(ProfileName)-1] = '\0';
 
 		if (net_delete_profile(ProfileName) != NET_ERR_NONE) {
 			debug_print("Error!!! net_delete_profile() failed\n");
@@ -1336,28 +1356,18 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'h':
-		debug_print("\nInput Network Type(Internet:1, MMS:2, Prepaid_internet:3, "
-				"Prepaid MMS:4, Tethering:5, Application:6)"
-				" - (Enter for skip) :\n");
+		debug_print("Input Network Type (Internet:1, MMS:2, Prepaid_internet:3, "
+				"Prepaid MMS:4, Tethering:5, Application:6) :\n");
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		scanf("%d", &input_int);
 
 		net_service_type_t network_type = NET_SERVICE_INTERNET;
 		memset(&profile_info, 0, sizeof(net_profile_info_t));
 
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
-			int typeValue = 0;
-			typeValue = atoi(input_str);
-
-			if (typeValue > NET_SERVICE_UNKNOWN &&
-			    typeValue <= NET_SERVICE_APPLICATION)
-				network_type = typeValue;
-			else
-				return TRUE;
-		} else {
+		if (input_int > NET_SERVICE_UNKNOWN && input_int <= NET_SERVICE_APPLICATION)
+			network_type = input_int;
+		else
 			return TRUE;
-		}
 
 		__network_add_profile_info(&profile_info);
 
@@ -1378,14 +1388,19 @@ static gboolean network_main_gthread(gpointer data)
 	case 'i': {
 		net_wifi_connection_info_t wifi_info = {{0,}, };
 
-		debug_print("Enter essid:\n");
-		scanf("%s", wifi_info.essid);
+		debug_print("Enter essid : \n");
+
+		if (__network_get_user_string(wifi_info.essid, sizeof(wifi_info.essid)) == FALSE)
+			break;
+
+		debug_print("Enter psk key : \n");
+
+		if (__network_get_user_string(wifi_info.security_info.authentication.psk.pskKey,
+				sizeof(wifi_info.security_info.authentication.psk.pskKey)) == FALSE)
+			break;
 
 		wifi_info.wlan_mode = NETPM_WLAN_CONNMODE_INFRA;
 		wifi_info.security_info.sec_mode = WLAN_SEC_MODE_WPA_PSK;
-
-		debug_print("Enter psk key:\n");
-		scanf("%s", wifi_info.security_info.authentication.psk.pskKey);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1408,8 +1423,10 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'k': {
-		debug_print( "Enter Profile Name: \n");
-		scanf("%s", ProfileName);
+		debug_print("Input profile Name : \n");
+
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1441,7 +1458,9 @@ static gboolean network_main_gthread(gpointer data)
 		info.security_info.sec_mode = WLAN_SEC_MODE_IEEE8021X;
 
 		debug_print("Enter essid:\n");
-		scanf("%s", info.essid);
+
+		if (__network_get_user_string(info.essid, sizeof(info.essid)) == FALSE)
+			break;
 
 		debug_print("Enter EAP type PEAP 1, TLS 2, TTLS 3, SIM 4, AKA 5:\n");
 		scanf("%d", &eap_type);
@@ -1452,22 +1471,35 @@ static gboolean network_main_gthread(gpointer data)
 		info.security_info.authentication.eap.eap_auth = (wlan_eap_auth_type_t) eap_auth;
 
 		debug_print("Enter user name:\n");
-		scanf("%s", info.security_info.authentication.eap.username);
+
+		if (__network_get_user_string(info.security_info.authentication.eap.username,
+				sizeof(info.security_info.authentication.eap.username)) == FALSE)
+			break;
 
 		debug_print("Enter password:\n");
-		scanf("%s", info.security_info.authentication.eap.password);
+
+		if (__network_get_user_string(info.security_info.authentication.eap.password,
+				sizeof(info.security_info.authentication.eap.password)) == FALSE)
 
 		debug_print("Enter CA Cert filename:\n");
-		scanf("%s", info.security_info.authentication.eap.ca_cert_filename);
+
+		if (__network_get_user_string(info.security_info.authentication.eap.ca_cert_filename,
+				sizeof(info.security_info.authentication.eap.ca_cert_filename)) == FALSE)
 
 		debug_print("Enter Client Cert filename:\n");
-		scanf("%s", info.security_info.authentication.eap.client_cert_filename);
+
+		if (__network_get_user_string(info.security_info.authentication.eap.client_cert_filename,
+				sizeof(info.security_info.authentication.eap.client_cert_filename)) == FALSE)
 
 		debug_print("Enter private key filename:\n");
-		scanf("%s", info.security_info.authentication.eap.private_key_filename);
+
+		if (__network_get_user_string(info.security_info.authentication.eap.private_key_filename,
+				sizeof(info.security_info.authentication.eap.private_key_filename)) == FALSE)
 
 		debug_print("Enter private key password:\n");
-		scanf("%s", info.security_info.authentication.eap.private_key_passwd);
+
+		if (__network_get_user_string(info.security_info.authentication.eap.private_key_passwd,
+				sizeof(info.security_info.authentication.eap.private_key_passwd)) == FALSE)
 
 		net_open_connection_with_wifi_info(&info);
 	}
@@ -1483,8 +1515,10 @@ static gboolean network_main_gthread(gpointer data)
 			break;
 		}
 
-		debug_print( "Enter Profile Name: \n");
-		scanf("%s", ProfileName);
+		debug_print("Input profile Name : \n");
+
+		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1514,9 +1548,14 @@ static gboolean network_main_gthread(gpointer data)
 		char if_name[40];
 
 		debug_print( "Enter IP : \n");
-		scanf("%s", ip_addr);
+
+		if (__network_get_user_string(ip_addr, 30) == FALSE)
+			break;
+
 		debug_print( "Enter Interface name : \n");
-		scanf("%s", if_name);
+
+		if (__network_get_user_string(if_name, 40) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1539,9 +1578,14 @@ static gboolean network_main_gthread(gpointer data)
 		char if_name[40];
 
 		debug_print( "Enter IP : \n");
-		scanf("%s", ip_addr);
+
+		if (__network_get_user_string(ip_addr, 30) == FALSE)
+			break;
+
 		debug_print( "Enter Interface name : \n");
-		scanf("%s", if_name);
+
+		if (__network_get_user_string(if_name, 40) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1563,7 +1607,9 @@ static gboolean network_main_gthread(gpointer data)
 		char essid[40];
 
 		debug_print( "Enter essid to scan : \n");
-		scanf("%39s", essid);
+
+		if (__network_get_user_string(essid, 40) == FALSE)
+			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1584,7 +1630,9 @@ static gboolean network_main_gthread(gpointer data)
 	case 'q': {
 		char user_str[20];
 		debug_print("Enter network type (wifi/cellular/eth/bt): \n");
-		scanf("%19s", user_str);
+
+		if (__network_get_user_string(user_str, 20) == FALSE)
+			break;
 
 		net_device_t device_type;
 		net_tech_info_t tech_info;
