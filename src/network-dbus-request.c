@@ -211,6 +211,7 @@ static void __net_open_connection_reply(DBusPendingCall *call, void *user_data)
 
 	NETWORK_LOG(NETWORK_LOW, "__net_open_connection_reply() called\n");
 
+	int callback_flag = FALSE;
 	net_event_info_t event_data = {0,};
 	net_profile_info_t prof_info;
 	network_request_table_t *open_info = &request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION];
@@ -261,7 +262,8 @@ static void __net_open_connection_reply(DBusPendingCall *call, void *user_data)
 		event_data.Event = NET_EVENT_OPEN_RSP;
 		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP Error = %s\n",
 				_net_print_error(event_data.Error));
-		_net_client_callback(&event_data);
+
+		callback_flag = TRUE;
 	} else if (wps_info->flag == TRUE) {
 
 		snprintf(event_data.ProfileName,
@@ -290,7 +292,8 @@ static void __net_open_connection_reply(DBusPendingCall *call, void *user_data)
 
 		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP Error = %s\n",
 				_net_print_error(event_data.Error));
-		_net_client_callback(&event_data);
+
+		callback_flag = TRUE;
 	}
 
 done:
@@ -299,6 +302,9 @@ done:
 
 	network_dbus_pending_call_data.is_used = FALSE;
 	network_dbus_pending_call_data.pcall = NULL;
+
+	if (callback_flag)
+		_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
@@ -309,6 +315,7 @@ static void __net_close_connection_reply(DBusPendingCall *call, void *user_data)
 
 	NETWORK_LOG(NETWORK_LOW, "__net_close_connection_reply() called\n");
 
+	int callback_flag = FALSE;
 	net_event_info_t event_data = {0,};
 	network_request_table_t *close_info = &request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION];
 
@@ -340,7 +347,8 @@ static void __net_close_connection_reply(DBusPendingCall *call, void *user_data)
 		event_data.Event = NET_EVENT_CLOSE_RSP;
 		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_RSP Error = %s\n",
 				_net_print_error(event_data.Error));
-		_net_client_callback(&event_data);
+
+		callback_flag = TRUE;
 	}
 
 done:
@@ -349,6 +357,9 @@ done:
 
 	network_dbus_pending_call_data.is_used = FALSE;
 	network_dbus_pending_call_data.pcall = NULL;
+
+	if (callback_flag)
+		_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
@@ -359,6 +370,7 @@ static void __net_wifi_power_reply(DBusPendingCall *call, void *user_data)
 
 	NETWORK_LOG(NETWORK_LOW, "__net_wifi_power_reply() called\n");
 
+	int callback_flag = FALSE;
 	DBusMessage *reply = dbus_pending_call_steal_reply(call);
 	net_err_t Error = _net_get_error_from_netconfig_message(reply);
 	net_event_info_t event_data = {0,};
@@ -379,7 +391,8 @@ static void __net_wifi_power_reply(DBusPendingCall *call, void *user_data)
 				event_data.Datalength = sizeof(net_wifi_state_t);
 				event_data.Data = &(NetworkInfo.wifi_state);
 				event_data.Error = Error;
-				_net_client_callback(&event_data);
+
+				callback_flag = TRUE;
 			}
 		}
 	}
@@ -390,6 +403,9 @@ static void __net_wifi_power_reply(DBusPendingCall *call, void *user_data)
 	network_dbus_pending_call_data.is_used = FALSE;
 	network_dbus_pending_call_data.pcall = NULL;
 
+	if (callback_flag)
+		_net_client_callback(&event_data);
+
 	__NETWORK_FUNC_EXIT__;
 }
 
@@ -397,8 +413,10 @@ static void __net_specific_scan_wifi_reply(DBusPendingCall *call, void *user_dat
 {
 	__NETWORK_FUNC_ENTER__;
 
+	int callback_flag = FALSE;
 	DBusMessage *reply = dbus_pending_call_steal_reply(call);
 	net_err_t Error = _net_get_error_from_netconfig_message(reply);
+	net_event_info_t event_data = {0,};
 
 	if (Error != NET_ERR_NONE)
 		NETWORK_LOG(NETWORK_ERROR, "Error!!! Find hidden AP failed. Error code : [%d]\n", Error);
@@ -406,12 +424,12 @@ static void __net_specific_scan_wifi_reply(DBusPendingCall *call, void *user_dat
 		NETWORK_LOG(NETWORK_LOW, "Hidden AP response received for AP.\n");
 
 	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
-		net_event_info_t event_data = {0,};
 		if (NET_ERR_NONE != Error) {
 			/* An error occured. So lets reset specific scan request entry in the request table */
 			memset(&request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN],
 					0, sizeof(network_request_table_t));
 		}
+
 		event_data.Event = NET_EVENT_SPECIFIC_SCAN_RSP;
 		NETWORK_LOG(NETWORK_LOW,
 			"Sending NET_EVENT_SPECIFIC_SCAN_RSP wifi state : %d Error = %d\n",
@@ -420,7 +438,8 @@ static void __net_specific_scan_wifi_reply(DBusPendingCall *call, void *user_dat
 		event_data.Datalength = sizeof(net_wifi_state_t);
 		event_data.Data = &(NetworkInfo.wifi_state);
 		event_data.Error = Error;
-		_net_client_callback(&event_data);
+
+		callback_flag = TRUE;
 	}
 
 	dbus_message_unref(reply);
@@ -428,6 +447,9 @@ static void __net_specific_scan_wifi_reply(DBusPendingCall *call, void *user_dat
 
 	network_dbus_pending_call_data.is_used = FALSE;
 	network_dbus_pending_call_data.pcall = NULL;
+
+	if (callback_flag)
+		_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
@@ -438,6 +460,7 @@ static void __net_scan_wifi_reply(DBusPendingCall *call, void *user_data)
 
 	NETWORK_LOG(NETWORK_LOW, "__net_scan_wifi_reply() called\n");
 
+	int callback_flag = FALSE;
 	net_event_info_t event_data = {0,};
 
 	DBusMessage *reply = dbus_pending_call_steal_reply(call);
@@ -457,7 +480,8 @@ static void __net_scan_wifi_reply(DBusPendingCall *call, void *user_data)
 
 		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_SCAN_RSP Error = %s\n",
 				_net_print_error(event_data.Error));
-		_net_client_callback(&event_data);
+
+		callback_flag = TRUE;
 	}
 
 done:
@@ -466,6 +490,9 @@ done:
 
 	network_dbus_pending_call_data.is_used = FALSE;
 	network_dbus_pending_call_data.pcall = NULL;
+
+	if (callback_flag)
+		_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
@@ -476,6 +503,7 @@ static void __net_set_default_reply(DBusPendingCall *call, void *user_data)
 
 	NETWORK_LOG(NETWORK_LOW, "__net_set_default_reply() called\n");
 
+	int callback_flag = FALSE;
 	net_event_info_t event_data = {0,};
 	int rv;
 
@@ -503,7 +531,8 @@ static void __net_set_default_reply(DBusPendingCall *call, void *user_data)
 
 		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CELLULAR_SET_DEFAULT_RSP Error = %s\n",
 				_net_print_error(event_data.Error));
-		_net_client_callback(&event_data);
+
+		callback_flag = TRUE;
 	}
 
 	dbus_message_unref(reply);
@@ -511,6 +540,9 @@ static void __net_set_default_reply(DBusPendingCall *call, void *user_data)
 
 	network_dbus_pending_call_data.is_used = FALSE;
 	network_dbus_pending_call_data.pcall = NULL;
+
+	if (callback_flag)
+		_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
