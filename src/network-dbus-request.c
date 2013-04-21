@@ -1361,32 +1361,17 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	char *hidden_grp_name = NULL;
 	char *grp_name = NULL;
 	int profile_count = 0;
 	net_profile_info_t* profile_info = NULL;
-	dbus_bool_t is_prof_found = FALSE;
 	int i = 0;
 
-	/* Get group name with prefix 'hidden_' */
-	hidden_grp_name = __net_make_group_name(NULL,
-			wifi_connection_info->mode,
-			wifi_connection_info->security);
-	if (NULL == hidden_grp_name) {
-		NETWORK_LOG(NETWORK_ERROR, "Error! can't make a group name\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	/* Get group name with prefix 'ssid' in hex, as the profile list might
-	 * be updated with ssid in hex instead of 'hidden_' */
+	/* Get group name with prefix 'ssid' in hex */
 	grp_name = __net_make_group_name(wifi_connection_info->ssid,
 			wifi_connection_info->mode,
 			wifi_connection_info->security);
 	if (NULL == grp_name) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to make a group name\n");
-
-		NET_MEMFREE(hidden_grp_name);
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
@@ -1399,62 +1384,45 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 				_net_print_error(Error));
 
 		goto done;
-	} else {
-		for (i = 0; i < profile_count; i++) {
-			if (NULL != strstr(profile_info[i].ProfileName,
-					hidden_grp_name)) {
-				NETWORK_LOG(NETWORK_ERROR, "Found the profile"
-						"[%s] with prefix hidden\n",
-						profile_info[i].ProfileName);
-				is_prof_found = TRUE;
-				break;
-			} else if (NULL != strstr(profile_info[i].ProfileName,
-					grp_name)) {
-				NETWORK_LOG(NETWORK_ERROR, "Found the profile"
-						"[%s] with prefix ssid(hex)\n",
-						profile_info[i].ProfileName);
-				is_prof_found = TRUE;
-				break;
-			}
+	}
+
+	for (i = 0; i < profile_count; i++) {
+		if (g_strstr_len(profile_info[i].ProfileName,
+				NET_PROFILE_NAME_LEN_MAX+1, grp_name) != NULL) {
+			NETWORK_LOG(NETWORK_ERROR, "Found profile %s\n",
+					profile_info[i].ProfileName);
+
+			break;
 		}
 	}
 
-	if (FALSE == is_prof_found) {
+	if (i >= profile_count) {
 		NETWORK_LOG(NETWORK_ERROR, "No matching profile found\n");
-		Error = NET_ERR_UNKNOWN;
+		Error = NET_ERR_NO_SERVICE;
+
 		goto done;
 	}
 
-	if (!g_strcmp0(wifi_connection_info->security, "ieee8021x")) {
+	g_strlcpy(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName,
+			profile_info[i].ProfileName, NET_PROFILE_NAME_LEN_MAX+1);
+
+	if (g_strcmp0(wifi_connection_info->security, "ieee8021x") == 0) {
 		/* Create the EAP config file */
 		Error = _net_dbus_set_eap_config_fields(wifi_connection_info);
-		if (NET_ERR_NONE != Error)
-			NETWORK_LOG(NETWORK_ERROR,
-				"_net_dbus_set_eap_config_fields() fail\n");
+		if (NET_ERR_NONE != Error) {
+			NETWORK_LOG(NETWORK_ERROR, "Fail to create eap_config\n");
 
-		NETWORK_LOG(NETWORK_HIGH,
-			"Avoiding Service.Connect after creating the config\n");
-
-		if(TRUE == request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag)
-			memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION],
-					0, sizeof(network_request_table_t));
-
-		goto done;
+			goto done;
+		}
 	} else {
 		Error = _net_dbus_set_agent_fields(wifi_connection_info->ssid,
 				wifi_connection_info->passphrase);
 		if (NET_ERR_NONE != Error) {
-			NETWORK_LOG(NETWORK_ERROR,
-				"_net_dbus_set_agent_fields() failed\n");
+			NETWORK_LOG(NETWORK_ERROR, "Fail to set agent_fields\n");
 
 			goto done;
 		}
 	}
-
-	/* Caching the group_name which has 'ssid' in hex, as the connection
-	 * response contains the profile with 'ssid' */
-	g_strlcpy(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName,
-			grp_name, NET_PROFILE_NAME_LEN_MAX+1);
 
 	Error = _net_dbus_open_connection(profile_info[i].ProfileName);
 	if (NET_ERR_NONE != Error) {
@@ -1469,8 +1437,7 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 
 done:
 	NET_MEMFREE(profile_info);
-	NET_MEMFREE(hidden_grp_name);
-	NET_MEMFREE(grp_name);
+	g_free(grp_name);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1599,36 +1566,41 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 
 		dbus_message_iter_close_container(&dict, &entry);
 
-		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
+		if (strlen(ipaddress) >= NETPM_IPV4_STR_LEN_MIN) {
+			dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 
-		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &prop_address);
-		dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT,
-						DBUS_TYPE_STRING_AS_STRING, &sub_variant);
-		dbus_message_iter_append_basic(&sub_variant, DBUS_TYPE_STRING, &ipaddress);
-		dbus_message_iter_close_container(&entry, &sub_variant);
+			dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &prop_address);
+			dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT,
+							DBUS_TYPE_STRING_AS_STRING, &sub_variant);
+			dbus_message_iter_append_basic(&sub_variant, DBUS_TYPE_STRING, &ipaddress);
+			dbus_message_iter_close_container(&entry, &sub_variant);
 
-		dbus_message_iter_close_container(&dict, &entry);
+			dbus_message_iter_close_container(&dict, &entry);
+		}
 
-		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
+		if (strlen(netmask) >= NETPM_IPV4_STR_LEN_MIN) {
+			dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 
-		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &prop_netmask);
-		dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT,
-						DBUS_TYPE_STRING_AS_STRING, &sub_variant);
-		dbus_message_iter_append_basic(&sub_variant, DBUS_TYPE_STRING, &netmask);
-		dbus_message_iter_close_container(&entry, &sub_variant);
+			dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &prop_netmask);
+			dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT,
+							DBUS_TYPE_STRING_AS_STRING, &sub_variant);
+			dbus_message_iter_append_basic(&sub_variant, DBUS_TYPE_STRING, &netmask);
+			dbus_message_iter_close_container(&entry, &sub_variant);
 
-		dbus_message_iter_close_container(&dict, &entry);
+			dbus_message_iter_close_container(&dict, &entry);
+		}
 
-		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
+		if (strlen(gateway) >= NETPM_IPV4_STR_LEN_MIN) {
+			dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 
-		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &prop_gateway);
-		dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT,
-						DBUS_TYPE_STRING_AS_STRING, &sub_variant);
-		dbus_message_iter_append_basic(&sub_variant, DBUS_TYPE_STRING, &gateway);
-		dbus_message_iter_close_container(&entry, &sub_variant);
+			dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &prop_gateway);
+			dbus_message_iter_open_container(&entry, DBUS_TYPE_VARIANT,
+							DBUS_TYPE_STRING_AS_STRING, &sub_variant);
+			dbus_message_iter_append_basic(&sub_variant, DBUS_TYPE_STRING, &gateway);
+			dbus_message_iter_close_container(&entry, &sub_variant);
 
-		dbus_message_iter_close_container(&dict, &entry);
-
+			dbus_message_iter_close_container(&dict, &entry);
+		}
 		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s %s %s %s %s %s %s\n",
 				prop_method, manual_method, prop_address, ipaddress,
 				prop_netmask, netmask, prop_gateway, gateway);
