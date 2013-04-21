@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,29 +17,19 @@
  *
  */
 
+#ifndef __NETWORK_INTERNAL_H__
+#define __NETWORK_INTERNAL_H__
 
-#ifndef __NETWORK_INTERNAL_H_
-#define __NETWORK_INTERNAL_H_
-
-/*****************************************************************************
- * 	Standard headers
- *****************************************************************************/
-#include <stdio.h> 
-#include <errno.h> 
-#include <stdlib.h> 
-#include <string.h>
 #include <glib.h>
+#include <stdlib.h>
+#include <dbus/dbus.h>
 
-#include <dbus/dbus.h> 
-
-#include <net/if.h>			/** for IFNAMSIZ and co... */
-
-/*****************************************************************************
- * 	Platform headers
- *****************************************************************************/
-#include "network-pm-intf.h"
 #include "network-cm-intf.h"
 #include "network-wifi-intf.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*****************************************************************************
  * 	Macros and Typedefs
@@ -56,14 +46,12 @@
 
 #define	NET_MEMFREE(x)	{if(x != NULL) free(x); x = NULL;}
 
-/** ConnMan Daemon Management interface */
+/** ConnMan interfaces */
 #define CONNMAN_SERVICE                 "net.connman"
-
 #define CONNMAN_MANAGER_INTERFACE		CONNMAN_SERVICE ".Manager"
 #define CONNMAN_TECHNOLOGY_INTERFACE		CONNMAN_SERVICE ".Technology"
 #define CONNMAN_SERVICE_INTERFACE		CONNMAN_SERVICE ".Service"
 #define CONNMAN_PROFILE_INTERFACE		CONNMAN_SERVICE ".Profile"
-#define CONNMAN_COUNTER_INTERFACE		CONNMAN_SERVICE ".Counter"
 #define CONNMAN_ERROR_INTERFACE			CONNMAN_SERVICE ".Error"
 #define CONNMAN_AGENT_INTERFACE			CONNMAN_SERVICE ".Agent"
 
@@ -81,34 +69,25 @@
 #define NETCONFIG_WIFI_PATH				"/net/netconfig/wifi"
 #define NETCONFIG_STATISTICS_PATH			"/net/netconfig/network_statistics"
 
-#define TELEPHONY_SERVCE				"com.tcore.ps"
-#define TELEPHONY_MASTER_INTERFACE		TELEPHONY_SERVCE ".master"
-#define TELEPHONY_NETWORK_INTERFACE		TELEPHONY_SERVCE ".network"
-#define TELEPHONY_PROFILE_INTERFACE		TELEPHONY_SERVCE ".context"
+#define TELEPHONY_SERVICE				"com.tcore.ps"
+#define TELEPHONY_MASTER_INTERFACE		TELEPHONY_SERVICE ".master"
+#define TELEPHONY_NETWORK_INTERFACE		TELEPHONY_SERVICE ".network"
+#define TELEPHONY_PROFILE_INTERFACE		TELEPHONY_SERVICE ".context"
+
 #define TELEPHONY_MASTER_PATH			"/"
 
-/** Network related Daemon Signal Filters */
-#define NETCONFIG_WIFI_FILTER			"type='signal',interface='net.netconfig.wifi'"
-
-/** Network related Daemon Signals */
-#define NETCONFIG_SIGNAL_POWERON_COMPLETED	"PowerOnCompleted"
-#define NETCONFIG_SIGNAL_POWEROFF_COMPLETED	"PowerOffCompleted"
-#define NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE	"SpecificScanCompleted"
-
-/** ConnMan Daemon Signal Filters */
+/** Signal Filters */
 #define CONNMAN_MANAGER_SIGNAL_FILTER 		"type='signal',interface='net.connman.Manager'"
 #define CONNMAN_TECHNOLOGY_SIGNAL_FILTER	"type='signal',interface='net.connman.Technology'"
 #define CONNMAN_SERVICE_SIGNAL_FILTER		"type='signal',interface='net.connman.Service'"
 #define CONNMAN_PROFILE_SIGNAL_FILTER		"type='signal',interface='net.connman.Profile'"
-#define CONNMAN_NETWORK_COUNTER_FILTER		"type='signal',interface='net.connman.Counter'"
+#define NETCONFIG_WIFI_FILTER			"type='signal',interface='net.netconfig.wifi'"
 
-/** ConnMan Daemon Signals */
-#define CONNMAN_SIGNAL_PROPERTY_CHANGED "PropertyChanged"
-
-/* Newly added manager interface signals */
-#define CONNMAN_SIGNAL_TECHNOLOGY_ADDED "TechnologyAdded"
-#define CONNMAN_SIGNAL_TECHNOLOGY_REMOVED "TechnologyRemoved"
-#define CONNMAN_SIGNAL_SERVICES_CHANGED "ServicesChanged"
+/** Signals */
+#define SIGNAL_PROPERTY_CHANGED "PropertyChanged"
+#define SIGNAL_TECHNOLOGY_ADDED "TechnologyAdded"
+#define SIGNAL_TECHNOLOGY_REMOVED "TechnologyRemoved"
+#define SIGNAL_SERVICES_CHANGED "ServicesChanged"
 
 /** ConnMan technology and profile prefixes for ConnMan */
 #define CONNMAN_CELLULAR_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/cellular"
@@ -121,6 +100,10 @@
 #define CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/ethernet_"
 #define CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/bluetooth_"
 
+/** Network related Daemon Signals */
+#define NETCONFIG_SIGNAL_POWERON_COMPLETED	"PowerOnCompleted"
+#define NETCONFIG_SIGNAL_POWEROFF_COMPLETED	"PowerOffCompleted"
+#define NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE	"SpecificScanCompleted"
 
 #ifdef VITA_FEATURE
 #include <dlog.h>
@@ -154,7 +137,6 @@
 
 #endif /** VITA_FEATURE */
 
-
 /*****************************************************************************
  * 	Global Enums
  *****************************************************************************/
@@ -171,10 +153,9 @@ typedef enum
 	NETWORK_REQUEST_TYPE_MAX
 } network_async_request_type_t;
 
-
 typedef struct
 {
-	int flag; /** TRUE/FALSE */
+	int flag;
 	char ProfileName[NET_PROFILE_NAME_LEN_MAX+1];
 } network_request_table_t;
 
@@ -201,12 +182,12 @@ typedef struct {
 
 typedef struct
 {
-	char technology[NET_TECH_LENGTH_MAX]; /** wifi, ethernet, cellular - strings */
+	char technology[NET_TECH_LENGTH_MAX];
 	char AvailableTechnology;
 	char EnabledTechnology;
 	char ConnectedTechnology;
 	char DefaultTechnology;
-	/* Connman 1.3 */
+	/* Connman 1.x */
 	char Connected;
 	char Powered;
 } network_tech_state_info_t;
@@ -257,4 +238,8 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info);
 net_wifi_state_t _net_get_wifi_state(void);
 void _net_clear_request_table(void);
 
-#endif /** __NETWORK_INTERNAL_H_ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /** __NETWORK_INTERNAL_H__*/

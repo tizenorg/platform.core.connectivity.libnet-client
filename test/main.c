@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,23 +17,20 @@
  *
  */
 
- 
-#ifdef HAVE_CONFIG_H 
-#include <config.h> 
-#endif 
- 
-#include <stdio.h> 
-#include <errno.h> 
-#include <stdlib.h> 
-#include <string.h> 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <glib.h>
-
-#include <dbus/dbus.h> 
-
-#include <network-pm-config.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dbus/dbus.h>
 #include <network-cm-intf.h>
 #include <network-pm-intf.h>
 #include <network-wifi-intf.h>
+#include <network-pm-config.h>
 
 #define debug_print(format, args...) printf("[%s][Ln: %d] " format, __FILE__, __LINE__, ##args)
 
@@ -125,7 +122,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 		gwaddr = (unsigned char *)&bt_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
 		net_info = &(bt_info->net_info);
 	} else {
-		debug_print("Error!!! Invalid profile type\n");
+		debug_print("Invalid profile type\n");
 		return ;
 	}
 
@@ -325,10 +322,10 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 
 		Error = net_get_profile_list(NET_DEVICE_WIFI, &Profiles, &num_of_profile);
 		if (Error != NET_ERR_NONE) {
-			debug_print("Error!!! failed to get service(profile) list. Error [%d]\n",
+			debug_print("Failed to get service(profile) list. Error [%d]\n",
 					Error);
 		} else {
-			debug_print("network_dbus_get_scan_result() successfull\n");
+			debug_print("network_dbus_get_scan_result() successfully\n");
 			debug_print("........................Scan Table.......................\n");
 			__print_profile_list(num_of_profile, Profiles, PROFILE_BASIC_INFO);
 			debug_print(".........................................................\n");
@@ -394,7 +391,7 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 			debug_print("Activation Failed!\n");
 			break;
 		default:
-			debug_print("Unknown Error!\n");
+			debug_print("Unknown Error\n");
 			break;
 		}
 
@@ -428,7 +425,7 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 			debug_print("Deactivation Failed!\n");
 			break;
 		default:
-			debug_print("Unknown Error!\n");
+			debug_print("Unknown Error\n");
 			break;
 		}
 
@@ -533,7 +530,7 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 		break;
 
 	default :
-		debug_print("Error! Unknown Event\n\n");
+		debug_print("Unknown Event\n\n");
 		break;
 	}
 
@@ -933,7 +930,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_wifi_power_on() != NET_ERR_NONE) {
-			debug_print("Error!! net_wifi_power_on() failed.\n");
+			debug_print("net_wifi_power_on() failed.\n");
 			break;
 		}
 
@@ -949,7 +946,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_wifi_power_off() != NET_ERR_NONE ) {
-			debug_print("Error!! net_wifi_power_off() failed.\n");
+			debug_print("net_wifi_power_off() failed.\n");
 			break;
 		}
 
@@ -965,7 +962,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_scan_wifi() != NET_ERR_NONE ) {
-			debug_print("Error!! net_scan_wifi() failed.\n");
+			debug_print("net_scan_wifi() failed.\n");
 			break;
 		}
 
@@ -985,7 +982,7 @@ static gboolean network_main_gthread(gpointer data)
 
 		if (net_wifi_set_background_scan_mode(input_int) != NET_ERR_NONE) {
 			debug_print(
-				"Error!! network_wifi_set_scan_interval() failed.\n");
+				"network_wifi_set_scan_interval() failed.\n");
 			break;
 		}
 
@@ -997,7 +994,7 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case '4':
-		debug_print( "Enter Service Type(1:Internet, 2:MMS): \n");
+		debug_print("Enter Service Type(1:Internet, 2:MMS): \n");
 		scanf("%d", &input_int);
 
 		net_service_type_t service_type = NET_SERVICE_UNKNOWN;
@@ -1017,8 +1014,7 @@ static gboolean network_main_gthread(gpointer data)
 		if (service_type != NET_SERVICE_UNKNOWN) {
 			net_error = net_open_connection_with_preference(service_type);
 			if (net_error != NET_ERR_NONE) {
-				debug_print(
-				  "Error!! net_open_connection_with_profile() failed.\n");
+				debug_print("net_open_connection_with_profile() failed.\n");
 				break;
 			}
 		}
@@ -1041,7 +1037,7 @@ static gboolean network_main_gthread(gpointer data)
 
 		if (net_open_connection_with_profile(ProfileName) != NET_ERR_NONE) {
 			debug_print(
-				"Error!! net_open_connection_with_profile() failed.\n");
+				"net_open_connection_with_profile() failed.\n");
 			break;
 		}
 
@@ -1063,7 +1059,7 @@ static gboolean network_main_gthread(gpointer data)
 
 		if (net_close_connection(ProfileName) != NET_ERR_NONE) {
 			debug_print(
-				"Error!! net_close_connection() failed.\n");
+				"net_close_connection() failed.\n");
 			break;
 		}
 
@@ -1082,7 +1078,7 @@ static gboolean network_main_gthread(gpointer data)
 		net_profile_name_t profile_name;
 
 		if (net_get_wifi_state(&wlanstate, &profile_name) != NET_ERR_NONE) {
-			debug_print("Error!! net_get_wifi_state() failed.\n");
+			debug_print("net_get_wifi_state() failed.\n");
 			break;
 		}
 
@@ -1112,6 +1108,7 @@ static gboolean network_main_gthread(gpointer data)
 			break;
 		default :
 			debug_print("wlanstate : Unknown\n");
+			break;
 		}
 		break;
 
@@ -1158,7 +1155,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_get_network_status(device_type, &NetworkStatus) != NET_ERR_NONE) {
-			debug_print("Error!!! net_get_network_status() failed\n");
+			debug_print("net_get_network_status() failed\n");
 			break;
 		}
 
@@ -1188,43 +1185,43 @@ static gboolean network_main_gthread(gpointer data)
 		switch (input_int) {
 		case 1:
 			if (net_get_active_net_info(&profile_info) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_net_info() failed\n");
+				debug_print("net_get_active_net_info() failed\n");
 			else
 				__network_print_profile(&profile_info, PROFILE_FULL_INFO);
 			break;
 		case 2:
 			if (net_get_active_ipaddress(&ip_address) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_ipaddress() failed\n");
+				debug_print("net_get_active_ipaddress() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
 			break;
 		case 3:
 			if (net_get_active_netmask(&ip_address) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_netmask() failed\n");
+				debug_print("net_get_active_netmask() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
 			break;
 		case 4:
 			if (net_get_active_gateway(&ip_address) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_gateway() failed\n");
+				debug_print("net_get_active_gateway() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
 			break;
 		case 5:
 			if (net_get_active_dns(&ip_address) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_dns() failed\n");
+				debug_print("net_get_active_dns() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
 			break;
 		case 6:
 			if (net_get_active_essid(&essid) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_essid() failed\n");
+				debug_print("net_get_active_essid() failed\n");
 			else
 				debug_print("Profile ESSID = [%s]\n", essid.essid);
 			break;
 		case 7:
 			if (net_get_active_proxy(&proxy) != NET_ERR_NONE)
-				debug_print("Error!!! net_get_active_proxy() failed\n");
+				debug_print("net_get_active_proxy() failed\n");
 			else
 				debug_print("Profile Proxy = [%s]\n", proxy.proxy_addr);
 			break;
@@ -1270,7 +1267,7 @@ static gboolean network_main_gthread(gpointer data)
 				&profList, &profListCount);
 
 		if (net_error != NET_ERR_NONE) {
-			debug_print("Error!!! net_get_profile_list() failed\n");
+			debug_print("net_get_profile_list() failed\n");
 			break;
 		}
 
@@ -1293,7 +1290,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_get_profile_info(ProfileName, &profile_info) != NET_ERR_NONE) {
-			debug_print("Error!!! net_get_profile_info() failed\n");
+			debug_print("net_get_profile_info() failed\n");
 			break;
 		}
 
@@ -1314,7 +1311,7 @@ static gboolean network_main_gthread(gpointer data)
 		net_error = net_get_profile_info(ProfileName, &profile_info);
 
 		if (net_error != NET_ERR_NONE) {
-			debug_print("Error!!! net_get_profile_info() failed\n");
+			debug_print("net_get_profile_info() failed\n");
 			break;
 		}
 
@@ -1325,7 +1322,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_modify_profile(ProfileName, &profile_info) != NET_ERR_NONE) {
-			debug_print("Error!!! net_modify_profile() failed\n");
+			debug_print("net_modify_profile() failed\n");
 			break;
 		}
 
@@ -1345,7 +1342,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_delete_profile(ProfileName) != NET_ERR_NONE) {
-			debug_print("Error!!! net_delete_profile() failed\n");
+			debug_print("net_delete_profile() failed\n");
 			break;
 		}
 
@@ -1375,7 +1372,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_add_profile(network_type, &profile_info) != NET_ERR_NONE) {
-			debug_print("Error!!! net_add_profile() failed\n");
+			debug_print("net_add_profile() failed\n");
 			break;
 		}
 
@@ -1408,8 +1405,7 @@ static gboolean network_main_gthread(gpointer data)
 		net_error = net_open_connection_with_wifi_info(&wifi_info);
 
 		if (net_error != NET_ERR_NONE) {
-			debug_print("Error!!! "
-				    "net_open_connection_with_wifi_info() failed.\n");
+			debug_print("net_open_connection_with_wifi_info() failed.\n");
 			break;
 		}
 
@@ -1436,7 +1432,7 @@ static gboolean network_main_gthread(gpointer data)
 		wps_info.type = WIFI_WPS_PBC;
 
 		if (net_wifi_enroll_wps(ProfileName, &wps_info) != NET_ERR_NONE) {
-			debug_print("Error!! net_wifi_enroll_wps() failed.\n");
+			debug_print("net_wifi_enroll_wps() failed.\n");
 			break;
 		}
 
@@ -1525,12 +1521,12 @@ static gboolean network_main_gthread(gpointer data)
 
 		if (user_sel == 1) {
 			if (net_set_default_cellular_service_profile(ProfileName) != NET_ERR_NONE) {
-				debug_print("Error!! net_set_default_cellular_service_profile() failed.\n");
+				debug_print("net_set_default_cellular_service_profile() failed.\n");
 				break;
 			}
 		} else {
 			if (net_set_default_cellular_service_profile_async(ProfileName) != NET_ERR_NONE) {
-				debug_print("Error!! net_set_default_cellular_service_profile_async() failed.\n");
+				debug_print("net_set_default_cellular_service_profile_async() failed.\n");
 				break;
 			}
 		}
@@ -1561,7 +1557,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_add_route(ip_addr, if_name) != NET_ERR_NONE) {
-			debug_print("Error!! net_add_route() failed.\n");
+			debug_print("net_add_route() failed.\n");
 			break;
 		}
 
@@ -1591,7 +1587,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_remove_route(ip_addr, if_name) != NET_ERR_NONE) {
-			debug_print("Error!! net_remove_route() failed.\n");
+			debug_print("net_remove_route() failed.\n");
 			break;
 		}
 
@@ -1615,7 +1611,7 @@ static gboolean network_main_gthread(gpointer data)
 		start_time = Convert_time2double(timevar);
 
 		if (net_specific_scan_wifi(essid) != NET_ERR_NONE) {
-			debug_print("Error!! net_specific_scan_wifi() failed.\n");
+			debug_print("net_specific_scan_wifi() failed.\n");
 			break;
 		}
 
@@ -1668,33 +1664,33 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'z':
-		debug_print( "Exiting...!!!\n");
+		debug_print("Exiting...!!!\n");
 
 		if (net_deregister_client () != NET_ERR_NONE)
-			debug_print("Error!! net_deregister_client() failed.\n");
+			debug_print("net_deregister_client() failed.\n");
 		else
-			debug_print( "net_deregister_client() success\n");
+			debug_print("net_deregister_client() success\n");
 
 		exit(1);
 
 	default:
-		debug_print( "default...!!!\n");
+		debug_print("default...!!!\n");
+		break;
 	}
 
 	return TRUE;
 }
-
 
 int main(int argc, char *argv[])
 {
 	GMainLoop* mainloop = NULL;
 
 	if (net_register_client ((net_event_cb_t)__network_evt_cb, NULL) != NET_ERR_NONE) {
-		debug_print("Error!! net_register_client() failed.\n");
+		debug_print("net_register_client() failed.\n");
 		return 0;
 	}
 
-	debug_print( "net_register_client() successfull\n");
+	debug_print("net_register_client() successfull\n");
 
 	g_idle_add(network_main_gthread, NULL);
 
@@ -1706,4 +1702,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-

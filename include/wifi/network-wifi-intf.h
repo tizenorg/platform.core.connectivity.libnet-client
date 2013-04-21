@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,9 +17,10 @@
  *
  */
 
+#ifndef __NETWORK_WIFI_INTF_H__
+#define __NETWORK_WIFI_INTF_H__
 
-#ifndef __NETWORK_WIFI_INTF_H_
-#define __NETWORK_WIFI_INTF_H_
+#include "network-cm-intf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,16 +35,6 @@ extern "C" {
  * \addtogroup  wifi_specific
  * \{
 */
-/*****************************************************************************
- * 	Standard headers
- *****************************************************************************/
-
-/*****************************************************************************
- * 	Platform headers
- *****************************************************************************/
-
-#include "network-pm-wlan.h"
-#include "network-cm-intf.h"
 
 /*****************************************************************************
  * 	Macros and Typedefs
@@ -71,7 +62,7 @@ typedef enum {
 	WIFI_CONNECTED,
 	/** Trying to disconnect(connected, but disconnecting process is on going) */
 	WIFI_DISCONNECTING,
-} net_wifi_state_t; 
+} net_wifi_state_t;
 
 /**
 *@enum net_wifi_background_scan_mode_t
@@ -99,7 +90,6 @@ typedef enum
 /*****************************************************************************
  * 	Global Structures
  *****************************************************************************/
-
 /**
  * This is the structure to connect with WPS network.
  */
@@ -139,7 +129,6 @@ typedef struct {
  * 	ConnMan Wi-Fi Client Interface Synchronous API Declaration
  *****************************************************************************/
 
-
 /**
  * @fn   int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_name_t *profile_name)
  *
@@ -157,7 +146,6 @@ typedef struct {
  */
 
 int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_name_t *profile_name);
-
 
 /**
  * @fn   int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t scan_mode)
@@ -219,7 +207,6 @@ int net_specific_scan_wifi(const char *ssid);
 
 int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_info);
 
-
 /**
  * @fn   int net_scan_wifi(void)
  *
@@ -242,7 +229,6 @@ int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_in
 
 int net_scan_wifi(void);
 
-
 /**
  * @fn   int net_wifi_power_on(void)
  *
@@ -263,7 +249,6 @@ int net_scan_wifi(void);
 
 int net_wifi_power_on(void);
 
-
 /**
  * @fn   int net_wifi_power_off(void)
  *
@@ -283,7 +268,6 @@ int net_wifi_power_on(void);
  */
 
 int net_wifi_power_off(void);
-
 
 /**
  * @fn   int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t *wps_info)
@@ -307,7 +291,6 @@ int net_wifi_power_off(void);
 
 int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t *wps_info);
 
-
 /**
  * \}
  */
@@ -316,4 +299,4 @@ int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t *wps_info)
 }
 #endif
 
-#endif /** __NETWORK_WIFI_INTF_H_ */
+#endif /** __NETWORK_WIFI_INTF_H__ */

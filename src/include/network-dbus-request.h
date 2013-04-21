@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,27 +17,15 @@
  *
  */
 
+#ifndef __NETWORK_DBUS_REQUEST_H__
+#define __NETWORK_DBUS_REQUEST_H__
 
-#ifndef __NETWORK_DBUS_REQUEST_H_
-#define __NETWORK_DBUS_REQUEST_H_
+#include "network-internal.h"
+#include "network-wifi-intf.h"
 
-/*****************************************************************************
- * 	Standard headers
- *****************************************************************************/
-#include <stdio.h> 
-#include <errno.h> 
-#include <stdlib.h> 
-#include <string.h>
-#include <glib.h>
-
-#include <dbus/dbus.h> 
-
-
-/*****************************************************************************
- * 	Platform headers
- *****************************************************************************/
-
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*****************************************************************************
  * 	Macros and Typedefs
@@ -95,7 +83,6 @@ typedef struct {
 	char *private_key_password;
 } net_wifi_connect_service_info_t;
 
-
 /*****************************************************************************
  * 	Global Functions 
  *****************************************************************************/
@@ -113,9 +100,11 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name);
 int _net_dbus_get_technology_state(network_tech_state_info_t* tech_state);
 DBusMessage *_net_invoke_dbus_method(const char* dest, const char* path,
-		char* interface_name, char* method, char *param_array[], int *dbus_error);
+		char* interface_name, char* method,
+		char* param_array[], int* dbus_error);
 int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
-		char* interface_name, char* method, DBusPendingCallNotifyFunction notify_func);
+		char* interface_name, char* method,
+		DBusPendingCallNotifyFunction notify_func);
 int _net_dbus_load_wifi_driver(void);
 int _net_dbus_remove_wifi_driver(void);
 int _net_dbus_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size);
@@ -131,4 +120,8 @@ gboolean __net_dbus_abort_open_request(const char *profile_name);
 int _net_dbus_specific_scan_request(const char *ssid);
 int _net_dbus_set_default(const char* profile_name);
 
-#endif /** __NETWORK_SIGNAL_HANDLER_H_ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /** __NETWORK_SIGNAL_HANDLER_H__ */

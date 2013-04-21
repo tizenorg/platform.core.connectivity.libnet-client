@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,14 +17,18 @@
  *
  */
 
-
-#ifndef __NETWORK_CM_INTF_H__        /* To prevent inclusion of a header file twice */
+#ifndef __NETWORK_CM_INTF_H__
 #define __NETWORK_CM_INTF_H__
 
+#include "network-pm-intf.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+#ifndef DEPRECATED
+#define DEPRECATED __attribute__((deprecated))
+#endif
 
 /**
  * @file network-cm-intf.h
@@ -35,42 +39,6 @@ extern "C" {
  * \addtogroup  common_basic
  * \{
 */
-
-/*==================================================================================================
-                                         INCLUDE FILES
-==================================================================================================*/
-
-
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <string.h>
-
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <sys/un.h>
-#include <errno.h>
-
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-
-#include <pthread.h>
-#include <signal.h>
-
-#include <sys/poll.h>
-
-#include <semaphore.h>
-#include <linux/unistd.h>
-
-#include "network-pm-intf.h"
-#include "network-cm-error.h"
-
-#ifndef DEPRECATED
-#define DEPRECATED __attribute__((deprecated))
-#endif
 
 /*==================================================================================================
                                            CONSTANTS
@@ -226,7 +194,7 @@ typedef struct
 
 /*****************************************************************************************/
 /* Callback function prototype
- * typedef void (*net_event_cb_t ) ( const net_event_info_t* net_event, void* user_data);
+ * typedef void (*net_event_cb_t)(const net_event_info_t* net_event, void* user_data);
  */
 
 /**
@@ -315,7 +283,7 @@ typedef struct
  *
  */
 
-typedef void (*net_event_cb_t ) ( const net_event_info_t* net_event, void* user_data);
+typedef void (*net_event_cb_t)(const net_event_info_t* net_event, void* user_data);
 
 /*==================================================================================================
                                      FUNCTION PROTOTYPES

@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,36 +16,6 @@
  * limitations under the License.
  *
  */
-
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif /* __cplusplus */
-
-/*****************************************************************************
- * 	Standard headers
- *****************************************************************************/
-#include <stdio.h> 
-#include <errno.h> 
-#include <stdlib.h> 
-#include <string.h> 
-#include <glib.h>
-
-#include <dbus/dbus.h> 
-
-#include <sys/types.h>
-#include <sys/wait.h>
-
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <linux/if_ether.h>
-
-/*****************************************************************************
- * 	Platform headers
- *****************************************************************************/
 
 #include "network-internal.h"
 #include "network-dbus-request.h"
@@ -72,7 +42,7 @@ extern network_info_t NetworkInfo;
  *****************************************************************************/
 
 /** set all request to FALSE (0) */
-network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = {{0, }, };
+network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = {{0,},};
 
 struct {
 	pthread_mutex_t callback_mutex;
@@ -253,13 +223,17 @@ net_device_t _net_get_tech_type_from_path(const char *profile_name)
 
 	net_device_t device_type = NET_DEVICE_UNKNOWN;
 
-	if (g_str_has_prefix(profile_name, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
+	if (g_str_has_prefix(profile_name,
+			CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
 		device_type = NET_DEVICE_WIFI;
-	else if (g_str_has_prefix(profile_name, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE)
+	else if (g_str_has_prefix(profile_name,
+			CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE)
 		device_type = NET_DEVICE_CELLULAR;
-	else if (g_str_has_prefix(profile_name, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
+	else if (g_str_has_prefix(profile_name,
+			CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
 		device_type = NET_DEVICE_ETHERNET;
-	else if (g_str_has_prefix(profile_name, CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE)
+	else if (g_str_has_prefix(profile_name,
+			CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE)
 		device_type = NET_DEVICE_BLUETOOTH;
 
 	__NETWORK_FUNC_EXIT__;
@@ -420,19 +394,20 @@ int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
 			if (dbus_message_iter_get_arg_type(&value1) ==
 					DBUS_TYPE_BOOLEAN) {
 				dbus_message_iter_get_basic(&value1, &data);
-				NETWORK_LOG(NETWORK_LOW, "key-[%s]-[%s]", key, data ? "True" : "False");
+				NETWORK_LOG(NETWORK_LOW, "key-[%s]-[%s]",
+						key, data ? "True" : "False");
 
-				if (strcmp(key, "Powered") == 0) {
+				if (g_strcmp0(key, "Powered") == 0) {
 					if (data)
 						tech_state->Powered = TRUE;
 					else
 						tech_state->Powered = FALSE;
-				} else if (strcmp(key, "Connected") == 0) {
+				} else if (g_strcmp0(key, "Connected") == 0) {
 					if (data)
 						tech_state->Connected = TRUE;
 					else
 						tech_state->Connected = FALSE;
-				} else if (strcmp(key, "Tethering") == 0) {
+				} else if (g_strcmp0(key, "Tethering") == 0) {
 					/* For further use */
 				}
 			} else if (dbus_message_iter_get_arg_type(&value1) ==
@@ -477,52 +452,64 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 
 	case WLAN_SEC_MODE_WEP:
 		wifi_connection_info.security = g_strdup("wep");
-		wifi_connection_info.passphrase = g_strdup(wifi_info->security_info.authentication.wep.wepKey);
+		wifi_connection_info.passphrase =
+				g_strdup(wifi_info->security_info.authentication.wep.wepKey);
 		break;
 
 	/** WPA-PSK(equivalent to WPA-NONE in case of Ad-Hoc) */
 	case WLAN_SEC_MODE_WPA_PSK:
 		wifi_connection_info.security = g_strdup("psk");
-		wifi_connection_info.passphrase = g_strdup(wifi_info->security_info.authentication.psk.pskKey);
+		wifi_connection_info.passphrase =
+				g_strdup(wifi_info->security_info.authentication.psk.pskKey);
 		break;
 
 	/** WPA2-PSK */
 	/** WPA-PSK / WPA2-PSK supported */
 	case WLAN_SEC_MODE_WPA2_PSK:
 		wifi_connection_info.security = g_strdup("rsn");
-		wifi_connection_info.passphrase = g_strdup(wifi_info->security_info.authentication.psk.pskKey);
+		wifi_connection_info.passphrase =
+				g_strdup(wifi_info->security_info.authentication.psk.pskKey);
 		break;
 
 	case WLAN_SEC_MODE_IEEE8021X:
 		wifi_connection_info.security = g_strdup("ieee8021x");
 
 		wifi_connection_info.eap_type = g_strdup(
-				__convert_eap_type_to_string(wifi_info->security_info.authentication.eap.eap_type));
+				__convert_eap_type_to_string(
+						wifi_info->security_info.authentication.eap.eap_type));
 		wifi_connection_info.eap_auth = g_strdup(
-				__convert_eap_auth_to_string(wifi_info->security_info.authentication.eap.eap_auth));
+				__convert_eap_auth_to_string(
+						wifi_info->security_info.authentication.eap.eap_auth));
 
 		if (wifi_info->security_info.authentication.eap.username[0] != '\0')
-			wifi_connection_info.identity = g_strdup(wifi_info->security_info.authentication.eap.username);
+			wifi_connection_info.identity =
+					g_strdup(wifi_info->security_info.authentication.eap.username);
 
 		if (wifi_info->security_info.authentication.eap.password[0] != '\0')
-			wifi_connection_info.password = g_strdup(wifi_info->security_info.authentication.eap.password);
+			wifi_connection_info.password =
+					g_strdup(wifi_info->security_info.authentication.eap.password);
 
 		if (wifi_info->security_info.authentication.eap.ca_cert_filename[0] != '\0')
-			wifi_connection_info.ca_cert_file = g_strdup(wifi_info->security_info.authentication.eap.ca_cert_filename);
+			wifi_connection_info.ca_cert_file =
+					g_strdup(wifi_info->security_info.authentication.eap.ca_cert_filename);
 
 		if (wifi_info->security_info.authentication.eap.client_cert_filename[0] != '\0')
-			wifi_connection_info.client_cert_file = g_strdup(wifi_info->security_info.authentication.eap.client_cert_filename);
+			wifi_connection_info.client_cert_file =
+					g_strdup(wifi_info->security_info.authentication.eap.client_cert_filename);
 
 		if (wifi_info->security_info.authentication.eap.private_key_filename[0] != '\0')
-			wifi_connection_info.private_key_file = g_strdup(wifi_info->security_info.authentication.eap.private_key_filename);
+			wifi_connection_info.private_key_file =
+					g_strdup(wifi_info->security_info.authentication.eap.private_key_filename);
 
 		if (wifi_info->security_info.authentication.eap.private_key_passwd[0] != '\0')
-			wifi_connection_info.private_key_password = g_strdup(wifi_info->security_info.authentication.eap.private_key_passwd);
+			wifi_connection_info.private_key_password =
+					g_strdup(wifi_info->security_info.authentication.eap.private_key_passwd);
 
 		break;
 
 	default:
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Invalid security type\n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid security type\n");
+
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
@@ -544,7 +531,8 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 				wifi_connection_info.private_key_file, wifi_connection_info.private_key_password);
 	}
 
-	if ((Error = _net_dbus_connect_service(&wifi_connection_info)) != NET_ERR_NONE)
+	Error = _net_dbus_connect_service(&wifi_connection_info);
+	if (Error != NET_ERR_NONE)
 		NETWORK_LOG(NETWORK_ERROR, "Failed to request connect service. Error [%s]\n",
 				_net_print_error(Error));
 	else
@@ -626,11 +614,11 @@ net_wifi_state_t _net_get_wifi_state(void)
 	network_tech_state_info_t tech_state = {{0,},};
 	net_wifi_state_t wifi_state = WIFI_UNKNOWN;
 
-	snprintf(tech_state.technology, NET_TECH_LENGTH_MAX, "%s", "wifi");
+	g_strlcpy(tech_state.technology, "wifi", NET_TECH_LENGTH_MAX);
 	Error = _net_dbus_get_technology_state(&tech_state);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR,
-			"Error!!! _net_dbus_get_technology_state() failed. Error [%s]\n",
+			"_net_dbus_get_technology_state() failed. Error [%s]\n",
 			_net_print_error(Error));
 		goto state_done;
 	}
@@ -657,7 +645,3 @@ void _net_clear_request_table(void)
 
 	__NETWORK_FUNC_EXIT__;
 }
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */

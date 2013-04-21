@@ -1,14 +1,14 @@
 /*
- *  Network Client Library
+ * Network Client Library
  *
  * Copyright 2011-2013 Samsung Electronics Co., Ltd
-
+ *
  * Licensed under the Flora License, Version 1.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
-
+ *
  * http://floralicense.org/license/
-
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,15 +17,19 @@
  *
  */
 
- 
 #ifndef __NETWORK_PM_INTF_H__
 #define __NETWORK_PM_INTF_H__
 
+#include "network-pm-wlan.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif /* __cplusplus */
+
+#ifndef DEPRECATED
+#define DEPRECATED __attribute__((deprecated))
+#endif
 
 /**
  * @file network-pm-intf.h
@@ -36,15 +40,6 @@ extern "C"
  * \addtogroup  profile_managing
  * \{
 */
-
-#ifndef DEPRECATED
-#define DEPRECATED __attribute__((deprecated))
-#endif
-/*==================================================================================================
-                                         INCLUDE FILES
-==================================================================================================*/
-
-#include "network-pm-wlan.h"
 
 /*==================================================================================================
                                            CONSTANTS
@@ -226,8 +221,8 @@ typedef struct
  * \par Example of how this function would be called:
  *
  * net_profile_info_t prof_info;\n
- * int result; \n
- * result = net_add_profile( NET_SERVICE_MMS, &prof_info ); \n
+ * int result;\n
+ * result = net_add_profile(NET_SERVICE_MMS, &prof_info);\n
  * if(result == NET_ERR_NONE)
  *
 ******************************************************************************************/
@@ -431,5 +426,3 @@ int net_set_default_cellular_service_profile_async(const char *profile_name);
 #endif /* __cplusplus */
 
 #endif
-
-
