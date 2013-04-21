@@ -69,40 +69,7 @@ static int __net_get_dbus_property_changed_basic(DBusMessage *message,
 	return NET_ERR_NONE;
 }
 
-static int __net_handle_services_changed_signal(DBusMessage* msg)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	net_event_info_t event_data = { 0, };
-
-	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE)
-		return NET_ERR_NONE;
-	else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
-		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0,
-				sizeof(network_request_table_t));
-
-		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
-
-		_net_dbus_clear_pending_call();
-
-		NETWORK_LOG(NETWORK_LOW, "response ScanDone\n");
-	} else {
-		event_data.Event = NET_EVENT_WIFI_SCAN_IND;
-
-		NETWORK_LOG(NETWORK_LOW, "indicate ScanDone\n");
-	}
-
-	event_data.Error = NET_ERR_NONE;
-	event_data.Datalength = 0;
-	event_data.Data = NULL;
-
-	_net_client_callback(&event_data);
-
-	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
-}
-
-static int __net_handle_wifi_power_rsp(int value)
+static int __net_handle_wifi_power_rsp(gboolean value)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -589,6 +556,39 @@ static int __net_handle_service_property_changed(DBusMessage *message)
 	return Error;
 }
 
+static int __net_handle_scan_done(DBusMessage *message)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_event_info_t event_data = { 0, };
+
+	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE)
+		return NET_ERR_NONE;
+	else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0,
+				sizeof(network_request_table_t));
+
+		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
+
+		_net_dbus_clear_pending_call();
+
+		NETWORK_LOG(NETWORK_LOW, "response ScanDone\n");
+	} else {
+		event_data.Event = NET_EVENT_WIFI_SCAN_IND;
+
+		NETWORK_LOG(NETWORK_LOW, "indicate ScanDone\n");
+	}
+
+	event_data.Error = NET_ERR_NONE;
+	event_data.Datalength = 0;
+	event_data.Data = NULL;
+
+	_net_client_callback(&event_data);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
 static DBusHandlerResult
 __net_signal_filter(DBusConnection* conn, DBusMessage* msg, void* user_data)
 {
@@ -621,13 +621,20 @@ __net_signal_filter(DBusConnection* conn, DBusMessage* msg, void* user_data)
 		/* reserved */
 	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE,
 			SIGNAL_SERVICES_CHANGED)) {
-		__net_handle_services_changed_signal(msg);
 		/* reserved */
 	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE,
 			NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE)) {
 		__net_handle_wifi_specific_scan_rsp(msg);
 
 		return DBUS_HANDLER_RESULT_HANDLED;
+	} else if (dbus_message_is_signal(msg, SUPPLICANT_SERVICE_INTERFACE,
+			SIGNAL_SCAN_DONE)) {
+		__net_handle_scan_done(msg);
+
+		return DBUS_HANDLER_RESULT_HANDLED;
+	} else if (dbus_message_is_signal(msg, SUPPLICANT_SERVICE_INTERFACE,
+			SIGNAL_PROPERTIES_CHANGED)) {
+		/* reserved */
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -669,15 +676,6 @@ int _net_deregister_signal(void)
 		return NET_ERR_UNKNOWN;
 	}
 
-	dbus_bus_remove_match(signal_conn, CONNMAN_TECHNOLOGY_SIGNAL_FILTER, &err);
-	dbus_connection_flush(signal_conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
 	dbus_bus_remove_match(signal_conn, CONNMAN_SERVICE_SIGNAL_FILTER, &err);
 	dbus_connection_flush(signal_conn);
 	if (dbus_error_is_set(&err)) {
@@ -688,6 +686,15 @@ int _net_deregister_signal(void)
 	}
 
 	dbus_bus_remove_match(signal_conn, NETCONFIG_WIFI_FILTER, &err);
+	dbus_connection_flush(signal_conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	dbus_bus_remove_match(signal_conn, SUPPLICANT_INTERFACE_SIGNAL_FILTER, &err);
 	dbus_connection_flush(signal_conn);
 	if (dbus_error_is_set(&err)) {
 		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
@@ -746,15 +753,6 @@ int _net_register_signal(void)
 		return NET_ERR_UNKNOWN;
 	}
 
-	dbus_bus_add_match(conn, CONNMAN_TECHNOLOGY_SIGNAL_FILTER, &err); 
-	dbus_connection_flush(conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Add Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
 	dbus_bus_add_match(conn, CONNMAN_SERVICE_SIGNAL_FILTER, &err);
 	dbus_connection_flush(conn);
 	if (dbus_error_is_set(&err)) {
@@ -773,7 +771,17 @@ int _net_register_signal(void)
 		return NET_ERR_UNKNOWN;
 	}
 
-	if (dbus_connection_add_filter(conn, __net_signal_filter, NULL, NULL) == FALSE) {
+	dbus_bus_add_match(conn, SUPPLICANT_INTERFACE_SIGNAL_FILTER, &err);
+	dbus_connection_flush(conn);
+	if (dbus_error_is_set(&err)) {
+		NETWORK_LOG(NETWORK_ERROR, "Add Match Error (%s)\n", err.message);
+		dbus_error_free(&err);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	if (dbus_connection_add_filter(conn, __net_signal_filter, NULL, NULL)
+			== FALSE) {
 		NETWORK_LOG(NETWORK_ERROR, "dbus_connection_add_filter() failed\n");
 
 		__NETWORK_FUNC_EXIT__;

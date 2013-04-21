@@ -47,7 +47,7 @@ extern "C" {
 #define	NET_MEMFREE(x)	{if(x != NULL) free(x); x = NULL;}
 
 /** ConnMan interfaces */
-#define CONNMAN_SERVICE                 "net.connman"
+#define CONNMAN_SERVICE				"net.connman"
 #define CONNMAN_MANAGER_INTERFACE		CONNMAN_SERVICE ".Manager"
 #define CONNMAN_TECHNOLOGY_INTERFACE		CONNMAN_SERVICE ".Technology"
 #define CONNMAN_SERVICE_INTERFACE		CONNMAN_SERVICE ".Service"
@@ -56,48 +56,52 @@ extern "C" {
 #define CONNMAN_AGENT_INTERFACE			CONNMAN_SERVICE ".Agent"
 
 #define CONNMAN_MANAGER_PATH			"/"
-#define CONNMAN_PATH					"/net/connman"
+#define CONNMAN_PATH				"/net/connman"
 #define CONNMAN_TECHNOLOGY_PATH			"/net/connman/technology"
 
 /** Network related Daemon interfaces */
-#define NETCONFIG_SERVICE				"net.netconfig"
+#define NETCONFIG_SERVICE			"net.netconfig"
 #define NETCONFIG_NETWORK_INTERFACE		NETCONFIG_SERVICE ".network"
 #define NETCONFIG_WIFI_INTERFACE		NETCONFIG_SERVICE ".wifi"
 #define NETCONFIG_STATISTICS_INTERFACE		NETCONFIG_SERVICE ".network_statistics"
 
-#define NETCONFIG_NETWORK_PATH				"/net/netconfig/network"
-#define NETCONFIG_WIFI_PATH				"/net/netconfig/wifi"
-#define NETCONFIG_STATISTICS_PATH			"/net/netconfig/network_statistics"
+#define NETCONFIG_NETWORK_PATH			"/net/netconfig/network"
+#define NETCONFIG_WIFI_PATH			"/net/netconfig/wifi"
+#define NETCONFIG_STATISTICS_PATH		"/net/netconfig/network_statistics"
 
-#define TELEPHONY_SERVICE				"com.tcore.ps"
+#define TELEPHONY_SERVICE			"com.tcore.ps"
 #define TELEPHONY_MASTER_INTERFACE		TELEPHONY_SERVICE ".master"
 #define TELEPHONY_NETWORK_INTERFACE		TELEPHONY_SERVICE ".network"
 #define TELEPHONY_PROFILE_INTERFACE		TELEPHONY_SERVICE ".context"
 
 #define TELEPHONY_MASTER_PATH			"/"
 
+#define SUPPLICANT_SERVICE			"fi.w1.wpa_supplicant1"
+#define SUPPLICANT_SERVICE_INTERFACE		SUPPLICANT_SERVICE ".Interface"
+
 /** Signal Filters */
 #define CONNMAN_MANAGER_SIGNAL_FILTER 		"type='signal',interface='net.connman.Manager'"
-#define CONNMAN_TECHNOLOGY_SIGNAL_FILTER	"type='signal',interface='net.connman.Technology'"
-#define CONNMAN_SERVICE_SIGNAL_FILTER		"type='signal',interface='net.connman.Service'"
-#define CONNMAN_PROFILE_SIGNAL_FILTER		"type='signal',interface='net.connman.Profile'"
-#define NETCONFIG_WIFI_FILTER			"type='signal',interface='net.netconfig.wifi'"
+#define CONNMAN_SERVICE_SIGNAL_FILTER 		"type='signal',interface='net.connman.Service'"
+#define NETCONFIG_WIFI_FILTER 			"type='signal',interface='net.netconfig.wifi'"
+#define SUPPLICANT_INTERFACE_SIGNAL_FILTER	"type='signal',interface='fi.w1.wpa_supplicant1.Interface'"
 
 /** Signals */
-#define SIGNAL_PROPERTY_CHANGED "PropertyChanged"
-#define SIGNAL_TECHNOLOGY_ADDED "TechnologyAdded"
-#define SIGNAL_TECHNOLOGY_REMOVED "TechnologyRemoved"
-#define SIGNAL_SERVICES_CHANGED "ServicesChanged"
+#define SIGNAL_PROPERTY_CHANGED			"PropertyChanged"
+#define SIGNAL_PROPERTIES_CHANGED		"PropertiesChanged"
+#define SIGNAL_TECHNOLOGY_ADDED			"TechnologyAdded"
+#define SIGNAL_TECHNOLOGY_REMOVED		"TechnologyRemoved"
+#define SIGNAL_SERVICES_CHANGED			"ServicesChanged"
+#define SIGNAL_SCAN_DONE			"ScanDone"
 
 /** ConnMan technology and profile prefixes for ConnMan */
-#define CONNMAN_CELLULAR_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/cellular"
-#define CONNMAN_WIFI_TECHNOLOGY_PREFIX			CONNMAN_PATH "/technology/wifi"
-#define CONNMAN_ETHERNET_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/ethernet"
-#define CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/bluetooth"
+#define CONNMAN_CELLULAR_TECHNOLOGY_PREFIX	CONNMAN_PATH "/technology/cellular"
+#define CONNMAN_WIFI_TECHNOLOGY_PREFIX		CONNMAN_PATH "/technology/wifi"
+#define CONNMAN_ETHERNET_TECHNOLOGY_PREFIX	CONNMAN_PATH "/technology/ethernet"
+#define CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX	CONNMAN_PATH "/technology/bluetooth"
 
-#define CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/cellular_"
+#define CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX		CONNMAN_PATH "/service/cellular_"
 #define CONNMAN_WIFI_SERVICE_PROFILE_PREFIX		CONNMAN_PATH "/service/wifi_"
-#define CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/ethernet_"
+#define CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX		CONNMAN_PATH "/service/ethernet_"
 #define CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/bluetooth_"
 
 /** Network related Daemon Signals */
