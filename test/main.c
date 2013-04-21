@@ -516,7 +516,7 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 			for (; bss_info_list; bss_info_list = bss_info_list->next){
 				net_wifi_connection_info_t *resp_data = bss_info_list->data;
 				if (resp_data)
-					debug_print("essid:%s, sec type:%d",
+					debug_print("essid:%s, sec type:%d\n",
 							resp_data->essid,
 							resp_data->security_info.sec_mode);
 			}

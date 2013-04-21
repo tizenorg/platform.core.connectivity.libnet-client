@@ -418,27 +418,38 @@ EXPORT_API int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t
 			profile_name, NET_PROFILE_NAME_LEN_MAX+1);
 
 	if (wps_info->type == WIFI_WPS_PBC) {
-		Error = _net_dbus_open_connection(profile_name);
-		if (Error != NET_ERR_NONE) {
+		Error = _net_dbus_set_agent_wps_pbc();
+		if (NET_ERR_NONE != Error) {
 			NETWORK_LOG(NETWORK_ERROR,
-					"Failed to request open connection, Error [%s]\n",
-					_net_print_error(Error));
-
-			memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
-					sizeof(network_request_table_t));
-
+				"_net_dbus_set_agent_wps_pbc() failed\n");
 			__NETWORK_FUNC_EXIT__;
-			return Error;
+			return NET_ERR_INVALID_OPERATION;
 		}
 	} else if(wps_info->type == WIFI_WPS_PIN) {
-		// TODO: handle wps pin
+		Error = _net_dbus_set_agent_wps_pin(wps_info->pin);
+		if (NET_ERR_NONE != Error) {
+			NETWORK_LOG(NETWORK_ERROR,
+				"_net_dbus_set_agent_wps_pin() failed\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_INVALID_OPERATION;
+		}
 	} else {
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
+	Error = _net_dbus_open_connection(profile_name);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"Failed to request open connection, Error [%s]\n",
+				_net_print_error(Error));
+
+		memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
+				sizeof(network_request_table_t));
+	}
+
 	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
+	return Error;
 }
 
 /*****************************************************************************

@@ -1768,8 +1768,7 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 	if (ex_security_info->sec_mode == WLAN_SEC_MODE_WEP) {
 		if (strcmp(security_info->authentication.wep.wepKey,
 						ex_security_info->authentication.wep.wepKey) != 0) {
-			Error = _net_dbus_set_agent_fields(NULL,
-									security_info->authentication.wep.wepKey);
+			Error = _net_dbus_set_agent_passphrase(security_info->authentication.wep.wepKey);
 
 			if (NET_ERR_NONE != Error) {
 				NETWORK_LOG(NETWORK_ERROR, "Failed to set agent field\n");
@@ -1779,11 +1778,10 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 			}
 		}
 	} else if (ex_security_info->sec_mode == WLAN_SEC_MODE_WPA_PSK ||
-	           ex_security_info->sec_mode == WLAN_SEC_MODE_WPA2_PSK) {
+			ex_security_info->sec_mode == WLAN_SEC_MODE_WPA2_PSK) {
 		if (strcmp(security_info->authentication.psk.pskKey,
-			ex_security_info->authentication.psk.pskKey) != 0) {
-			Error = _net_dbus_set_agent_fields(NULL,
-									security_info->authentication.psk.pskKey);
+						ex_security_info->authentication.psk.pskKey) != 0) {
+			Error = _net_dbus_set_agent_passphrase(security_info->authentication.psk.pskKey);
 
 			if (NET_ERR_NONE != Error) {
 				NETWORK_LOG(NETWORK_ERROR, "Failed to set agent field\n");

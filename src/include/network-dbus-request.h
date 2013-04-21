@@ -47,9 +47,9 @@ extern "C" {
 #define CONNMAN_CLIENT_DBUS_TYPE_ARRAY		"array"
 #define CONNMAN_CLIENT_DBUS_TYPE_DICT_ENTRY	"dict"
 
-#define NETCONFIG_AGENT_FIELD_NAME "Name"
-#define NETCONFIG_AGENT_FIELD_PASSPHRASE "Passphrase"
-#define NETCONFIG_AGENT_FIELD_IDENTITY "Identity"
+#define NETCONFIG_AGENT_FIELD_PASSPHRASE 	"Passphrase"
+#define NETCONFIG_AGENT_FIELD_WPS_PBC		"WPS_PBC"
+#define NETCONFIG_AGENT_FIELD_WPS_PIN		"WPS_PIN"
 
 #define CONNMAN_CONFIG_FIELD_TYPE "Type"
 #define CONNMAN_CONFIG_FIELD_NAME "Name"
@@ -89,7 +89,9 @@ typedef struct {
 int _net_dbus_scan_request(void);
 int _net_dbus_set_bgscan_mode(net_wifi_background_scan_mode_t mode);
 int _net_dbus_get_state(char* state);
-int _net_dbus_set_agent_fields(const char *name, const char *passphrase);
+int _net_dbus_set_agent_passphrase(const char *passphrase);
+int _net_dbus_set_agent_wps_pbc(void);
+int _net_dbus_set_agent_wps_pin(char *wps_pin);
 int _net_dbus_open_connection(const char* profile_name);
 int _net_dbus_close_connection(const char* profile_name);
 int _net_dbus_get_network_status(net_device_t device_type, net_cm_network_status_t* network_status);
