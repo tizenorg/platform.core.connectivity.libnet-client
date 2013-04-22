@@ -44,6 +44,7 @@ static int __net_extract_ip(DBusMessageIter *iter, net_addr_t *ipAddr);
 static int __net_extract_common_info(const char *key, DBusMessageIter *variant, net_profile_info_t* ProfInfo);
 static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
 static int __net_extract_ethernet_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
+static int __net_extract_bluetooth_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
 static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_name_t* PdpProfName);
 static int __net_telephony_modify_profile(const char* ProfileName,
 		net_profile_info_t* ProfInfo, net_profile_info_t* exProfInfo);
@@ -461,63 +462,6 @@ static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_nam
 	return Error;
 }
 
-static int __net_extract_wifi_services(DBusMessage *message,
-		DBusMessageIter *array, network_services_list_t *service_info)
-{
-	int count = 0, i = 0;
-
-	__NETWORK_FUNC_ENTER__;
-
-	if (message == NULL || array == NULL || service_info == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter \n");
-
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_PARAM;
-	}
-
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
-		DBusMessageIter entry;
-		const char *obj;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &obj);
-
-		if (obj == NULL) {
-			dbus_message_iter_next(array);
-			continue;
-		}
-
-		if (g_str_has_prefix(obj, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE) {
-			if (g_strrstr(obj + strlen(CONNMAN_WIFI_SERVICE_PROFILE_PREFIX),
-							"hidden") != NULL)
-				goto get_next;
-
-			service_info->ProfileName[count] = (char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
-			if (service_info->ProfileName[count] == NULL) {
-				NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
-
-				for (i = 0;i < count;i++)
-					NET_MEMFREE(service_info->ProfileName[i]);
-
-				__NETWORK_FUNC_EXIT__;
-				return NET_ERR_UNKNOWN;
-			}
-
-			g_strlcpy(service_info->ProfileName[count], obj, NET_PROFILE_NAME_LEN_MAX);
-
-			count++;
-		}
-
-get_next:
-		dbus_message_iter_next(array);
-	}
-
-	service_info->num_of_services = count;
-
-	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
-}
-
 static int __net_extract_mobile_services(DBusMessage *message,
 		DBusMessageIter *array, network_services_list_t* service_info,
 		net_service_type_t network_type)
@@ -552,7 +496,8 @@ static int __net_extract_mobile_services(DBusMessage *message,
 			continue;
 		}
 
-		if (g_str_has_prefix(obj, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
+		if (g_str_has_prefix(obj,
+				CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
 			found = FALSE;
 
 			suffix = strrchr(obj, '_');
@@ -604,14 +549,17 @@ static int __net_extract_mobile_services(DBusMessage *message,
 	return NET_ERR_NONE;
 }
 
-static int __net_extract_ethernet_services(DBusMessage *message,
-		DBusMessageIter *array, network_services_list_t *service_info)
+static int __net_extract_all_services(DBusMessageIter *array,
+		net_device_t device_type, const char *service_prefix,
+		int *prof_count, net_profile_info_t **ProfilePtr)
 {
-	int count = 0, i = 0;
+	int count = 0;
+	net_profile_info_t ProfInfo = {0, };
+	net_err_t Error = NET_ERR_NONE;
 
 	__NETWORK_FUNC_ENTER__;
 
-	if (message == NULL || array == NULL || service_info == NULL) {
+	if (array == NULL || service_prefix == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter \n");
 
 		__NETWORK_FUNC_EXIT__;
@@ -620,6 +568,7 @@ static int __net_extract_ethernet_services(DBusMessage *message,
 
 	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
 		DBusMessageIter entry;
+		DBusMessageIter next;
 		const char *obj;
 
 		dbus_message_iter_recurse(array, &entry);
@@ -630,81 +579,91 @@ static int __net_extract_ethernet_services(DBusMessage *message,
 			continue;
 		}
 
-		if (g_str_has_prefix(obj, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE) {
-			service_info->ProfileName[count] =
-									(char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
-			if (service_info->ProfileName[count] == NULL) {
-				NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
+		if (g_str_has_prefix(obj, service_prefix) == TRUE) {
+			if (device_type == NET_DEVICE_WIFI &&
+					g_strrstr(obj + strlen(service_prefix), "hidden") != NULL)
+				goto get_next;
 
-				for (i = 0;i < count;i++)
-					NET_MEMFREE(service_info->ProfileName[i]);
+			dbus_message_iter_next(&entry);
+			dbus_message_iter_recurse(&entry, &next);
+
+			memset(&ProfInfo, 0, sizeof(net_profile_info_t));
+			if ((Error = __net_pm_init_profile_info(device_type, &ProfInfo)) != NET_ERR_NONE) {
+				NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
+
+				NET_MEMFREE(*ProfilePtr);
+				*prof_count = 0;
+
+				__NETWORK_FUNC_EXIT__;
+				return Error;
+			}
+
+			ProfInfo.profile_type = device_type;
+			g_strlcpy(ProfInfo.ProfileName, obj, NET_PROFILE_NAME_LEN_MAX);
+
+			switch(device_type) {
+			case NET_DEVICE_WIFI:
+				g_strlcpy(ProfInfo.ProfileInfo.Wlan.net_info.ProfileName,
+						obj, NET_PROFILE_NAME_LEN_MAX);
+
+				Error = __net_extract_wifi_info(&next, &ProfInfo);
+				break;
+			case NET_DEVICE_CELLULAR:
+				g_strlcpy(ProfInfo.ProfileInfo.Pdp.net_info.ProfileName,
+						obj, NET_PROFILE_NAME_LEN_MAX);
+
+				Error = __net_extract_mobile_info(&next, &ProfInfo);
+				break;
+			case NET_DEVICE_ETHERNET:
+				g_strlcpy(ProfInfo.ProfileInfo.Ethernet.net_info.ProfileName,
+						obj, NET_PROFILE_NAME_LEN_MAX);
+
+				Error = __net_extract_ethernet_info(&next, &ProfInfo);
+				break;
+			case NET_DEVICE_BLUETOOTH:
+				g_strlcpy(ProfInfo.ProfileInfo.Bluetooth.net_info.ProfileName,
+						obj, NET_PROFILE_NAME_LEN_MAX);
+
+				Error = __net_extract_bluetooth_info(&next, &ProfInfo);
+				break;
+			default:
+				NET_MEMFREE(*ProfilePtr);
+				*prof_count = 0;
+
+				__NETWORK_FUNC_EXIT__;
+				return NET_ERR_NOT_SUPPORTED;
+			}
+
+			if (Error != NET_ERR_NONE) {
+				NETWORK_LOG(NETWORK_ERROR,
+						"Failed to extract service info\n");
+
+				NET_MEMFREE(*ProfilePtr);
+				*prof_count = 0;
+
+				__NETWORK_FUNC_EXIT__;
+				return Error;
+			}
+
+			*ProfilePtr = (net_profile_info_t *)realloc(*ProfilePtr,
+					(count + 1) * sizeof(net_profile_info_t));
+			if (*ProfilePtr == NULL) {
+				NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
+				*prof_count = 0;
 
 				__NETWORK_FUNC_EXIT__;
 				return NET_ERR_UNKNOWN;
 			}
 
-			g_strlcpy(service_info->ProfileName[count], obj, NET_PROFILE_NAME_LEN_MAX);
-
+			memcpy(*ProfilePtr + count, &ProfInfo, sizeof(net_profile_info_t));
 			count++;
 		}
 
+get_next:
 		dbus_message_iter_next(array);
 	}
 
-	service_info->num_of_services = count;
-
-	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
-}
-
-static int __net_extract_bluetooth_services(DBusMessage* message,
-		DBusMessageIter* array, network_services_list_t* service_info)
-{
-	int count = 0, i = 0;
-
-	__NETWORK_FUNC_ENTER__;
-
-	if (message == NULL || array == NULL || service_info == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter \n");
-
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_PARAM;
-	}
-
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
-		DBusMessageIter entry;
-		const char *obj;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &obj);
-
-		if (obj == NULL) {
-			dbus_message_iter_next(array);
-			continue;
-		}
-
-		if (g_str_has_prefix(obj, CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE) {
-			service_info->ProfileName[count] =
-									(char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
-			if (service_info->ProfileName[count] == NULL) {
-				NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
-
-				for (i = 0;i < count;i++)
-					NET_MEMFREE(service_info->ProfileName[i]);
-
-				__NETWORK_FUNC_EXIT__;
-				return NET_ERR_UNKNOWN;
-			}
-
-			g_strlcpy(service_info->ProfileName[count], obj, NET_PROFILE_NAME_LEN_MAX);
-
-			count++;
-		}
-
-		dbus_message_iter_next(array);
-	}
-
-	service_info->num_of_services = count;
+	*prof_count = count;
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -717,11 +676,9 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 
 	net_err_t Error = NET_ERR_NONE;
 	DBusMessageIter iter, dict;
-	network_services_list_t service_info = {0,};
-	net_profile_info_t ProfileInfo = {0, };
-	net_profile_info_t* ProfilePtr = NULL;
-	int i = 0;
+	net_profile_info_t *ProfilePtr = NULL;
 	int prof_cnt = 0;
+	char *service_prefix = NULL;
 
 	dbus_message_iter_init(message, &iter);
 	dbus_message_iter_recurse(&iter, &dict);
@@ -730,17 +687,16 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 
 	switch (device_type) {
 	case NET_DEVICE_WIFI :
-		Error = __net_extract_wifi_services(message, &dict, &service_info);
+		service_prefix = CONNMAN_WIFI_SERVICE_PROFILE_PREFIX;
 		break;
 	case NET_DEVICE_CELLULAR :
-		Error = __net_extract_mobile_services(message, &dict, &service_info,
-				NET_SERVICE_UNKNOWN);
+		service_prefix = CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX;
 		break;
 	case NET_DEVICE_ETHERNET :
-		Error = __net_extract_ethernet_services(message, &dict, &service_info);
+		service_prefix = CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX;
 		break;
 	case NET_DEVICE_BLUETOOTH :
-		Error = __net_extract_bluetooth_services(message, &dict, &service_info);
+		service_prefix = CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX;
 		break;
 	default :
 		*profile_count = 0;
@@ -749,7 +705,9 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 		return NET_ERR_NOT_SUPPORTED;
 		break;
 	}
-	
+
+	Error = __net_extract_all_services(&dict, device_type, service_prefix,
+			&prof_cnt, &ProfilePtr);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to extract services from received message\n");
 		*profile_count = 0;
@@ -757,40 +715,6 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-
-	NETWORK_LOG(NETWORK_HIGH, "Num. of Profiles from Manager : [%d]\n", service_info.num_of_services);
-
-	ProfilePtr = (net_profile_info_t*)malloc(service_info.num_of_services * sizeof(net_profile_info_t));
-	if (ProfilePtr == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
-
-		for (i = 0; i < service_info.num_of_services; i++)
-			NET_MEMFREE(service_info.ProfileName[i]);
-
-		*profile_count = 0;
-		*profile_info = NULL;
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	for (i = 0; i < service_info.num_of_services; i++) {
-		memset(&ProfileInfo, 0, sizeof(net_profile_info_t));
-
-		Error = __net_get_profile_info(service_info.ProfileName[i], &ProfileInfo);
-		if (Error != NET_ERR_NONE) {
-			NETWORK_LOG(NETWORK_ERROR, "Failed to get service(profile) information. Error [%s]\n",
-					_net_print_error(Error));
-			NETWORK_LOG(NETWORK_HIGH, "Continuing with next profile\n");
-
-			continue;
-		}
-
-		memcpy(ProfilePtr + prof_cnt, &ProfileInfo, sizeof(net_profile_info_t));
-		prof_cnt++;
-	}
-
-	for(i = 0; i < service_info.num_of_services; i++)
-		NET_MEMFREE(service_info.ProfileName[i]);
 
 	NETWORK_LOG(NETWORK_HIGH, "Total Num. of Profiles [%d]\n", prof_cnt);
 
@@ -1657,7 +1581,6 @@ static int __net_get_profile_info(
 
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, ProfileName,
 			CONNMAN_SERVICE_INTERFACE, "GetProperties", NULL, &Error);
-
 	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to get profile\n");
 		goto done;
@@ -1978,41 +1901,87 @@ done:
 }
 
 static int __net_extract_defult_profile(
-		DBusMessageIter *array, net_profile_name_t *profile_name)
+		DBusMessageIter *array, net_profile_info_t **ProfilePtr)
 {
 	net_err_t Error = NET_ERR_NONE;
 	const char net_suffix[] = "_1";
 	char *suffix = NULL;
-	const char *objPath = NULL;
+	const char *obj = NULL;
+	net_profile_info_t ProfInfo = {0, };
 
 	__NETWORK_FUNC_ENTER__;
 
-	if (array == NULL || profile_name == NULL) {
+	if (array == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter \n");
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	memset(profile_name, 0, sizeof(net_profile_name_t));
-
 	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
 		DBusMessageIter entry;
+		DBusMessageIter next;
 
 		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &objPath);
+		dbus_message_iter_get_basic(&entry, &obj);
 
-		if (objPath == NULL) {
+		if (obj == NULL) {
 			dbus_message_iter_next(array);
 			continue;
 		}
 
-		if (g_str_has_prefix(objPath,
-							CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
-			suffix = strrchr(objPath, '_');
+		if (g_str_has_prefix(obj,
+				CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
+			suffix = strrchr(obj, '_');
 
-			if (strcmp(suffix, net_suffix) == 0)
+			if (strcmp(suffix, net_suffix) == 0) {
+				dbus_message_iter_next(&entry);
+				dbus_message_iter_recurse(&entry, &next);
+
+				memset(&ProfInfo, 0, sizeof(net_profile_info_t));
+
+				Error = __net_pm_init_profile_info(
+						NET_DEVICE_CELLULAR, &ProfInfo);
+				if (Error != NET_ERR_NONE) {
+					NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
+
+					NET_MEMFREE(*ProfilePtr);
+
+					__NETWORK_FUNC_EXIT__;
+					return Error;
+				}
+
+				ProfInfo.profile_type = NET_DEVICE_CELLULAR;
+				g_strlcpy(ProfInfo.ProfileName, obj, NET_PROFILE_NAME_LEN_MAX);
+				g_strlcpy(ProfInfo.ProfileInfo.Pdp.net_info.ProfileName,
+						obj, NET_PROFILE_NAME_LEN_MAX);
+
+				Error = __net_extract_mobile_info(&next, &ProfInfo);
+				if (Error != NET_ERR_NONE) {
+					NETWORK_LOG(NETWORK_ERROR,
+							"Failed to extract service info\n");
+
+					NET_MEMFREE(*ProfilePtr);
+
+					__NETWORK_FUNC_EXIT__;
+					return Error;
+				}
+
+				*ProfilePtr = (net_profile_info_t *)malloc(
+						sizeof(net_profile_info_t));
+				if (*ProfilePtr == NULL) {
+					NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
+
+					__NETWORK_FUNC_EXIT__;
+					return NET_ERR_UNKNOWN;
+				}
+
+				memcpy(*ProfilePtr, &ProfInfo, sizeof(net_profile_info_t));
+
+				NETWORK_LOG(NETWORK_HIGH, "Default: %s\n",
+						ProfInfo.ProfileName);
 				goto found;
+			}
 		} else
 			goto found;
 
@@ -2023,12 +1992,6 @@ static int __net_extract_defult_profile(
 	Error = NET_ERR_NO_SERVICE;
 
 found:
-	if (Error == NET_ERR_NONE && objPath != NULL) {
-		g_strlcpy(profile_name->ProfileName, objPath, NET_PROFILE_NAME_LEN_MAX);
-
-		NETWORK_LOG(NETWORK_HIGH, "default: %s\n", profile_name->ProfileName);
-	}
-
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -2154,8 +2117,6 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 	net_err_t Error = NET_ERR_NONE;
 	DBusMessage *message = NULL;
 	DBusMessageIter iter, dict;
-	net_profile_name_t profile_name;
-	const char *prof_name = NULL;
 
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, CONNMAN_MANAGER_PATH,
 			CONNMAN_MANAGER_INTERFACE, "GetServices", NULL, &Error);
@@ -2168,15 +2129,8 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 
 	dbus_message_iter_init(message, &iter);
 	dbus_message_iter_recurse(&iter, &dict);
-	Error = __net_extract_defult_profile(&dict, &profile_name);
+	Error = __net_extract_defult_profile(&dict, &profile_info);
 
-	if (Error != NET_ERR_NONE)
-		goto done;
-
-	prof_name = (const char*)profile_name.ProfileName;
-	Error = __net_get_profile_info(prof_name, profile_info);
-
-done:
 	dbus_message_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
