@@ -90,7 +90,7 @@ static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_inf
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	memset(ProfInfo, '\0', sizeof(net_profile_info_t));
+	memset(ProfInfo, 0, sizeof(net_profile_info_t));
 	ProfInfo->Favourite = FALSE;
 
 	if (profile_type == NET_DEVICE_WIFI) {
@@ -1296,7 +1296,7 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 	return Error;
 }
 
-static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t* ProfInfo)
+static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t *ProfInfo)
 {
 	net_err_t Error = NET_ERR_NONE;
 
@@ -1476,19 +1476,19 @@ static int __net_extract_service_info(
 		const char *temp = NULL;
 
 		dbus_message_iter_recurse(&array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);		
+		dbus_message_iter_get_basic(&entry, &key);
 
-		if (strcmp(key, "Type") == 0) {
+		if (g_strcmp0(key, "Type") == 0) {
 			dbus_message_iter_next(&entry);
 			dbus_message_iter_recurse(&entry, &dict);
 			dbus_message_iter_get_basic(&dict, &temp);
-			if (strcmp(temp, "wifi") == 0)
+			if (g_strcmp0(temp, "wifi") == 0)
 				profileType = NET_DEVICE_WIFI;
-			else if (strcmp(temp, "cellular") == 0)
+			else if (g_strcmp0(temp, "cellular") == 0)
 				profileType = NET_DEVICE_CELLULAR;
-			else if (strcmp(temp, "ethernet") == 0)
+			else if (g_strcmp0(temp, "ethernet") == 0)
 				profileType = NET_DEVICE_ETHERNET;
-			else if (strcmp(temp, "bluetooth") == 0)
+			else if (g_strcmp0(temp, "bluetooth") == 0)
 				profileType = NET_DEVICE_BLUETOOTH;
 
 			break;
@@ -1900,11 +1900,11 @@ done:
 	return Error;
 }
 
-static int __net_extract_defult_profile(
-		DBusMessageIter *array, net_profile_info_t **ProfilePtr)
+static int __net_extract_default_profile(
+		DBusMessageIter *array, net_profile_info_t *ProfilePtr)
 {
 	net_err_t Error = NET_ERR_NONE;
-	const char net_suffix[] = "_1";
+	const char internet_suffix[] = "_1";
 	char *suffix = NULL;
 	const char *obj = NULL;
 	net_profile_info_t ProfInfo = {0, };
@@ -1912,7 +1912,7 @@ static int __net_extract_defult_profile(
 	__NETWORK_FUNC_ENTER__;
 
 	if (array == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter \n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
@@ -1934,18 +1934,13 @@ static int __net_extract_defult_profile(
 				CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
 			suffix = strrchr(obj, '_');
 
-			if (strcmp(suffix, net_suffix) == 0) {
+			if (g_strcmp0(suffix, internet_suffix) == 0) {
 				dbus_message_iter_next(&entry);
 				dbus_message_iter_recurse(&entry, &next);
 
-				memset(&ProfInfo, 0, sizeof(net_profile_info_t));
-
-				Error = __net_pm_init_profile_info(
-						NET_DEVICE_CELLULAR, &ProfInfo);
+				Error = __net_pm_init_profile_info(NET_DEVICE_CELLULAR, &ProfInfo);
 				if (Error != NET_ERR_NONE) {
 					NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
-
-					NET_MEMFREE(*ProfilePtr);
 
 					__NETWORK_FUNC_EXIT__;
 					return Error;
@@ -1958,28 +1953,16 @@ static int __net_extract_defult_profile(
 
 				Error = __net_extract_mobile_info(&next, &ProfInfo);
 				if (Error != NET_ERR_NONE) {
-					NETWORK_LOG(NETWORK_ERROR,
-							"Failed to extract service info\n");
-
-					NET_MEMFREE(*ProfilePtr);
+					NETWORK_LOG(NETWORK_ERROR, "Fail to extract service info\n");
 
 					__NETWORK_FUNC_EXIT__;
 					return Error;
 				}
 
-				*ProfilePtr = (net_profile_info_t *)malloc(
-						sizeof(net_profile_info_t));
-				if (*ProfilePtr == NULL) {
-					NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
+				memcpy(ProfilePtr, &ProfInfo, sizeof(net_profile_info_t));
 
-					__NETWORK_FUNC_EXIT__;
-					return NET_ERR_UNKNOWN;
-				}
+				NETWORK_LOG(NETWORK_HIGH, "Default: %s\n", ProfInfo.ProfileName);
 
-				memcpy(*ProfilePtr, &ProfInfo, sizeof(net_profile_info_t));
-
-				NETWORK_LOG(NETWORK_HIGH, "Default: %s\n",
-						ProfInfo.ProfileName);
 				goto found;
 			}
 		} else
@@ -1988,7 +1971,7 @@ static int __net_extract_defult_profile(
 		dbus_message_iter_next(array);
 	}
 
-	NETWORK_LOG(NETWORK_ERROR, "Failed to find default service\n");
+	NETWORK_LOG(NETWORK_ERROR, "Fail to find default service\n");
 	Error = NET_ERR_NO_SERVICE;
 
 found:
@@ -2129,7 +2112,7 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 
 	dbus_message_iter_init(message, &iter);
 	dbus_message_iter_recurse(&iter, &dict);
-	Error = __net_extract_defult_profile(&dict, &profile_info);
+	Error = __net_extract_default_profile(&dict, profile_info);
 
 	dbus_message_unref(message);
 
