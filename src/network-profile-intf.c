@@ -63,7 +63,6 @@ static int __net_set_default_cellular_service_profile_async(const char* ProfileN
 /*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
-
 extern network_info_t NetworkInfo;
 extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
@@ -74,7 +73,6 @@ extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 /*****************************************************************************
  * 	Local Functions Definition
  *****************************************************************************/
-
 static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_info_t* ProfInfo)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -803,7 +801,6 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 
 	return Error;
 }
-
 
 static int __net_extract_ip(DBusMessageIter *iter, net_addr_t *ipAddr)
 {
@@ -1887,7 +1884,6 @@ done:
 	return Error;
 }
 
-
 static int __net_telephony_add_profile(net_profile_info_t *ProfInfo, net_service_type_t network_type)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -2190,8 +2186,6 @@ done:
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Sync API Definition
  *****************************************************************************/
-
-
 EXPORT_API int net_add_profile(net_service_type_t network_type, net_profile_info_t *prof_info)
 {
 	net_err_t Error = NET_ERR_NONE;
@@ -2222,7 +2216,6 @@ EXPORT_API int net_add_profile(net_service_type_t network_type, net_profile_info
 	__NETWORK_FUNC_EXIT__;	
 	return Error;
 }
-
 
 EXPORT_API int net_delete_profile(const char* profile_name)
 {

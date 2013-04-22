@@ -23,7 +23,6 @@
 /*****************************************************************************
  * 	Local Functions Declaration
  *****************************************************************************/
-
 static int __net_get_default_profile(void *param, net_profile_info_t *active_profile_info);
 
 /*****************************************************************************
@@ -33,19 +32,16 @@ static int __net_get_default_profile(void *param, net_profile_info_t *active_pro
 /*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
-
 extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
  * 	Global Variables
  *****************************************************************************/
-
 network_info_t NetworkInfo = {0, };
 
 /*****************************************************************************
  * 	Local Functions Definition
  *****************************************************************************/
-
 static int __net_get_default_profile(void *param, net_profile_info_t *active_profile_info)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -198,7 +194,6 @@ static int __net_get_netinfo(net_profile_info_t *active_profile_info, net_dev_in
 /*****************************************************************************
  * 	ConnMan Client Common Interface API Definition
  *****************************************************************************/
-
 /**
  * @fn  EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
  *
@@ -259,7 +254,7 @@ EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
 	return NET_ERR_NONE;
 }
 
-int net_register_client_ext(net_event_cb_t event_cb, net_device_t client_type, void *user_data)
+EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t client_type, void *user_data)
 {
 	net_err_t Error = NET_ERR_NONE;
 
@@ -331,7 +326,6 @@ int net_register_client_ext(net_event_cb_t event_cb, net_device_t client_type, v
  * @param[in]    none
  * @param[out]   none
  */
-
 EXPORT_API int net_deregister_client(void)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -357,7 +351,7 @@ EXPORT_API int net_deregister_client(void)
 	return NET_ERR_NONE;
 }
 
-int net_deregister_client_ext(net_device_t client_type)
+EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 {
 	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Application was not registered\n");
@@ -653,7 +647,8 @@ EXPORT_API int net_is_connected(void)
 		return FALSE;
 	}
 
-	if ((g_strcmp0(state, "online") == 0) || (g_strcmp0(state, "connected") == 0)) {
+	if ((g_strcmp0(state, "online") == 0) ||
+			(g_strcmp0(state, "connected") == 0)) {
 		NETWORK_LOG(NETWORK_HIGH, "State [%s]\n", state);
 
 		__NETWORK_FUNC_EXIT__;
@@ -789,7 +784,6 @@ EXPORT_API int net_remove_route(const char *ip_addr, const char *interface)
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Async Function Definition
  *****************************************************************************/
-
 /**
  * @fn   EXPORT_API int net_open_connection_with_profile(const char *profile_name)
  *
@@ -929,7 +923,7 @@ EXPORT_API int net_open_connection_with_preference(net_service_type_t service_ty
 	return NET_ERR_NONE;
 }
 
-int net_open_connection_with_preference_ext(net_service_type_t service_type,
+EXPORT_API int net_open_connection_with_preference_ext(net_service_type_t service_type,
 		net_profile_name_t *prof_name)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -1011,7 +1005,6 @@ int net_open_connection_with_preference_ext(net_service_type_t service_type,
  * @param[in]    char *profile_name - Connected profile Name
  * @param[out]   none
  */
-
 EXPORT_API int net_close_connection(const char *profile_name)
 {
 	__NETWORK_FUNC_ENTER__;

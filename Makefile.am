@@ -1,4 +1,5 @@
-CPPFLAGS  =  $(DBUS_CFLAGS) $(GLIB_CFLAGS) $(DLOG_CFLAGS) $(VCONF_CFLAGS)
+CPPFLAGS = $(DBUS_CFLAGS) $(GLIB_CFLAGS) $(DLOG_CFLAGS) $(VCONF_CFLAGS)
+CPPFLAGS += -Wall -Werror -fvisibility=hidden
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -18,14 +19,14 @@ libnetwork_la_SOURCES = \
 			src/network-profile-intf.c \
 			src/network-dbus-request.c \
 			src/network-internal.c \
-			src/network-signal-handler.c 
+			src/network-signal-handler.c
 
 libnetwork_la_CFLAGS = \
               -I$(srcdir)/include \
               -I$(srcdir)/include/wifi \
               -I$(srcdir)/include/profile \
               -I$(srcdir)/include/common \
-              -I$(srcdir)/src/include 
+              -I$(srcdir)/src/include
 
 libnetwork_la_CFLAGS += $(CPPFLAGS)
 
@@ -40,11 +41,11 @@ includelibnetwork_HEADERS =  include/common/network-cm-intf.h \
 			include/profile/network-pm-intf.h \
 			include/profile/network-pm-wlan.h \
 			include/profile/network-pm-config.h \
-			include/wifi/network-wifi-intf.h 
+			include/wifi/network-wifi-intf.h
 
 libnetwork_la_CFLAGS += $(AM_FLAGS)
 
-pcfiles = network.pc 
+pcfiles = network.pc
 
 %.pc: %.pc
 	cp $< $@

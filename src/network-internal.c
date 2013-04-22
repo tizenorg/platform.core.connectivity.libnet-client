@@ -318,20 +318,6 @@ int _net_get_boolean(DBusMessage* msg)
 	return retvalue;
 }
 
-int _net_get_path(DBusMessage *msg, char *profile_name)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	char* ProfileName = NULL;
-
-	ProfileName = (char*)dbus_message_get_path(msg);
-	snprintf(profile_name, strlen(ProfileName) + 1, "%s", ProfileName);
-
-	__NETWORK_FUNC_EXIT__;
-
-	return NET_ERR_NONE;
-}
-
 int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
 {
 	__NETWORK_FUNC_ENTER__;

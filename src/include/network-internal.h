@@ -227,7 +227,6 @@ char* _net_get_string(DBusMessage* msg);
 unsigned long long _net_get_uint64(DBusMessage* msg);
 char* _net_get_object(DBusMessage* msg);
 int _net_get_boolean(DBusMessage* msg);
-int _net_get_path(DBusMessage *msg, char *profile_name);
 int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state);
 char* _net_print_error(net_err_t error);
 int _net_is_valid_service_type(net_service_type_t service_type);

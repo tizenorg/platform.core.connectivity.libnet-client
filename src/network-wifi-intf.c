@@ -30,7 +30,6 @@
 /*****************************************************************************
  * 	Local Functions Declaration
  *****************************************************************************/
-
 static net_wifi_state_t __net_get_wifi_service_state();
 
 /*****************************************************************************
@@ -40,7 +39,6 @@ static net_wifi_state_t __net_get_wifi_service_state();
 /*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
-
 extern network_info_t NetworkInfo;
 extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
@@ -51,7 +49,6 @@ extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 /*****************************************************************************
  * 	Local Functions Definition
  *****************************************************************************/
-
 static net_wifi_state_t __net_get_wifi_service_state(char *profile_name)
 {
 	__NETWORK_FUNC_ENTER__;
