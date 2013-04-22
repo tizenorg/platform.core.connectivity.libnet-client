@@ -136,12 +136,13 @@ static int __net_handle_specific_scan_resp(GSList *bss_info_list)
 
 		_net_dbus_clear_pending_call();
 
-		event_data.Event = NET_EVENT_SPECIFIC_SCAN_IND;
 		NETWORK_LOG(NETWORK_LOW,
-				"Sending NET_EVENT_SPECIFIC_SCAN_IND  wifi state : %d\n",
-				NetworkInfo.wifi_state);
+				"Sending NET_EVENT_SPECIFIC_SCAN_IND"
+				"wifi state: %d\n", NetworkInfo.wifi_state);
+		NETWORK_LOG(NETWORK_LOW, "bss_info_list: 0x%x\n",
+				bss_info_list);
 
-		NETWORK_LOG(NETWORK_LOW, "bss_info_list : 0x%x\n", bss_info_list);
+		event_data.Event = NET_EVENT_SPECIFIC_SCAN_IND;
 		event_data.Data = bss_info_list;
 
 		_net_client_callback(&event_data);

@@ -91,7 +91,7 @@ int _net_dbus_set_bgscan_mode(net_wifi_background_scan_mode_t mode);
 int _net_dbus_get_state(char* state);
 int _net_dbus_set_agent_passphrase(const char *passphrase);
 int _net_dbus_set_agent_wps_pbc(void);
-int _net_dbus_set_agent_wps_pin(char *wps_pin);
+int _net_dbus_set_agent_wps_pin(const char *wps_pin);
 int _net_dbus_open_connection(const char* profile_name);
 int _net_dbus_close_connection(const char* profile_name);
 int _net_dbus_get_network_status(net_device_t device_type, net_cm_network_status_t* network_status);

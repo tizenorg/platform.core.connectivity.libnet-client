@@ -633,7 +633,7 @@ static inline void __net_dict_append_strings(DBusMessageIter *dict,
 	dbus_message_iter_close_container(dict, &entry);
 }
 
-static int __net_dbus_set_agent_field(char *field_name, char *field_value)
+static int __net_dbus_set_agent_field(const char *key, const char *value)
 {
 	DBusConnection* conn = NULL;
 	net_err_t Error = NET_ERR_NONE;
@@ -647,6 +647,7 @@ static int __net_dbus_set_agent_field(char *field_name, char *field_value)
 	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
 	if (NULL == conn) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to get a system bus\n");
+
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
@@ -658,6 +659,7 @@ static int __net_dbus_set_agent_field(char *field_name, char *field_value)
 		NETWORK_LOG(NETWORK_ERROR, "dbus_message_new_method_call() "
 				"failed\n");
 		dbus_connection_unref(conn);
+
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
@@ -670,8 +672,9 @@ static int __net_dbus_set_agent_field(char *field_name, char *field_value)
 			 DBUS_TYPE_STRING_AS_STRING
 			 DBUS_DICT_ENTRY_END_CHAR_AS_STRING), &dict);
 
-	__net_dict_append_strings(&dict, field_name, field_value);
-	NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s\n", field_name, field_value);
+	__net_dict_append_strings(&dict, key, value);
+
+	NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s\n", key, value);
 
 	dbus_message_iter_close_container(&itr, &dict);
 
@@ -683,15 +686,16 @@ static int __net_dbus_set_agent_field(char *field_name, char *field_value)
 		Error = NET_ERR_UNKNOWN;
 		if (dbus_error_is_set (&error) == TRUE) {
 			NETWORK_LOG(NETWORK_ERROR,
-				"dbus_connection_send_with_reply_and_block() "
-				"failed, Error[%s: %s]\n", error.name,
-				error.message);
+					"dbus_connection_send_with_reply_and_block() failed, "
+					"Error[%s: %s]\n", error.name, error.message);
 			Error = __net_error_string_to_enum(error.name);
+
 			dbus_error_free(&error);
 		}
 
 		dbus_message_unref(message);
 		dbus_connection_unref(conn);
+
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -1379,7 +1383,7 @@ int _net_dbus_set_agent_wps_pbc(void)
 	return NET_ERR_NONE;
 }
 
-int _net_dbus_set_agent_wps_pin(char *wps_pin)
+int _net_dbus_set_agent_wps_pin(const char *wps_pin)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -1460,7 +1464,7 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 
 			goto done;
 		}
-	} else {
+	} else if (g_strcmp0(wifi_connection_info->security, "none") != 0) {
 		Error = _net_dbus_set_agent_passphrase(wifi_connection_info->passphrase);
 		if (NET_ERR_NONE != Error) {
 			NETWORK_LOG(NETWORK_ERROR, "Fail to set agent_passphrase\n");
