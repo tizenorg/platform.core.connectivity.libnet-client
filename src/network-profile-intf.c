@@ -464,7 +464,7 @@ static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_nam
 }
 
 static int __net_extract_mobile_services(DBusMessage *message,
-		DBusMessageIter *array, network_services_list_t* service_info,
+		DBusMessageIter *array, network_services_list_t *service_info,
 		net_service_type_t network_type)
 {
 	int count = 0, i = 0;
@@ -478,11 +478,22 @@ static int __net_extract_mobile_services(DBusMessage *message,
 	__NETWORK_FUNC_ENTER__;
 
 	if (message == NULL || array == NULL || service_info == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter \n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
+
+	if (NET_SERVICE_INTERNET <= network_type &&
+			network_type <= NET_SERVICE_TETHERING) {
+		NETWORK_LOG(NETWORK_ERROR, "Service type %d\n", network_type);
+	} else {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid service type %d\n", network_type);
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	service_info->num_of_services = 0;
 
 	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
 		DBusMessageIter entry;
@@ -503,27 +514,25 @@ static int __net_extract_mobile_services(DBusMessage *message,
 
 			suffix = strrchr(obj, '_');
 
-			if (network_type == NET_SERVICE_UNKNOWN)
-				found = TRUE;
-			else if (network_type == NET_SERVICE_INTERNET &&
-								g_strcmp0(suffix, net_suffix) == 0)
+			if (network_type == NET_SERVICE_INTERNET &&
+					g_strcmp0(suffix, net_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_MMS &&
-								g_strcmp0(suffix, mms_suffix) == 0)
+					g_strcmp0(suffix, mms_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_PREPAID_INTERNET &&
-								g_strcmp0(suffix, pre_net_suffix) == 0)
+					g_strcmp0(suffix, pre_net_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_PREPAID_MMS &&
-								g_strcmp0(suffix, pre_mms_suffix) == 0)
+					g_strcmp0(suffix, pre_mms_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_TETHERING &&
-								g_strcmp0(suffix, tethering_suffix) == 0)
+					g_strcmp0(suffix, tethering_suffix) == 0)
 				found = TRUE;
 
 			if (found == TRUE) {
 				service_info->ProfileName[count] =
-									(char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
+						(char*)malloc(NET_PROFILE_NAME_LEN_MAX+1);
 				if (service_info->ProfileName[count] == NULL) {
 					NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
 
@@ -535,7 +544,7 @@ static int __net_extract_mobile_services(DBusMessage *message,
 				}
 
 				g_strlcpy(service_info->ProfileName[count], obj,
-										NET_PROFILE_NAME_LEN_MAX+1);
+						NET_PROFILE_NAME_LEN_MAX+1);
 
 				count++;
 			}
@@ -1896,12 +1905,28 @@ done:
 	return Error;
 }
 
+static gboolean __net_is_cellular_default_candidate(const char* profile)
+{
+	/* This profile should be cellular type */
+	const char net_suffix[] = "_1";
+	const char pre_net_suffix[] = "_3";
+	const char tethering_suffix[] = "_5";
+	char *suffix;
+
+	suffix = strrchr(profile, '_');
+
+	if (g_strcmp0(suffix, net_suffix) == 0 ||
+			g_strcmp0(suffix, pre_net_suffix) == 0 ||
+			g_strcmp0(suffix, tethering_suffix) == 0)
+		return TRUE;
+
+	return FALSE;
+}
+
 static int __net_extract_default_profile(
 		DBusMessageIter *array, net_profile_info_t *ProfilePtr)
 {
 	net_err_t Error = NET_ERR_NONE;
-	const char internet_suffix[] = "_1";
-	char *suffix = NULL;
 	const char *obj = NULL;
 	net_device_t device_type;
 
@@ -1949,16 +1974,13 @@ static int __net_extract_default_profile(
 		dbus_message_iter_next(&entry);
 		dbus_message_iter_recurse(&entry, &next);
 
-		if (device_type == NET_DEVICE_CELLULAR) {
-			suffix = strrchr(obj, '_');
+		if (device_type == NET_DEVICE_CELLULAR &&
+				__net_is_cellular_default_candidate(obj) == TRUE) {
+			g_strlcpy(ProfilePtr->ProfileInfo.Pdp.net_info.ProfileName,
+					obj, NET_PROFILE_NAME_LEN_MAX);
 
-			if (g_strcmp0(suffix, internet_suffix) == 0) {
-				g_strlcpy(ProfilePtr->ProfileInfo.Pdp.net_info.ProfileName,
-						obj, NET_PROFILE_NAME_LEN_MAX);
-
-				Error = __net_extract_mobile_info(&next, ProfilePtr);
-				break;
-			}
+			Error = __net_extract_mobile_info(&next, ProfilePtr);
+			break;
 		} else if (device_type == NET_DEVICE_WIFI) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Wlan.net_info.ProfileName,
 					obj, NET_PROFILE_NAME_LEN_MAX);
@@ -2104,7 +2126,7 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 	} else
 		Error = NET_ERR_NO_SERVICE;
 
-	for (i = 0;i < service_info.num_of_services;i++)
+	for (i = 0; i < service_info.num_of_services; i++)
 		NET_MEMFREE(service_info.ProfileName[i]);
 
 done:
