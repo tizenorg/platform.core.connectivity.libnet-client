@@ -1211,11 +1211,9 @@ int _net_dbus_set_eap_config_fields(
 	}
 
 	message = dbus_message_new_method_call(NETCONFIG_SERVICE,
-			NETCONFIG_WIFI_PATH, NETCONFIG_WIFI_INTERFACE,
-			"CreateConfig");
+			NETCONFIG_WIFI_PATH, NETCONFIG_WIFI_INTERFACE, "CreateConfig");
 	if (NULL == message) {
-		NETWORK_LOG(NETWORK_ERROR, "dbus_message_new_method_call() "
-				"failed\n");
+		NETWORK_LOG(NETWORK_ERROR, "dbus_message_new_method_call() failed\n");
 		dbus_connection_unref(conn);
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
@@ -1230,85 +1228,43 @@ int _net_dbus_set_eap_config_fields(
 			 DBUS_DICT_ENTRY_END_CHAR_AS_STRING), &dict);
 
 	__net_dict_append_strings(&dict, CONNMAN_CONFIG_FIELD_TYPE, "wifi");
-	NETWORK_LOG(NETWORK_HIGH, "Adding - %s wifi\n",
-			CONNMAN_CONFIG_FIELD_TYPE);
 
-	if (NULL != wifi_info->ssid) {
-		__net_dict_append_strings(&dict, CONNMAN_CONFIG_FIELD_NAME,
-				wifi_info->ssid);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s\n",
+	if (NULL != wifi_info->ssid)
+		__net_dict_append_strings(&dict,
 				CONNMAN_CONFIG_FIELD_NAME, wifi_info->ssid);
-	}
 
-	if (NULL != wifi_info->eap_type) {
+	if (NULL != wifi_info->eap_type)
 		__net_dict_append_strings(&dict,
-				CONNMAN_CONFIG_FIELD_EAP_METHOD,
-				wifi_info->eap_type);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s\n",
-				CONNMAN_CONFIG_FIELD_EAP_METHOD,
-				wifi_info->eap_type);
-	}
+				CONNMAN_CONFIG_FIELD_EAP_METHOD, wifi_info->eap_type);
 
-	if (NULL != wifi_info->identity) {
-		__net_dict_append_strings(&dict, CONNMAN_CONFIG_FIELD_IDENTITY,
-				wifi_info->identity);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_IDENTITY,
-				wifi_info->identity);
-	}
-
-	if (NULL != wifi_info->password) {
+	if (NULL != wifi_info->identity)
 		__net_dict_append_strings(&dict,
-				CONNMAN_CONFIG_FIELD_PASSPHRASE,
-				wifi_info->password);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_PASSPHRASE,
-				wifi_info->password);
-	}
+				CONNMAN_CONFIG_FIELD_IDENTITY, wifi_info->identity);
 
-	if (NULL != wifi_info->eap_auth && strcmp(wifi_info->eap_auth, "NONE")) {
-		__net_dict_append_strings(&dict, CONNMAN_CONFIG_FIELD_PHASE2,
-				wifi_info->eap_auth);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_PHASE2,
-				wifi_info->eap_auth);
-	}
-
-	if (NULL != wifi_info->ca_cert_file) {
+	if (NULL != wifi_info->password)
 		__net_dict_append_strings(&dict,
-				CONNMAN_CONFIG_FIELD_CA_CERT_FILE,
-				wifi_info->ca_cert_file);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_CA_CERT_FILE,
-				wifi_info->ca_cert_file);
-	}
+				CONNMAN_CONFIG_FIELD_PASSPHRASE, wifi_info->password);
 
-	if (NULL != wifi_info->client_cert_file) {
+	if (NULL != wifi_info->eap_auth &&
+			g_strcmp0(wifi_info->eap_auth, "NONE") != 0)
 		__net_dict_append_strings(&dict,
-				CONNMAN_CONFIG_FIELD_CLIENT_CERT_FILE,
-				wifi_info->client_cert_file);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_CLIENT_CERT_FILE,
-				wifi_info->client_cert_file);
-	}
+				CONNMAN_CONFIG_FIELD_PHASE2, wifi_info->eap_auth);
 
-	if (NULL != wifi_info->private_key_file) {
+	if (NULL != wifi_info->ca_cert_file)
 		__net_dict_append_strings(&dict,
-				CONNMAN_CONFIG_FIELD_PVT_KEY_FILE,
-				wifi_info->private_key_file);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_PVT_KEY_FILE,
-				wifi_info->private_key_file);
-	}
+				CONNMAN_CONFIG_FIELD_CA_CERT_FILE, wifi_info->ca_cert_file);
 
-	if (NULL != wifi_info->private_key_password) {
+	if (NULL != wifi_info->client_cert_file)
 		__net_dict_append_strings(&dict,
-				CONNMAN_CONFIG_FIELD_PVT_KEY_PASSPHRASE,
-				wifi_info->private_key_password);
-		NETWORK_LOG(NETWORK_HIGH, "Adding - %s %s \n",
-				CONNMAN_CONFIG_FIELD_PVT_KEY_PASSPHRASE,
-				wifi_info->private_key_password);
-	}
+				CONNMAN_CONFIG_FIELD_CLIENT_CERT_FILE, wifi_info->client_cert_file);
+
+	if (NULL != wifi_info->private_key_file)
+		__net_dict_append_strings(&dict,
+				CONNMAN_CONFIG_FIELD_PVT_KEY_FILE, wifi_info->private_key_file);
+
+	if (NULL != wifi_info->private_key_password)
+		__net_dict_append_strings(&dict,
+				CONNMAN_CONFIG_FIELD_PVT_KEY_PASSPHRASE, wifi_info->private_key_password);
 
 	dbus_message_iter_close_container(&itr, &dict);
 
@@ -2056,9 +2012,6 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 	if (strlen(prof_info->ProfileInfo.Pdp.AuthInfo.Password) > 0) {
 		temp_ptr = prof_info->ProfileInfo.Pdp.AuthInfo.Password;
 
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2 : %s : %s\n",
-				auth_pwd, temp_ptr);
-
 		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &auth_pwd);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &temp_ptr);
@@ -2067,9 +2020,6 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 
 	if (strlen(prof_info->ProfileInfo.Pdp.AuthInfo.UserName) > 0) {
 		temp_ptr = prof_info->ProfileInfo.Pdp.AuthInfo.UserName;
-
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2 : %s : %s\n",
-				auth_id, temp_ptr);
 
 		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &auth_id);
@@ -2083,9 +2033,6 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 				prof_info->ProfileInfo.Pdp.AuthInfo.AuthType);
 
 		temp_ptr = buff_auth_type;
-
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2 : %s : %s\n",
-				auth_type, temp_ptr);
 
 		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &auth_type);
@@ -2271,9 +2218,6 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 	if (strlen(prof_info->ProfileInfo.Pdp.AuthInfo.Password) > 0) {
 		temp_ptr = prof_info->ProfileInfo.Pdp.AuthInfo.Password;
 
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2 : %s : %s\n",
-				auth_pwd, temp_ptr);
-
 		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &auth_pwd);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &temp_ptr);
@@ -2282,9 +2226,6 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 
 	if (strlen(prof_info->ProfileInfo.Pdp.AuthInfo.UserName) > 0) {
 		temp_ptr = prof_info->ProfileInfo.Pdp.AuthInfo.UserName;
-
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2 : %s : %s\n",
-				auth_id, temp_ptr);
 
 		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &auth_id);
@@ -2297,9 +2238,6 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 		g_snprintf(buff_auth_type, 10, "%d",
 				prof_info->ProfileInfo.Pdp.AuthInfo.AuthType);
 		temp_ptr = buff_auth_type;
-
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2 : %s : %s\n",
-				auth_type, temp_ptr);
 
 		dbus_message_iter_open_container(&dict, DBUS_TYPE_DICT_ENTRY, NULL, &entry);
 		dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &auth_type);

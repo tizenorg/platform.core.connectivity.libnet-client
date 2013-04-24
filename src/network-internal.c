@@ -340,7 +340,6 @@ int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
 		goto done;
 	}
 
-
 	/* array{object, dict}: list of tuples with technology object path and
 	 * dictionary of technology properties */
 	if (!dbus_message_iter_init(msg, &iter)) {
@@ -492,29 +491,11 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 					g_strdup(wifi_info->security_info.authentication.eap.private_key_passwd);
 
 		break;
-
 	default:
 		NETWORK_LOG(NETWORK_ERROR, "Invalid security type\n");
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
-	}
-
-	NETWORK_LOG(NETWORK_HIGH,
-			"Parameters: type:\t%s\nmode:\t%s\nssid:\t%s\nsecurity:\t%s\npassphrase:\t%s\n",
-			wifi_connection_info.type, wifi_connection_info.mode,
-			wifi_connection_info.ssid, wifi_connection_info.security,
-			wifi_connection_info.passphrase);
-
-	if (wifi_info->security_info.sec_mode == WLAN_SEC_MODE_IEEE8021X) {
-		NETWORK_LOG(NETWORK_HIGH,
-				"Wi-Fi Enterprise type:\t%s\nauth:\t%s\nidentity:\t%s\npassword:\t%s\n",
-				wifi_connection_info.eap_type, wifi_connection_info.eap_auth,
-				wifi_connection_info.identity, wifi_connection_info.password);
-		NETWORK_LOG(NETWORK_HIGH,
-				"CA cert:\t%s\nClient cert:\t%s\nPrivate key:\t%s\nPrivate key password:\t%s\n",
-				wifi_connection_info.ca_cert_file, wifi_connection_info.client_cert_file,
-				wifi_connection_info.private_key_file, wifi_connection_info.private_key_password);
 	}
 
 	Error = _net_dbus_connect_service(&wifi_connection_info);
