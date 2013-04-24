@@ -578,7 +578,8 @@ static int __net_append_param(DBusMessage *message, char *param_array[])
 
 	while (param_array[count] != NULL) {
 		args = param_array[count];
-		NETWORK_LOG(NETWORK_HIGH, "parameter %d - [%s]", count, param_array[count]);
+		NETWORK_LOG(NETWORK_HIGH, "parameter %d [%s]",
+				count, param_array[count]);
 
 		ch = strchr(args, ':');
 		if (ch == NULL) {
@@ -587,12 +588,12 @@ static int __net_append_param(DBusMessage *message, char *param_array[])
 		}
 		*ch = 0; ch++;
 
-		if (strcmp(args, CONNMAN_CLIENT_DBUS_TYPE_STRING) == 0)
+		if (g_strcmp0(args, CONNMAN_CLIENT_DBUS_TYPE_STRING) == 0)
 			dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &ch);
-		else if (strcmp(args, CONNMAN_CLIENT_DBUS_TYPE_UINT32) == 0) {
+		else if (g_strcmp0(args, CONNMAN_CLIENT_DBUS_TYPE_UINT32) == 0) {
 			uint32 = strtoul(ch, NULL, 0);
 			dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &uint32);
-		} else if (strcmp(args, CONNMAN_CLIENT_DBUS_TYPE_VARIANT) == 0) {
+		} else if (g_strcmp0(args, CONNMAN_CLIENT_DBUS_TYPE_VARIANT) == 0) {
 			args = ch;
 			ch = strchr(args, ':');
 			if (ch == NULL) {
@@ -601,7 +602,7 @@ static int __net_append_param(DBusMessage *message, char *param_array[])
 			}
 			*ch = 0; ch++;
 
-			if (strcmp(args, CONNMAN_CLIENT_DBUS_TYPE_STRING) == 0) {
+			if (g_strcmp0(args, CONNMAN_CLIENT_DBUS_TYPE_STRING) == 0) {
 				dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT,
 						DBUS_TYPE_STRING_AS_STRING, &container_iter);
 				dbus_message_iter_append_basic(&container_iter, DBUS_TYPE_STRING, &ch);

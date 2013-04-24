@@ -224,13 +224,13 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 
 		dbus_message_iter_next(&entry);
 
-		if (strcmp(key, "path") == 0) {
+		if (g_strcmp0(key, "path") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 			
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->ProfileName, value, NET_PROFILE_NAME_LEN_MAX);
 
-		} else if (strcmp(key, "svc_ctg_id") == 0) {
+		} else if (g_strcmp0(key, "svc_ctg_id") == 0) {
 			net_service_type_t ServiceType = NET_SERVICE_UNKNOWN;
 			dbus_message_iter_get_basic(&entry, &value);
 
@@ -240,13 +240,13 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 			if (ServiceType > NET_SERVICE_UNKNOWN)
 				ProfileInfo->ServiceType = ServiceType;
 
-		} else if (strcmp(key, "apn") == 0) {
+		} else if (g_strcmp0(key, "apn") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 			
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->Apn, value, NET_PDP_APN_LEN_MAX);
 
-		} else if (strcmp(key, "auth_type") == 0) {
+		} else if (g_strcmp0(key, "auth_type") == 0) {
 			net_auth_type_t authType = NET_PDP_AUTH_NONE;
 			dbus_message_iter_get_basic(&entry, &value);
 			
@@ -258,61 +258,61 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 			else if (authType == NET_PDP_AUTH_CHAP)
 				ProfileInfo->AuthInfo.AuthType = NET_PDP_AUTH_CHAP;
 
-		} else if (strcmp(key, "auth_id") == 0) {
+		} else if (g_strcmp0(key, "auth_id") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->AuthInfo.UserName, value, NET_PDP_AUTH_USERNAME_LEN_MAX);
 
-		} else if (strcmp(key, "auth_pwd") == 0) {
+		} else if (g_strcmp0(key, "auth_pwd") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->AuthInfo.Password, value, NET_PDP_AUTH_PASSWORD_LEN_MAX);
 
-		} else if (strcmp(key, "proxy_addr") == 0) {
+		} else if (g_strcmp0(key, "proxy_addr") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->ProxyAddr, value, NET_PROXY_LEN_MAX);
 
-		} else if (strcmp(key, "home_url") == 0) {
+		} else if (g_strcmp0(key, "home_url") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->HomeURL, value, NET_HOME_URL_LEN_MAX);
-		} else if (strcmp(key, "default_internet_conn") == 0) {
+		} else if (g_strcmp0(key, "default_internet_conn") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value == NULL)
 				continue;
 
-			if (strcmp(value, "TRUE") == 0)
+			if (g_strcmp0(value, "TRUE") == 0)
 				ProfileInfo->DefaultConn = TRUE;
 			else
 				ProfileInfo->DefaultConn = FALSE;
-		} else if (strcmp(key, "profile_name") == 0) {
+		} else if (g_strcmp0(key, "profile_name") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->Keyword, value, NET_PDP_APN_LEN_MAX);
-		} else if (strcmp(key, "editable") == 0) {
+		} else if (g_strcmp0(key, "editable") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value == NULL)
 				continue;
 
-			if (strcmp(value, "TRUE") == 0)
+			if (g_strcmp0(value, "TRUE") == 0)
 				ProfileInfo->Editable = TRUE;
 			else
 				ProfileInfo->Editable = FALSE;
-		} else if (strcmp(key, "hidden") == 0) {
+		} else if (g_strcmp0(key, "hidden") == 0) {
 			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value == NULL)
 				continue;
 
-			if (strcmp(value, "TRUE") == 0)
+			if (g_strcmp0(value, "TRUE") == 0)
 				ProfileInfo->Hidden = TRUE;
 			else
 				ProfileInfo->Hidden = FALSE;
@@ -439,7 +439,7 @@ static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_nam
 		telephonyProfName = strrchr(ProfileList[i].ProfileName, '/') + 1;
 		foundPtr = strstr(connmanProfName, telephonyProfName);
 
-		if (foundPtr != NULL && strcmp(foundPtr, telephonyProfName) == 0) {
+		if (foundPtr != NULL && g_strcmp0(foundPtr, telephonyProfName) == 0) {
 			g_strlcpy(PdpProfName->ProfileName,
 					ProfileList[i].ProfileName, NET_PROFILE_NAME_LEN_MAX);
 			NETWORK_LOG(NETWORK_HIGH,
@@ -505,19 +505,19 @@ static int __net_extract_mobile_services(DBusMessage *message,
 			if (network_type == NET_SERVICE_UNKNOWN)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_INTERNET &&
-										strcmp(suffix, net_suffix) == 0)
+								g_strcmp0(suffix, net_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_MMS &&
-										strcmp(suffix, mms_suffix) == 0)
+								g_strcmp0(suffix, mms_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_PREPAID_INTERNET &&
-										strcmp(suffix, pre_net_suffix) == 0)
+								g_strcmp0(suffix, pre_net_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_PREPAID_MMS &&
-										strcmp(suffix, pre_mms_suffix) == 0)
+								g_strcmp0(suffix, pre_mms_suffix) == 0)
 				found = TRUE;
 			else if (network_type == NET_SERVICE_TETHERING &&
-										strcmp(suffix, tethering_suffix) == 0)
+								g_strcmp0(suffix, tethering_suffix) == 0)
 				found = TRUE;
 
 			if (found == TRUE) {
@@ -794,26 +794,26 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (strcmp(key, "State") == 0) {
+	if (g_strcmp0(key, "State") == 0) {
 		dbus_message_iter_get_basic(variant, &value);
 		
-		if (strcmp(value, "idle") == 0)
+		if (g_strcmp0(value, "idle") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_IDLE;
-		else if (strcmp(value, "failure") == 0)
+		else if (g_strcmp0(value, "failure") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_FAILURE;
-		else if (strcmp(value, "association") == 0)
+		else if (g_strcmp0(value, "association") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_ASSOCIATION;
-		else if (strcmp(value, "configuration") == 0)
+		else if (g_strcmp0(value, "configuration") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_CONFIGURATION;
-		else if (strcmp(value, "ready") == 0)
+		else if (g_strcmp0(value, "ready") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_READY;
-		else if (strcmp(value, "disconnect") == 0)
+		else if (g_strcmp0(value, "disconnect") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_DISCONNECT;
-		else if (strcmp(value, "online") == 0)
+		else if (g_strcmp0(value, "online") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_ONLINE;
 		else
 			ProfInfo->ProfileState = NET_STATE_TYPE_UNKNOWN;
-	} else if (strcmp(key, "Favorite") == 0) {
+	} else if (g_strcmp0(key, "Favorite") == 0) {
 		dbus_bool_t val;
 		
 		dbus_message_iter_get_basic(variant, &val);
@@ -822,14 +822,14 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 			ProfInfo->Favourite = TRUE;
 		else
 			ProfInfo->Favourite = FALSE;
-	} else if (strcmp(key, "Ethernet") == 0) {
+	} else if (g_strcmp0(key, "Ethernet") == 0) {
 		dbus_message_iter_recurse(variant, &subIter1);
 		
 		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
 			dbus_message_iter_recurse(&subIter1, &subIter2);
 			dbus_message_iter_get_basic(&subIter2, &subKey);
 
-			if (strcmp(subKey, "Interface") == 0) {
+			if (g_strcmp0(subKey, "Interface") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &value);
@@ -837,7 +837,7 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 				if (value != NULL)
 					g_strlcpy(net_info->DevName, value, NET_MAX_DEVICE_NAME_LEN);
 
-			} else if (strcmp(subKey, "Address") == 0) {
+			} else if (g_strcmp0(subKey, "Address") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &value);
@@ -848,37 +848,37 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 			
 			dbus_message_iter_next(&subIter1);
 		}
-	} else if (strcmp(key, "IPv4") == 0) {
+	} else if (g_strcmp0(key, "IPv4") == 0) {
 		dbus_message_iter_recurse(variant, &subIter1);
 		
 		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
 			dbus_message_iter_recurse(&subIter1, &subIter2);
 			dbus_message_iter_get_basic(&subIter2, &subKey);
 
-			if (strcmp(subKey, "Method") == 0) {
+			if (g_strcmp0(subKey, "Method") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &value);
 				
-				if (strcmp(value, "dhcp") == 0)
+				if (g_strcmp0(value, "dhcp") == 0)
 					net_info->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
-				else if (strcmp(value, "manual") == 0)
+				else if (g_strcmp0(value, "manual") == 0)
 					net_info->IpConfigType = NET_IP_CONFIG_TYPE_STATIC;
-				else if (strcmp(value, "fixed") == 0)
+				else if (g_strcmp0(value, "fixed") == 0)
 					net_info->IpConfigType = NET_IP_CONFIG_TYPE_FIXED;
-				else if (strcmp(value, "off") == 0)
+				else if (g_strcmp0(value, "off") == 0)
 					net_info->IpConfigType = NET_IP_CONFIG_TYPE_OFF;
 
-			} else if (strcmp(subKey, "Address") == 0) {
+			} else if (g_strcmp0(subKey, "Address") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				__net_extract_ip(&subIter3, &net_info->IpAddr);
-			} else if (strcmp(subKey, "Netmask") == 0) {
+			} else if (g_strcmp0(subKey, "Netmask") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				__net_extract_ip(&subIter3, &net_info->SubnetMask);
 				net_info->BNetmask = TRUE;
-			} else if (strcmp(subKey, "Gateway") == 0) {
+			} else if (g_strcmp0(subKey, "Gateway") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				__net_extract_ip(&subIter3, &net_info->GatewayAddr);
@@ -887,7 +887,7 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 			
 			dbus_message_iter_next(&subIter1);
 		}
-	} else if (strcmp(key, "IPv4.Configuration") == 0) {
+	} else if (g_strcmp0(key, "IPv4.Configuration") == 0) {
 
 		if (net_info->IpConfigType != NET_IP_CONFIG_TYPE_DYNAMIC &&
 		    net_info->IpConfigType != NET_IP_CONFIG_TYPE_STATIC &&
@@ -900,32 +900,32 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 				dbus_message_iter_recurse(&subIter1, &subIter2);
 				dbus_message_iter_get_basic(&subIter2, &subKey);
 
-				if (strcmp(subKey, "Method") == 0) {
+				if (g_strcmp0(subKey, "Method") == 0) {
 					dbus_message_iter_next(&subIter2);
 					dbus_message_iter_recurse(&subIter2, &subIter3);
 					dbus_message_iter_get_basic(&subIter3, &value);
 					
-					if(strcmp(value, "dhcp") == 0)
+					if(g_strcmp0(value, "dhcp") == 0)
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
-					else if(strcmp(value, "manual") == 0)
+					else if(g_strcmp0(value, "manual") == 0)
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_STATIC;
-					else if (strcmp(value, "fixed") == 0)
+					else if (g_strcmp0(value, "fixed") == 0)
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_FIXED;
-					else if(strcmp(value, "off") == 0)
+					else if(g_strcmp0(value, "off") == 0)
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_OFF;
 
-				} else if (strcmp(subKey, "Address") == 0 &&
+				} else if (g_strcmp0(subKey, "Address") == 0 &&
 				           net_info->IpAddr.Data.Ipv4.s_addr == 0) {
 					dbus_message_iter_next(&subIter2);
 					dbus_message_iter_recurse(&subIter2, &subIter3);
 					__net_extract_ip(&subIter3, &net_info->IpAddr);
-				} else if (strcmp(subKey, "Netmask") == 0 &&
+				} else if (g_strcmp0(subKey, "Netmask") == 0 &&
 				           net_info->SubnetMask.Data.Ipv4.s_addr == 0) {
 					dbus_message_iter_next(&subIter2);
 					dbus_message_iter_recurse(&subIter2, &subIter3);
 					__net_extract_ip(&subIter3, &net_info->SubnetMask);
 					net_info->BNetmask = TRUE;
-				} else if (strcmp(subKey, "Gateway") == 0 &&
+				} else if (g_strcmp0(subKey, "Gateway") == 0 &&
 				           net_info->GatewayAddr.Data.Ipv4.s_addr == 0) {
 					dbus_message_iter_next(&subIter2);
 					dbus_message_iter_recurse(&subIter2, &subIter3);
@@ -936,7 +936,7 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 				dbus_message_iter_next(&subIter1);
 			}
 		}
-	} else if(strcmp(key, "Nameservers") == 0) {
+	} else if(g_strcmp0(key, "Nameservers") == 0) {
 		int dnsCount = 0;
 		dbus_message_iter_recurse(variant, &subIter1);			
 		
@@ -950,7 +950,7 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		}
 
 		net_info->DnsCount = dnsCount;
-	} else if (strcmp(key, "Nameservers.Configuration") == 0 && net_info->DnsCount == 0) {
+	} else if (g_strcmp0(key, "Nameservers.Configuration") == 0 && net_info->DnsCount == 0) {
 		int dnsCount = 0;
 		dbus_message_iter_recurse(variant, &subIter1);
 
@@ -964,9 +964,9 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		}
 
 		net_info->DnsCount = dnsCount;
-	} else if (strcmp(key, "Domains") == 0) {
-	} else if (strcmp(key, "Domains.Configuration") == 0) {
-	} else if (strcmp(key, "Proxy") == 0) {
+	} else if (g_strcmp0(key, "Domains") == 0) {
+	} else if (g_strcmp0(key, "Domains.Configuration") == 0) {
+	} else if (g_strcmp0(key, "Proxy") == 0) {
 		dbus_message_iter_recurse(variant, &subIter1);
 		const char *url = NULL;
 		const char *servers = NULL;
@@ -975,24 +975,24 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 			dbus_message_iter_recurse(&subIter1, &subIter2);
 			dbus_message_iter_get_basic(&subIter2, &subKey);
 
-			if (strcmp(subKey, "Method") == 0) {
+			if (g_strcmp0(subKey, "Method") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &value);
 				
-				if (strcmp(value, "direct") == 0)
+				if (g_strcmp0(value, "direct") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_DIRECT;
-				else if (strcmp(value, "auto") == 0)
+				else if (g_strcmp0(value, "auto") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_AUTO;
-				else if (strcmp(value, "manual") == 0)
+				else if (g_strcmp0(value, "manual") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_MANUAL;
 				else
 					net_info->ProxyMethod = NET_PROXY_TYPE_UNKNOWN;
-			} else if (strcmp(subKey, "URL") == 0) {
+			} else if (g_strcmp0(subKey, "URL") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &url);
-			} else if (strcmp(subKey, "Servers") == 0) {
+			} else if (g_strcmp0(subKey, "Servers") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 
@@ -1012,7 +1012,7 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		else if (net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL && servers != NULL)
 			g_strlcpy(net_info->ProxyAddr, servers, NET_PROXY_LEN_MAX);
 
-	} else if (strcmp(key, "Proxy.Configuration") == 0 &&
+	} else if (g_strcmp0(key, "Proxy.Configuration") == 0 &&
 	           net_info->ProxyMethod != NET_PROXY_TYPE_AUTO &&
 	           net_info->ProxyMethod != NET_PROXY_TYPE_MANUAL) {
 
@@ -1024,24 +1024,24 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 			dbus_message_iter_recurse(&subIter1, &subIter2);
 			dbus_message_iter_get_basic(&subIter2, &subKey);
 
-			if (strcmp(subKey, "Method") == 0) {
+			if (g_strcmp0(subKey, "Method") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &value);
 
-				if (strcmp(value, "direct") == 0)
+				if (g_strcmp0(value, "direct") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_DIRECT;
-				else if (strcmp(value, "auto") == 0)
+				else if (g_strcmp0(value, "auto") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_AUTO;
-				else if (strcmp(value, "manual") == 0)
+				else if (g_strcmp0(value, "manual") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_MANUAL;
 				else
 					net_info->ProxyMethod = NET_PROXY_TYPE_UNKNOWN;
-			} else if (strcmp(subKey, "URL") == 0) {
+			} else if (g_strcmp0(subKey, "URL") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 				dbus_message_iter_get_basic(&subIter3, &url);
-			} else if (strcmp(subKey, "Servers") == 0) {
+			} else if (g_strcmp0(subKey, "Servers") == 0) {
 				dbus_message_iter_next(&subIter2);
 				dbus_message_iter_recurse(&subIter2, &subIter3);
 
@@ -1061,7 +1061,7 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		else if (net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL && servers != NULL)
 			g_strlcpy(net_info->ProxyAddr, servers, NET_PROXY_LEN_MAX);
 
-	} else if(strcmp(key, "Provider") == 0) {
+	} else if(g_strcmp0(key, "Provider") == 0) {
 	}
 
 	__NETWORK_FUNC_EXIT__;
@@ -1125,70 +1125,70 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 		dbus_message_iter_next(&entry);
 		dbus_message_iter_recurse(&entry, &variant);
 
-		if (strcmp(key, "Mode") == 0) {
+		if (g_strcmp0(key, "Mode") == 0) {
 			dbus_message_iter_get_basic(&variant, &value);
 
-			if (strcmp(value, "managed") == 0)
+			if (g_strcmp0(value, "managed") == 0)
 				Wlan->wlan_mode = NETPM_WLAN_CONNMODE_INFRA;
-			else if (strcmp(value, "adhoc") == 0)
+			else if (g_strcmp0(value, "adhoc") == 0)
 				Wlan->wlan_mode = NETPM_WLAN_CONNMODE_ADHOC;
 			else
 				Wlan->wlan_mode = NETPM_WLAN_CONNMODE_AUTO;
-		} else if (strcmp(key, "Security") == 0) {
+		} else if (g_strcmp0(key, "Security") == 0) {
 			dbus_message_iter_recurse(&variant, &sub_array);
 
 			while (dbus_message_iter_get_arg_type(&sub_array) == DBUS_TYPE_STRING) {
 				dbus_message_iter_get_basic(&sub_array, &value);
-				if (strcmp(value, "none") == 0 &&
+				if (g_strcmp0(value, "none") == 0 &&
 				    Wlan->security_info.sec_mode < WLAN_SEC_MODE_NONE)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_NONE;
-				else if (strcmp(value, "wep") == 0 &&
+				else if (g_strcmp0(value, "wep") == 0 &&
 				         Wlan->security_info.sec_mode < WLAN_SEC_MODE_WEP)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_WEP;
-				else if (strcmp(value, "psk") == 0 &&
+				else if (g_strcmp0(value, "psk") == 0 &&
 				         Wlan->security_info.sec_mode < WLAN_SEC_MODE_WPA_PSK)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_WPA_PSK;
-				else if (strcmp(value, "ieee8021x") == 0 &&
+				else if (g_strcmp0(value, "ieee8021x") == 0 &&
 				         Wlan->security_info.sec_mode < WLAN_SEC_MODE_IEEE8021X)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_IEEE8021X;
-				else if (strcmp(value, "wpa") == 0 &&
+				else if (g_strcmp0(value, "wpa") == 0 &&
 				         Wlan->security_info.sec_mode < WLAN_SEC_MODE_WPA_PSK)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_WPA_PSK;
-				else if (strcmp(value, "rsn") == 0 &&
+				else if (g_strcmp0(value, "rsn") == 0 &&
 				         Wlan->security_info.sec_mode < WLAN_SEC_MODE_WPA_PSK)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_WPA2_PSK;
-				else if (strcmp(value, "wps") == 0)
+				else if (g_strcmp0(value, "wps") == 0)
 					Wlan->security_info.wps_support = TRUE;
 				else if (Wlan->security_info.sec_mode < WLAN_SEC_MODE_NONE)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_NONE;
 
 				dbus_message_iter_next(&sub_array);
 			}
-		} else if (strcmp(key, "EncryptionMode") == 0) {
+		} else if (g_strcmp0(key, "EncryptionMode") == 0) {
 			dbus_message_iter_get_basic(&variant, &value);
 
-			if (strcmp(value, "none") == 0)
+			if (g_strcmp0(value, "none") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_NONE;
-			else if (strcmp(value, "wep") == 0)
+			else if (g_strcmp0(value, "wep") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_WEP;
-			else if (strcmp(value, "tkip") == 0)
+			else if (g_strcmp0(value, "tkip") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_TKIP;
-			else if (strcmp(value, "aes") == 0)
+			else if (g_strcmp0(value, "aes") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_AES;
-			else if (strcmp(value, "mixed") == 0)
+			else if (g_strcmp0(value, "mixed") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_TKIP_AES_MIXED;
 
 			dbus_message_iter_next(&sub_array);
 
-		} else if (strcmp(key, "Strength") == 0) {
+		} else if (g_strcmp0(key, "Strength") == 0) {
 			dbus_message_iter_get_basic(&variant, &(Wlan->Strength));
-		} else if (strcmp(key, "Name") == 0) {
+		} else if (g_strcmp0(key, "Name") == 0) {
 			dbus_message_iter_get_basic(&variant, &value);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->essid, value, NET_WLAN_ESSID_LEN);
 
-		} else if (strcmp(key, "Passphrase") == 0) {
+		} else if (g_strcmp0(key, "Passphrase") == 0) {
 			wlan_security_info_t *security_info = &(Wlan->security_info);
 			dbus_message_iter_get_basic(&variant, &value);
 
@@ -1201,7 +1201,7 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 				g_strlcpy(security_info->authentication.psk.pskKey,
 						value, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN+1);
 
-		} else if (strcmp(key, "PassphraseRequired") == 0) {
+		} else if (g_strcmp0(key, "PassphraseRequired") == 0) {
 			dbus_bool_t val;
 
 			dbus_message_iter_get_basic(&variant, &val);
@@ -1210,19 +1210,19 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 				Wlan->PassphraseRequired = TRUE;
 			else
 				Wlan->PassphraseRequired = FALSE;
-		} else if (strcmp(key, "BSSID") == 0) {
+		} else if (g_strcmp0(key, "BSSID") == 0) {
 			dbus_message_iter_get_basic(&variant, &value);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->bssid, value, NET_MAX_MAC_ADDR_LEN);
 
-		} else if (strcmp(key, "MaxRate") == 0) {
+		} else if (g_strcmp0(key, "MaxRate") == 0) {
 			unsigned int maxrate;
 			dbus_message_iter_get_basic(&variant, &maxrate);
 
 			Wlan->max_rate = maxrate;
 
-		} else if (strcmp(key, "Frequency") == 0) {
+		} else if (g_strcmp0(key, "Frequency") == 0) {
 			unsigned short frequency;
 			dbus_message_iter_get_basic(&variant, &frequency);
 
@@ -1313,18 +1313,18 @@ static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t 
 		dbus_message_iter_next(&entry);
 		dbus_message_iter_recurse(&entry, &variant);
 
-		if (strcmp(key, "Mode") == 0) {
+		if (g_strcmp0(key, "Mode") == 0) {
 			dbus_message_iter_get_basic(&variant, &value);
 
-			if (strcmp(value, "gprs") == 0)
+			if (g_strcmp0(value, "gprs") == 0)
 				ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_GPRS;
-			else if (strcmp(value, "edge") == 0)
+			else if (g_strcmp0(value, "edge") == 0)
 				ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_EDGE;
-			else if (strcmp(value, "umts") == 0)
+			else if (g_strcmp0(value, "umts") == 0)
 				ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_UMTS;
 			else
 				ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_NONE;
-		} else if (strcmp(key, "Roaming") == 0) {
+		} else if (g_strcmp0(key, "Roaming") == 0) {
 			dbus_bool_t val;
 			
 			dbus_message_iter_get_basic(&variant, &val);
@@ -1333,7 +1333,7 @@ static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t 
 				ProfInfo->ProfileInfo.Pdp.Roaming = TRUE;
 			else
 				ProfInfo->ProfileInfo.Pdp.Roaming = FALSE;
-		} else if (strcmp(key, "SetupRequired") == 0) {
+		} else if (g_strcmp0(key, "SetupRequired") == 0) {
 			dbus_bool_t val;
 			
 			dbus_message_iter_get_basic(&variant, &val);
@@ -1686,7 +1686,7 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 
 	/* Compare and Set 'Passphrase' */
 	if (ex_security_info->sec_mode == WLAN_SEC_MODE_WEP) {
-		if (strcmp(security_info->authentication.wep.wepKey,
+		if (g_strcmp0(security_info->authentication.wep.wepKey,
 						ex_security_info->authentication.wep.wepKey) != 0) {
 			Error = _net_dbus_set_agent_passphrase(security_info->authentication.wep.wepKey);
 
@@ -1699,7 +1699,7 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 		}
 	} else if (ex_security_info->sec_mode == WLAN_SEC_MODE_WPA_PSK ||
 			ex_security_info->sec_mode == WLAN_SEC_MODE_WPA2_PSK) {
-		if (strcmp(security_info->authentication.psk.pskKey,
+		if (g_strcmp0(security_info->authentication.psk.pskKey,
 						ex_security_info->authentication.psk.pskKey) != 0) {
 			Error = _net_dbus_set_agent_passphrase(security_info->authentication.psk.pskKey);
 
@@ -1714,7 +1714,7 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 
 	/* Compare and Set 'Proxy' */
 	if ((ex_net_info->ProxyMethod != net_info->ProxyMethod) ||
-	    (strcmp(ex_net_info->ProxyAddr, net_info->ProxyAddr) != 0)) {
+	    (g_strcmp0(ex_net_info->ProxyAddr, net_info->ProxyAddr) != 0)) {
 
 		Error = _net_dbus_set_proxy(ProfInfo, profilePath);
 

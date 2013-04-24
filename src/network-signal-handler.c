@@ -171,7 +171,7 @@ static int __net_handle_wifi_specific_scan_rsp(DBusMessage *msg)
 		dbus_message_iter_recurse(&array, &entry);
 		dbus_message_iter_get_basic(&entry, &key);
 
-		if (g_strcmp0(key, "ssid"))
+		if (g_strcmp0(key, "ssid") != 0)
 			return Error;
 
 		dbus_message_iter_next(&entry);
@@ -185,7 +185,7 @@ static int __net_handle_wifi_specific_scan_rsp(DBusMessage *msg)
 
 		dbus_message_iter_recurse(&array, &entry);
 		dbus_message_iter_get_basic(&entry, &key);
-		if (g_strcmp0(key, "security"))
+		if (g_strcmp0(key, "security") != 0)
 			return Error;
 
 		dbus_message_iter_next(&entry);
@@ -250,6 +250,8 @@ static void __net_handle_failure_ind(const char *profile_name)
 			request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName;
 	const char *svc_name2 =
 			request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName;
+	const char *svc_name3 =
+			request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].ProfileName;
 
 	if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
 			strstr(profile_name, svc_name1) != NULL) {
@@ -260,11 +262,19 @@ static void __net_handle_failure_ind(const char *profile_name)
 
 		_net_dbus_clear_pending_call();
 	} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
-			strcmp(profile_name, svc_name2) == 0) {
+			g_strcmp0(profile_name, svc_name2) == 0) {
 		memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
 				sizeof(network_request_table_t));
 
 		event_data.Event = NET_EVENT_WIFI_WPS_RSP;
+
+		_net_dbus_clear_pending_call();
+	} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
+			g_strcmp0(profile_name, svc_name3) == 0) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION], 0,
+				sizeof(network_request_table_t));
+
+		event_data.Event = NET_EVENT_CLOSE_RSP;
 
 		_net_dbus_clear_pending_call();
 	} else {
@@ -518,6 +528,9 @@ static int string2error(const char *error)
 static int __net_handle_service_set_error(DBusMessage *message,
 		const char *key, const char *error)
 {
+	if (error == NULL || *error == '\0')
+		return NET_ERR_NONE;
+
 	NETWORK_LOG(NETWORK_LOW, "[%s] %s\n", key, error);
 
 	net_service_error = string2error(error);
