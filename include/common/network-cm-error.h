@@ -141,6 +141,8 @@ typedef enum {
 	NET_ERR_UNKNOWN_METHOD = -791,
 	/** Operation is restricted */
 	NET_ERR_SECURITY_RESTRICTED = -790,
+	/** Already exists */
+	NET_ERR_ALREADY_EXISTS = -789,
 
 	/** WiFi driver on/off failed */
 	NET_ERR_WIFI_DRIVER_FAILURE = -699,

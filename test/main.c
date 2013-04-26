@@ -26,7 +26,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dbus/dbus.h>
 #include <network-cm-intf.h>
 #include <network-pm-intf.h>
 #include <network-wifi-intf.h>

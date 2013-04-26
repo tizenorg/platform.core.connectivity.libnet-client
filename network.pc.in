@@ -5,8 +5,7 @@ includedir=@prefix@/include
 
 Name: network
 Description: ConnMan Client Library
-Requires: dlog dbus-1 dbus-glib-1
+Requires: dlog glib-2.0 gthread-2.0 dbus-glib-1
 Version: @VERSION@
 Libs: -L${libdir} -lnetwork
 Cflags: -I${includedir} -I${includedir}/network
-

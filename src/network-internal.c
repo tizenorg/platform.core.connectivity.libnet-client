@@ -240,91 +240,18 @@ net_device_t _net_get_tech_type_from_path(const char *profile_name)
 	return device_type;
 }
 
-char* _net_get_string(DBusMessage* msg)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	DBusMessageIter args;
-	char* sigvalue = NULL;
-
-	if (!dbus_message_iter_init(msg, &args))
-		NETWORK_LOG(NETWORK_LOW, "Message does not have parameters\n");
-	else if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_STRING)
-		NETWORK_LOG(NETWORK_LOW, "Argument is not string\n");
-	else
-		dbus_message_iter_get_basic(&args, &sigvalue);
-
-	__NETWORK_FUNC_EXIT__;
-	return sigvalue;
-}
-
-unsigned long long _net_get_uint64(DBusMessage* msg)
-{
-	DBusMessageIter args;
-	unsigned long long sigvalue = 0;
-
-	if (!dbus_message_iter_init(msg, &args)) {
-		NETWORK_LOG(NETWORK_LOW, "Message does not have parameters\n");
-	} else if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_UINT64) {
-		NETWORK_LOG(NETWORK_LOW, "Argument is not uint64\n");
-	} else {
-		dbus_message_iter_get_basic(&args, &sigvalue);
-	}
-
-	return sigvalue;
-}
-
-char* _net_get_object(DBusMessage* msg)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	DBusMessageIter args;
-	char* sigvalue = NULL;
-
-	if (!dbus_message_iter_init(msg, &args)) {
-		NETWORK_LOG(NETWORK_LOW, "Message does not have parameters\n");
-	} else if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_OBJECT_PATH) {
-		NETWORK_LOG(NETWORK_LOW, "Argument is not string\n");
-	} else {
-		dbus_message_iter_get_basic(&args, &sigvalue);
-	}
-
-	__NETWORK_FUNC_EXIT__;
-	return sigvalue;
-}
-
-int _net_get_boolean(DBusMessage* msg)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	DBusMessageIter args;
-	dbus_bool_t val = FALSE;
-	int retvalue = FALSE;
-
-	if (!dbus_message_iter_init(msg, &args)) {
-		NETWORK_LOG(NETWORK_LOW, "Message does not have parameters\n");
-	} else if (dbus_message_iter_get_arg_type(&args) != DBUS_TYPE_BOOLEAN) {
-		NETWORK_LOG(NETWORK_LOW, "Argument is not boolean\n");
-	} else {
-		dbus_message_iter_get_basic(&args, &val);
-
-		if (val)
-			retvalue = TRUE;
-		else
-			retvalue = FALSE;
-	}
-
-	__NETWORK_FUNC_EXIT__;
-	return retvalue;
-}
-
-int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
+int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessageIter iter, array;
-	char *tech_prefix;
+	GVariantIter *iter_main = NULL;
+	GVariantIter *var = NULL;
+	GVariant *value = NULL;
+	gchar *tech_prefix;
+	gchar *path = NULL;
+	gchar *key = NULL;
+	gboolean data;
 
 	if (g_str_equal(tech_state->technology, "wifi") == TRUE)
 		tech_prefix = CONNMAN_WIFI_TECHNOLOGY_PREFIX;
@@ -340,71 +267,39 @@ int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state)
 		goto done;
 	}
 
-	/* array{object, dict}: list of tuples with technology object path and
-	 * dictionary of technology properties */
-	if (!dbus_message_iter_init(msg, &iter)) {
-		NETWORK_LOG(NETWORK_LOW, "Message does not have parameters\n");
-		Error = NET_ERR_UNKNOWN;
-		goto done;
-	}
+	g_variant_get(msg, "(a(oa{sv}))", &iter_main);
+	while (g_variant_iter_loop(iter_main, "(oa{sv})", &path, &var)) {
 
-	dbus_message_iter_recurse(&iter, &array);
+		if (path == NULL || g_str_equal(path, tech_prefix) != TRUE)
+			continue;
 
-	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_STRUCT) {
-		DBusMessageIter entry, dict;
-		char *path = NULL;
-
-		dbus_message_iter_recurse(&array, &entry);
-		dbus_message_iter_get_basic(&entry, &path);
 		NETWORK_LOG(NETWORK_LOW, "Path - [%s]", path);
 
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &dict);
+		while (g_variant_iter_loop(var, "{sv}", &key, &value)) {
+			if (g_strcmp0(key, "Powered") == 0) {
+				data = g_variant_get_boolean(value);
 
-		if (path == NULL || g_str_equal(path, tech_prefix) != TRUE) {
-			dbus_message_iter_next(&array);
-			continue;
-		}
-		while (dbus_message_iter_get_arg_type(&dict) == DBUS_TYPE_DICT_ENTRY) {
-			DBusMessageIter entry1, value1;
-			const char *key, *sdata;
-			dbus_bool_t data;
+				if (data)
+					tech_state->Powered = TRUE;
+				else
+					tech_state->Powered = FALSE;
 
-			dbus_message_iter_recurse(&dict, &entry1);
-			dbus_message_iter_get_basic(&entry1, &key);
+				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Powered);
+			} else if (g_strcmp0(key, "Connected") == 0) {
+				data = g_variant_get_boolean(value);
 
-			dbus_message_iter_next(&entry1);
-			dbus_message_iter_recurse(&entry1, &value1);
+				if (data)
+					tech_state->Connected = TRUE;
+				else
+					tech_state->Connected = FALSE;
 
-			if (dbus_message_iter_get_arg_type(&value1) ==
-					DBUS_TYPE_BOOLEAN) {
-				dbus_message_iter_get_basic(&value1, &data);
-				NETWORK_LOG(NETWORK_LOW, "key-[%s]-[%s]",
-						key, data ? "True" : "False");
-
-				if (g_strcmp0(key, "Powered") == 0) {
-					if (data)
-						tech_state->Powered = TRUE;
-					else
-						tech_state->Powered = FALSE;
-				} else if (g_strcmp0(key, "Connected") == 0) {
-					if (data)
-						tech_state->Connected = TRUE;
-					else
-						tech_state->Connected = FALSE;
-				} else if (g_strcmp0(key, "Tethering") == 0) {
-					/* For further use */
-				}
-			} else if (dbus_message_iter_get_arg_type(&value1) ==
-					DBUS_TYPE_STRING) {
-				dbus_message_iter_get_basic(&value1, &sdata);
-				NETWORK_LOG(NETWORK_LOW, "%s", sdata);
+				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Connected);
+			} else if (g_strcmp0(key, "Tethering") == 0) {
+				/* For further use */
 			}
-			dbus_message_iter_next(&dict);
 		}
-
-		dbus_message_iter_next(&array);
 	}
+	g_variant_iter_free(iter_main);
 
 done:
 	__NETWORK_FUNC_EXIT__;

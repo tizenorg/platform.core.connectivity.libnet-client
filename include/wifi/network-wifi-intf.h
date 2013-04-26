@@ -20,6 +20,8 @@
 #ifndef __NETWORK_WIFI_INTF_H__
 #define __NETWORK_WIFI_INTF_H__
 
+#include <glib.h>
+
 #include "network-cm-intf.h"
 
 #ifdef __cplusplus

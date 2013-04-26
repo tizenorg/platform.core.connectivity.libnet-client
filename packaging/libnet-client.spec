@@ -1,15 +1,16 @@
 Name:       libnet-client
 Summary:    Network Client library (Shared library)
-Version:    0.1.77_33
+Version:    0.1.77_34
 Release:    1
 Group:      System/Network
 License:    Flora License
 Source0:    %{name}-%{version}.tar.gz
 BuildRequires:  cmake
-BuildRequires:  pkgconfig(glib-2.0)
-BuildRequires:  pkgconfig(dbus-glib-1)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(vconf)
+BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:	pkgconfig(gthread-2.0)
+BuildRequires:	pkgconfig(dbus-glib-1)
 
 %description
 Network Client library (Shared library)

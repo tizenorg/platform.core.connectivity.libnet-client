@@ -19,9 +19,6 @@
 
 #include <vconf.h>
 
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
-
 #include "network-internal.h"
 #include "network-dbus-request.h"
 #include "network-signal-handler.h"
@@ -30,44 +27,16 @@
  * 	Extern Global Variables
  *****************************************************************************/
 extern network_info_t NetworkInfo;
+
 extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
+handle_connection h_connection;
 
 /*****************************************************************************
  * 	Global Variables
  *****************************************************************************/
-DBusConnection* signal_conn = NULL;
 static net_state_type_t service_state_table[NET_DEVICE_MAX] = {NET_STATE_TYPE_UNKNOWN,};
 
 static int net_service_error = NET_ERR_NONE;
-
-/*****************************************************************************
- * 	Local Functions Definition
- *****************************************************************************/
-
-static int __net_get_dbus_property_changed_basic(DBusMessage *message,
-		char **key, int type, void *value)
-{
-	int Error = NET_ERR_UNKNOWN_METHOD;
-	DBusMessageIter iter, iter_variant;
-
-	dbus_message_iter_init(message, &iter);
-	if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_STRING)
-		return Error;
-
-	dbus_message_iter_get_basic(&iter, key);
-
-	dbus_message_iter_next(&iter);
-	if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_VARIANT)
-		return Error;
-
-	dbus_message_iter_recurse(&iter, &iter_variant);
-	if (dbus_message_iter_get_arg_type(&iter_variant) != type)
-		return Error;
-
-	dbus_message_iter_get_basic(&iter_variant, value);
-
-	return NET_ERR_NONE;
-}
 
 static int __net_handle_wifi_power_rsp(gboolean value)
 {
@@ -152,60 +121,48 @@ static int __net_handle_specific_scan_resp(GSList *bss_info_list)
 	return NET_ERR_NONE;
 }
 
-static int __net_handle_wifi_specific_scan_rsp(DBusMessage *msg)
+static int __net_handle_wifi_specific_scan_rsp(GVariant *param)
 {
-	net_err_t Error = NET_ERR_UNKNOWN_METHOD;
-	DBusMessageIter iter, array;
-
-	dbus_message_iter_init(msg, &iter);
-	dbus_message_iter_recurse(&iter, &array);
-
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	const char *key = NULL;
+	const gchar *ssid = NULL;
+	gint32 security = 0;
 	GSList *bss_info_list = NULL;
+	gboolean ssid_found = FALSE;
+	gboolean sec_found = FALSE;
 
-	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry, dict;
-		const char *key = NULL;
-		const char *ssid = NULL;
-		const int security = 0;
+	g_variant_get(param, "(a{sv})", &iter);
 
-		dbus_message_iter_recurse(&array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "ssid") == 0 && ssid_found == FALSE) {
+			ssid = g_variant_get_string(value, NULL);
+			NETWORK_LOG(NETWORK_LOW, "Got an ssid: %s", ssid);
+			ssid_found = TRUE;
+		}
+		if (g_strcmp0(key, "security") == 0 && sec_found == FALSE) {
+			security = g_variant_get_int16(value);
+			NETWORK_LOG(NETWORK_LOW, "with security: %d", security);
+			sec_found = TRUE;
+		}
 
-		if (g_strcmp0(key, "ssid") != 0)
-			return Error;
+		if (ssid_found == TRUE && sec_found == TRUE) {
+			net_wifi_connection_info_t *resp_data = g_try_new0(
+					net_wifi_connection_info_t, 1);
+			g_strlcpy(resp_data->essid, ssid, NET_WLAN_ESSID_LEN);
+			resp_data->security_info.sec_mode = __net_get_wlan_sec_mode(security);
+			bss_info_list = g_slist_append(bss_info_list, resp_data);
 
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &dict);
-		dbus_message_iter_get_basic(&dict, &ssid);
-		NETWORK_LOG(NETWORK_LOW, "Got an ssid: %s", ssid);
-
-		dbus_message_iter_next(&array);
-		if (dbus_message_iter_get_arg_type(&array) != DBUS_TYPE_DICT_ENTRY)
-			return Error;
-
-		dbus_message_iter_recurse(&array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
-		if (g_strcmp0(key, "security") != 0)
-			return Error;
-
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &dict);
-		dbus_message_iter_get_basic(&dict, (void *)&security);
-		NETWORK_LOG(NETWORK_LOW, "with security: %d", security);
-
-		net_wifi_connection_info_t *resp_data = g_try_new0(
-				net_wifi_connection_info_t, 1);
-		g_strlcpy(resp_data->essid, ssid, NET_WLAN_ESSID_LEN);
-		resp_data->security_info.sec_mode = __net_get_wlan_sec_mode(security);
-		bss_info_list = g_slist_append(bss_info_list, resp_data);
-
-		dbus_message_iter_next(&array);
+			ssid_found = FALSE;
+			sec_found = FALSE;
+		}
 	}
+	g_variant_iter_free(iter);
 
 	NETWORK_LOG(NETWORK_LOW,
-			"Received the signal: %s with total bss count = %d(Error = %d)",
+			"Received the signal: %s with total bss count = %d",
 			NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE,
-			g_slist_length(bss_info_list), Error);
+			g_slist_length(bss_info_list));
 
 	__net_handle_specific_scan_resp(bss_info_list);
 
@@ -319,17 +276,17 @@ static int string2state(const char *state)
 	return NET_STATE_TYPE_UNKNOWN;
 }
 
-static int __net_handle_service_state_changed(DBusMessage *message,
+static int __net_handle_service_state_changed(const gchar *sig_path,
 		const char *key, const char *state)
 {
 	net_err_t Error = NET_ERR_NONE;
-	const char *sig_path = NULL;
 	net_state_type_t old_state, new_state;
 
 	net_event_info_t event_data = { 0, };
 	net_device_t device_type = NET_DEVICE_UNKNOWN;
 
-	sig_path = dbus_message_get_path(message);
+	if (sig_path == NULL)
+		return Error;
 
 	device_type = _net_get_tech_type_from_path(sig_path);
 	if (device_type == NET_DEVICE_UNKNOWN)
@@ -525,8 +482,7 @@ static int string2error(const char *error)
 	return NET_ERR_UNKNOWN;
 }
 
-static int __net_handle_service_set_error(DBusMessage *message,
-		const char *key, const char *error)
+static int __net_handle_service_set_error(const char *key, const char *error)
 {
 	if (error == NULL || *error == '\0')
 		return NET_ERR_NONE;
@@ -538,47 +494,18 @@ static int __net_handle_service_set_error(DBusMessage *message,
 	return NET_ERR_NONE;
 }
 
-static int __net_handle_service_property_changed(DBusMessage *message)
-{
-	int Error = NET_ERR_NONE;
-	char *key = NULL;
-	char *value = NULL;
-
-	Error = __net_get_dbus_property_changed_basic(message,
-					&key, DBUS_TYPE_STRING, &value);
-	if (Error != NET_ERR_NONE)
-		return Error;
-
-	if (g_strcmp0(key, "State") == 0) {
-		Error = __net_handle_service_state_changed(message, key, value);
-	} else if (g_strcmp0(key, "Error") == 0) {
-		Error = __net_handle_service_set_error(message, key, value);
-	} else if (g_strcmp0(key, "Nameservers") == 0) {
-		/** Ignore - compared for future use */
-	} else if (g_strcmp0(key, "IPv4") == 0) {
-		/** Ignore - compared for future use */
-	} else if (g_strcmp0(key, "Ethernet") == 0) {
-		/** Ignore - compared for future use */
-	} else if (g_strcmp0(key, "Domains") == 0) {
-		/** Ignore - compared for future use */
-	} else if (g_strcmp0(key, "IPv4.Configuration") == 0) {
-		/** Ignore - compared for future use */
-	} else {
-		/** Ignore - compared for future use */
-	}
-
-	return Error;
-}
-
-static int __net_handle_scan_done(DBusMessage *message)
+static int __net_handle_scan_done(GVariant *param)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_event_info_t event_data = { 0, };
 
-	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE)
+	NETWORK_LOG(NETWORK_LOW, "ServiceChanged signal from ConnMan\n");
+
+	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
+		NETWORK_LOG(NETWORK_LOW, "Flag for specific scan is TRUE, so ignore this signal\n");
 		return NET_ERR_NONE;
-	else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
+	} else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
 		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0,
 				sizeof(network_request_table_t));
 
@@ -603,65 +530,57 @@ static int __net_handle_scan_done(DBusMessage *message)
 	return NET_ERR_NONE;
 }
 
-static DBusHandlerResult
-__net_signal_filter(DBusConnection* conn, DBusMessage* msg, void* user_data)
+static void __net_connman_service_signal_filter(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *sig, GVariant *param, gpointer user_data)
 {
-	if (msg == NULL)
-		return DBUS_HANDLER_RESULT_HANDLED;
+	const char *key = NULL;
+	const char *value = NULL;
+	GVariant *var;
 
-	if (dbus_message_is_signal(msg, CONNMAN_SERVICE_INTERFACE,
-			SIGNAL_PROPERTY_CHANGED)) {
-		__net_handle_service_property_changed(msg);
+	if (g_strcmp0(sig, SIGNAL_PROPERTY_CHANGED) == 0) {
+		g_variant_get(param, "(sv)", &key, &var);
 
-		return DBUS_HANDLER_RESULT_HANDLED;
-	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE,
-			NETCONFIG_SIGNAL_POWERON_COMPLETED)) {
-		__net_handle_wifi_power_rsp(TRUE);
+		if (g_strcmp0(key, "State") == 0) {
+			g_variant_get(var, "s", &value);
 
-		return DBUS_HANDLER_RESULT_HANDLED;
-	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE,
-			NETCONFIG_SIGNAL_POWEROFF_COMPLETED)) {
-		__net_handle_wifi_power_rsp(FALSE);
+			__net_handle_service_state_changed(path, key, value);
+		} else if (g_strcmp0(key, "Error") == 0) {
+			g_variant_get(var, "s", &value);
 
-		return DBUS_HANDLER_RESULT_HANDLED;
-	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE,
-			SIGNAL_PROPERTY_CHANGED)) {
-		/* reserved */
-	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE,
-			SIGNAL_TECHNOLOGY_ADDED)) {
-		/* reserved */
-	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE,
-			SIGNAL_TECHNOLOGY_REMOVED)) {
-		/* reserved */
-	} else if (dbus_message_is_signal(msg, CONNMAN_MANAGER_INTERFACE,
-			SIGNAL_SERVICES_CHANGED)) {
-		/* reserved */
-	} else if (dbus_message_is_signal(msg, NETCONFIG_WIFI_INTERFACE,
-			NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE)) {
-		__net_handle_wifi_specific_scan_rsp(msg);
-
-		return DBUS_HANDLER_RESULT_HANDLED;
-	} else if (dbus_message_is_signal(msg, SUPPLICANT_SERVICE_INTERFACE,
-			SIGNAL_SCAN_DONE)) {
-		__net_handle_scan_done(msg);
-
-		return DBUS_HANDLER_RESULT_HANDLED;
-	} else if (dbus_message_is_signal(msg, SUPPLICANT_SERVICE_INTERFACE,
-			SIGNAL_PROPERTIES_CHANGED)) {
-		/* reserved */
+			__net_handle_service_set_error(key, value);
+		}
 	}
-
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-static void __net_init_dbus_thread()
+static void __net_connman_manager_signal_filter(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *sig, GVariant *param, gpointer user_data)
 {
-	static dbus_bool_t init_required = TRUE;
+	if (g_strcmp0(sig, SIGNAL_SERVICES_CHANGED) == 0)
+		__net_handle_scan_done(param);
+}
 
-	if (init_required) {
-		dbus_g_thread_init();
-		init_required = FALSE;
+static void __net_supplicant_signal_filter(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *sig, GVariant *param, gpointer user_data)
+{
+	if (g_strcmp0(sig, SIGNAL_SCAN_DONE) == 0) {
+		NETWORK_LOG(NETWORK_HIGH, "ScanDone signal from wpasupplicant\n");
+	/*	__net_handle_scan_done(param); */
 	}
+}
+
+static void __net_netconfig_signal_filter(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *sig, GVariant *param, gpointer user_data)
+{
+	if (g_strcmp0(sig, NETCONFIG_SIGNAL_POWERON_COMPLETED) == 0)
+		__net_handle_wifi_power_rsp(TRUE);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_POWEROFF_COMPLETED) == 0)
+		__net_handle_wifi_power_rsp(FALSE);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE) == 0)
+		__net_handle_wifi_specific_scan_rsp(param);
 }
 
 /*****************************************************************************
@@ -671,61 +590,37 @@ int _net_deregister_signal(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	DBusError err;
-	dbus_error_init(&err);
-
-	if (signal_conn == NULL) {
+	if (h_connection.signal_conn == NULL) {
 		NETWORK_LOG(NETWORK_HIGH, "Already de-registered\n");
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_NONE;
 	}
 
-	dbus_bus_remove_match(signal_conn, CONNMAN_MANAGER_SIGNAL_FILTER, &err);
-	dbus_connection_flush(signal_conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
+	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
+						h_connection.conn_id_connman);
+	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
+						h_connection.conn_id_connman_manager);
+	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
+						h_connection.conn_id_supplicant);
+	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
+						h_connection.conn_id_netconfig);
 
-	dbus_bus_remove_match(signal_conn, CONNMAN_SERVICE_SIGNAL_FILTER, &err);
-	dbus_connection_flush(signal_conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
+	g_cancellable_cancel(h_connection.cancellable);
+	g_object_unref(h_connection.cancellable);
 
-	dbus_bus_remove_match(signal_conn, NETCONFIG_WIFI_FILTER, &err);
-	dbus_connection_flush(signal_conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	dbus_bus_remove_match(signal_conn, SUPPLICANT_INTERFACE_SIGNAL_FILTER, &err);
-	dbus_connection_flush(signal_conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Remove Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	dbus_connection_remove_filter(signal_conn, __net_signal_filter, NULL);
-	NETWORK_LOG(NETWORK_HIGH, "dbus_connection_remove_filter() successful\n");
 	NETWORK_LOG(NETWORK_LOW, "Successfully remove signal filters\n");
 
 	/* If DBusPendingCall remains, it should be released */
-	_net_dbus_clear_pending_call();
+	//_net_dbus_clear_pending_call();
+	if (g_dbus_connection_close_sync(h_connection.signal_conn, NULL, NULL) == FALSE) {
+		NETWORK_LOG(NETWORK_HIGH, "Failed to close dbus\n");
+		return NET_ERR_UNKNOWN;
+	}
 
-	dbus_connection_unref(signal_conn);
-	signal_conn = NULL;
+	g_object_unref(h_connection.signal_conn);
+
+	NETWORK_LOG(NETWORK_LOW, "Successfully deregister \n");
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -735,72 +630,81 @@ int _net_register_signal(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	DBusConnection* conn = NULL;
-	DBusError err;
+	gpointer dbus_connection;
+	GError *error = NULL;
+	gchar *addr;
 
-	__net_init_dbus_thread();
+	g_type_init();
 
-	dbus_error_init(&err);
-
-	conn = dbus_bus_get(DBUS_BUS_SYSTEM, NULL);
-	if (conn == NULL) {
+	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (!addr) {
 		NETWORK_LOG(NETWORK_ERROR,
-				"Failed to connect to the D-BUS daemon: [%s]\n", err.message);
-		dbus_error_free(&err);
-
-		__NETWORK_FUNC_EXIT__;
+				"Failed to get D-BUS : [%s]\n", error->message);
+		g_error_free(error);
 		return NET_ERR_UNKNOWN;
 	}
 
-	signal_conn = conn;
-
-	dbus_connection_setup_with_g_main(conn, NULL);
-
-	/** listening to messages from all objects as no path is specified */
-	/** see signals from the given interface */
-	dbus_bus_add_match(conn, CONNMAN_MANAGER_SIGNAL_FILTER, &err);
-	dbus_connection_flush(conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Add Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
+	dbus_connection = g_dbus_connection_new_for_address_sync(addr,
+			G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+			G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+			NULL, NULL, &error);
+	g_free(addr);
+	if (!dbus_connection) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"Failed to connect to the D-BUS daemon: [%s]\n", error->message);
+		g_error_free(error);
 		return NET_ERR_UNKNOWN;
 	}
 
-	dbus_bus_add_match(conn, CONNMAN_SERVICE_SIGNAL_FILTER, &err);
-	dbus_connection_flush(conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Add Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
+	h_connection.signal_conn = dbus_connection;
+	h_connection.cancellable = g_cancellable_new();
 
-	dbus_bus_add_match(conn, NETCONFIG_WIFI_FILTER, &err);
-	dbus_connection_flush(conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Add Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
+	/* Create connman service connection */
+	h_connection.conn_id_connman = g_dbus_connection_signal_subscribe(dbus_connection,
+							CONNMAN_SERVICE,
+							CONNMAN_SERVICE_INTERFACE,
+							NULL,
+							NULL,
+							NULL,
+							G_DBUS_SIGNAL_FLAGS_NONE,
+							__net_connman_service_signal_filter,
+							NULL,
+							NULL);
 
-	dbus_bus_add_match(conn, SUPPLICANT_INTERFACE_SIGNAL_FILTER, &err);
-	dbus_connection_flush(conn);
-	if (dbus_error_is_set(&err)) {
-		NETWORK_LOG(NETWORK_ERROR, "Add Match Error (%s)\n", err.message);
-		dbus_error_free(&err);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
+	h_connection.conn_id_connman_manager = g_dbus_connection_signal_subscribe(dbus_connection,
+							CONNMAN_SERVICE,
+							CONNMAN_MANAGER_INTERFACE,
+							NULL,
+							NULL,
+							NULL,
+							G_DBUS_SIGNAL_FLAGS_NONE,
+							__net_connman_manager_signal_filter,
+							NULL,
+							NULL);
 
-	if (dbus_connection_add_filter(conn, __net_signal_filter, NULL, NULL)
-			== FALSE) {
-		NETWORK_LOG(NETWORK_ERROR, "dbus_connection_add_filter() failed\n");
+	/* Create supplicant service connection */
+	h_connection.conn_id_supplicant = g_dbus_connection_signal_subscribe(dbus_connection,
+							SUPPLICANT_SERVICE,
+							SUPPLICANT_SERVICE_INTERFACE,
+							NULL,
+							NULL,
+							NULL,
+							G_DBUS_SIGNAL_FLAGS_NONE,
+							__net_supplicant_signal_filter,
+							NULL,
+							NULL);
 
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
+	/* Create net-config service connection */
+	h_connection.conn_id_netconfig = g_dbus_connection_signal_subscribe(dbus_connection,
+							NETCONFIG_SERVICE,
+							NETCONFIG_WIFI_INTERFACE,
+							NULL,
+							NETCONFIG_WIFI_PATH,
+							NULL,
+							G_DBUS_SIGNAL_FLAGS_NONE,
+							__net_netconfig_signal_filter,
+							NULL,
+							NULL);
 
 	NETWORK_LOG(NETWORK_LOW, "Successfully register signal filters\n");
 

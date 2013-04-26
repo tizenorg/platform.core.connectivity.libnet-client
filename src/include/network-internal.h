@@ -21,8 +21,9 @@
 #define __NETWORK_INTERNAL_H__
 
 #include <glib.h>
+#include <glib-object.h>
+#include <gio/gio.h>
 #include <stdlib.h>
-#include <dbus/dbus.h>
 
 #include "network-cm-intf.h"
 #include "network-wifi-intf.h"
@@ -169,6 +170,16 @@ typedef struct
 
 typedef struct
 {
+	gpointer signal_conn;
+	GCancellable *cancellable;
+	int conn_id_connman;
+	int conn_id_connman_manager;
+	int conn_id_supplicant;
+	int conn_id_netconfig;
+} handle_connection;
+
+typedef struct
+{
 	int num_of_services;
 	char* ProfileName[NET_PROFILE_LIST_MAX];
 } network_services_list_t;
@@ -223,11 +234,7 @@ typedef struct
  * 	Global Functions 
  *****************************************************************************/
 net_device_t _net_get_tech_type_from_path(const char *profile_name);
-char* _net_get_string(DBusMessage* msg);
-unsigned long long _net_get_uint64(DBusMessage* msg);
-char* _net_get_object(DBusMessage* msg);
-int _net_get_boolean(DBusMessage* msg);
-int _net_get_tech_state(DBusMessage* msg, network_tech_state_info_t* tech_state);
+int _net_get_tech_state(GVariant *iter, network_tech_state_info_t* tech_state);
 char* _net_print_error(net_err_t error);
 int _net_is_valid_service_type(net_service_type_t service_type);
 int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_info);

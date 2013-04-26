@@ -29,22 +29,22 @@
 /*****************************************************************************
  * 	Local Functions Declaration
  *****************************************************************************/
-static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
+static int __net_extract_wifi_info(GVariantIter *array, net_profile_info_t* ProfInfo);
 static int __net_get_profile_info(const char* ProfileName, net_profile_info_t* ProfInfo);
 static int __net_extract_service_info(const char* ProfileName,
-		DBusMessage *message, net_profile_info_t* ProfInfo);
+		GVariant *message, net_profile_info_t* ProfInfo);
 static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_info_t* ProfInfo);
 static int __net_telephony_init_profile_info(net_telephony_profile_info_t* ProfInfo);
 static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName,
-		net_telephony_profile_info_t* ProfileInfo);
+		net_telephony_profile_info_t *ProfileInfo);
 static int __net_telephony_get_profile_list(net_profile_name_t** ProfileName, int* ProfileCount);
-static int __net_extract_services(DBusMessage *message, net_device_t device_type,
+static int __net_extract_services(GVariantIter *message, net_device_t device_type,
 		net_profile_info_t** profile_info, int* profile_count);
-static int __net_extract_ip(DBusMessageIter *iter, net_addr_t *ipAddr);
-static int __net_extract_common_info(const char *key, DBusMessageIter *variant, net_profile_info_t* ProfInfo);
-static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
-static int __net_extract_ethernet_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
-static int __net_extract_bluetooth_info(DBusMessageIter *array, net_profile_info_t* ProfInfo);
+static int __net_extract_ip(const gchar *value, net_addr_t *ipAddr);
+static int __net_extract_common_info(const char *key, GVariant *variant, net_profile_info_t* ProfInfo);
+static int __net_extract_mobile_info(GVariantIter *array, net_profile_info_t* ProfInfo);
+static int __net_extract_ethernet_info(GVariantIter *array, net_profile_info_t* ProfInfo);
+static int __net_extract_bluetooth_info(GVariantIter *array, net_profile_info_t* ProfInfo);
 static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_name_t* PdpProfName);
 static int __net_telephony_modify_profile(const char* ProfileName,
 		net_profile_info_t* ProfInfo, net_profile_info_t* exProfInfo);
@@ -177,79 +177,56 @@ static int __net_telephony_init_profile_info(net_telephony_profile_info_t* ProfI
 	return NET_ERR_NONE;
 }
 
-static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net_telephony_profile_info_t* ProfileInfo)
+static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net_telephony_profile_info_t *ProfileInfo)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage* result = NULL;
-	DBusMessageIter iter, array;
+	GVariant *result;
+	GVariantIter *iter;
+	const gchar *key = NULL;
+	const gchar *value = NULL;
 
 	if (ProfileName == NULL || ProfileInfo == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter!\n");
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
 	result = _net_invoke_dbus_method(TELEPHONY_SERVICE, ProfileName->ProfileName,
 			TELEPHONY_PROFILE_INTERFACE, "GetProfile", NULL, &Error);
-
 	if (result == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "_net_invoke_dbus_method failed\n");
-
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-
-	/* Parsing profile info */
-	dbus_message_iter_init(result, &iter);
-	dbus_message_iter_recurse(&iter, &array);
 
 	Error = __net_telephony_init_profile_info(ProfileInfo);
 
 	if (Error != NET_ERR_NONE) {
-		dbus_message_unref(result);
-
+		g_variant_unref(result);
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
 
-	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry;
-		const char *key = NULL;
-		const char *value = NULL;
-
-		dbus_message_iter_recurse(&array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
-
-		dbus_message_iter_next(&entry);
-
+	g_variant_get(result, "(a{ss})", &iter);
+	while (g_variant_iter_next(iter, "{ss}", &key, &value)) {
 		if (g_strcmp0(key, "path") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->ProfileName, value, NET_PROFILE_NAME_LEN_MAX);
-
 		} else if (g_strcmp0(key, "svc_ctg_id") == 0) {
 			net_service_type_t ServiceType = NET_SERVICE_UNKNOWN;
-			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				ServiceType = atoi(value);
 
 			if (ServiceType > NET_SERVICE_UNKNOWN)
 				ProfileInfo->ServiceType = ServiceType;
-
 		} else if (g_strcmp0(key, "apn") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->Apn, value, NET_PDP_APN_LEN_MAX);
-
 		} else if (g_strcmp0(key, "auth_type") == 0) {
 			net_auth_type_t authType = NET_PDP_AUTH_NONE;
-			dbus_message_iter_get_basic(&entry, &value);
 
 			if (value != NULL)
 				authType = atoi(value);
@@ -258,33 +235,19 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 				ProfileInfo->AuthInfo.AuthType = NET_PDP_AUTH_PAP;
 			else if (authType == NET_PDP_AUTH_CHAP)
 				ProfileInfo->AuthInfo.AuthType = NET_PDP_AUTH_CHAP;
-
 		} else if (g_strcmp0(key, "auth_id") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->AuthInfo.UserName, value, NET_PDP_AUTH_USERNAME_LEN_MAX);
-
 		} else if (g_strcmp0(key, "auth_pwd") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->AuthInfo.Password, value, NET_PDP_AUTH_PASSWORD_LEN_MAX);
-
 		} else if (g_strcmp0(key, "proxy_addr") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->ProxyAddr, value, NET_PROXY_LEN_MAX);
-
 		} else if (g_strcmp0(key, "home_url") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->HomeURL, value, NET_HOME_URL_LEN_MAX);
 		} else if (g_strcmp0(key, "default_internet_conn") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value == NULL)
 				continue;
 
@@ -293,13 +256,9 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 			else
 				ProfileInfo->DefaultConn = FALSE;
 		} else if (g_strcmp0(key, "profile_name") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->Keyword, value, NET_PDP_APN_LEN_MAX);
 		} else if (g_strcmp0(key, "editable") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value == NULL)
 				continue;
 
@@ -308,8 +267,6 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 			else
 				ProfileInfo->Editable = FALSE;
 		} else if (g_strcmp0(key, "hidden") == 0) {
-			dbus_message_iter_get_basic(&entry, &value);
-
 			if (value == NULL)
 				continue;
 
@@ -318,10 +275,10 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 			else
 				ProfileInfo->Hidden = FALSE;
 		}
-		dbus_message_iter_next(&array);
 	}
 
-	dbus_message_unref(result);
+	g_variant_iter_free(iter);
+	g_variant_unref(result);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -332,75 +289,52 @@ static int __net_telephony_get_profile_list(net_profile_name_t** ProfileName, in
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage* result = NULL;
+	GVariant *result;
+	GVariantIter *iter;
+	const char *str;
+	int count = 0, i;
+	GSList *profiles = NULL, *list;
 	net_profile_name_t* profileList = NULL;
-	DBusMessageIter iter, array;
-	int count = 0;
 
 	result = _net_invoke_dbus_method(TELEPHONY_SERVICE, TELEPHONY_MASTER_PATH,
 			TELEPHONY_MASTER_INTERFACE, "GetProfileList", NULL, &Error);
-
 	if (result == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "_net_invoke_dbus_method failed\n");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
 
-	dbus_message_iter_init(result, &iter);
-	if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
-		NETWORK_LOG(NETWORK_ERROR, "There is no profiles\n");
-		*ProfileCount = 0;
-		dbus_message_unref(result);
-		__NETWORK_FUNC_EXIT__;
-		return Error;
-	}
+	g_variant_get(result, "(as)", &iter);
+	while (g_variant_iter_loop(iter, "s", &str))
+		profiles = g_slist_append(profiles, g_strdup(str));
 
-	dbus_message_iter_recurse(&iter, &array);
-
-	/* Get count of profile name from reply message */
-	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_STRING) {
-		count++;
-		dbus_message_iter_next(&array);
-	}
-
+	count = g_slist_length(profiles);
 	if (count > 0)
-		profileList = (net_profile_name_t*)malloc(sizeof(net_profile_name_t) * count);
+		profileList =
+				(net_profile_name_t*)malloc(sizeof(net_profile_name_t) * count);
 	else {
 		*ProfileCount = 0;
-		dbus_message_unref(result);
-		__NETWORK_FUNC_EXIT__;
-		return Error;
+		goto out;
 	}
 
 	if (profileList == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
 		*ProfileCount = 0;
-		dbus_message_unref(result);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
+		Error = NET_ERR_UNKNOWN;
+		goto out;
 	}
 
-	count = 0;
-
-	/* Parsing to get profile name from reply message */
-	dbus_message_iter_init(result, &iter);
-	dbus_message_iter_recurse(&iter, &array);
-	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_STRING) {
-		const char *key = NULL;
-
-		dbus_message_iter_get_basic(&array, &key);
-
-		if (key != NULL)
-			g_strlcpy(profileList[count].ProfileName, key, NET_PROFILE_NAME_LEN_MAX);
-
-		count++;
-		dbus_message_iter_next(&array);
-	}
+	for (list = profiles, i = 0; list != NULL; list = list->next, i++)
+		g_strlcpy(profileList[i].ProfileName,
+				(const char *)list->data, NET_PROFILE_NAME_LEN_MAX);
 
 	*ProfileName = profileList;
 	*ProfileCount = count;
 
-	dbus_message_unref(result);
+out:
+	g_slist_free_full(profiles, g_free);
+	g_variant_iter_free(iter);
+	g_variant_unref(result);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -436,13 +370,14 @@ static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_nam
 
 	/* Find matching profile */
 	connmanProfName = strrchr(ProfileName, '/') + 1;
-	for (i = 0;i < ProfileCount;i++) {
+	for (i = 0; i < ProfileCount; i++) {
 		telephonyProfName = strrchr(ProfileList[i].ProfileName, '/') + 1;
 		foundPtr = strstr(connmanProfName, telephonyProfName);
 
 		if (foundPtr != NULL && g_strcmp0(foundPtr, telephonyProfName) == 0) {
 			g_strlcpy(PdpProfName->ProfileName,
 					ProfileList[i].ProfileName, NET_PROFILE_NAME_LEN_MAX);
+
 			NETWORK_LOG(NETWORK_HIGH,
 					"PDP profile name found in cellular profile: %s\n",
 					PdpProfName->ProfileName);
@@ -458,13 +393,13 @@ static int __net_telephony_search_pdp_profile(char* ProfileName, net_profile_nam
 	}
 
 	NET_MEMFREE(ProfileList);
-	__NETWORK_FUNC_EXIT__;
 
+	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
-static int __net_extract_mobile_services(DBusMessage *message,
-		DBusMessageIter *array, network_services_list_t *service_info,
+static int __net_extract_mobile_services(GVariantIter *iter,
+		network_services_list_t *service_info,
 		net_service_type_t network_type)
 {
 	int count = 0, i = 0;
@@ -474,10 +409,13 @@ static int __net_extract_mobile_services(DBusMessage *message,
 	const char pre_mms_suffix[] = "_4";
 	const char tethering_suffix[] = "_5";
 	char *suffix = NULL;
+	const char *obj = NULL;
+	GVariantIter *value = NULL;
+	gboolean found = FALSE;
 
 	__NETWORK_FUNC_ENTER__;
 
-	if (message == NULL || array == NULL || service_info == NULL) {
+	if (iter == NULL || service_info == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
 
 		__NETWORK_FUNC_EXIT__;
@@ -495,18 +433,9 @@ static int __net_extract_mobile_services(DBusMessage *message,
 
 	service_info->num_of_services = 0;
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
-		DBusMessageIter entry;
-		const char *obj;
-		gboolean found = FALSE;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &obj);
-
-		if (obj == NULL) {
-			dbus_message_iter_next(array);
+	while (g_variant_iter_loop(iter, "(oa{sv})", &obj, &value)) {
+		if (obj == NULL)
 			continue;
-		}
 
 		if (g_str_has_prefix(obj,
 				CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE) {
@@ -549,8 +478,6 @@ static int __net_extract_mobile_services(DBusMessage *message,
 				count++;
 			}
 		}
-
-		dbus_message_iter_next(array);
 	}
 
 	service_info->num_of_services = count;
@@ -559,13 +486,15 @@ static int __net_extract_mobile_services(DBusMessage *message,
 	return NET_ERR_NONE;
 }
 
-static int __net_extract_all_services(DBusMessageIter *array,
+static int __net_extract_all_services(GVariantIter *array,
 		net_device_t device_type, const char *service_prefix,
 		int *prof_count, net_profile_info_t **ProfilePtr)
 {
 	int count = 0;
 	net_profile_info_t ProfInfo = {0, };
 	net_err_t Error = NET_ERR_NONE;
+	const gchar *obj;
+	GVariantIter *next = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
@@ -576,26 +505,14 @@ static int __net_extract_all_services(DBusMessageIter *array,
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
-		DBusMessageIter entry;
-		DBusMessageIter next;
-		const char *obj;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &obj);
-
-		if (obj == NULL) {
-			dbus_message_iter_next(array);
+	while (g_variant_iter_loop(array, "(oa{sv})", &obj, &next)) {
+		if (obj == NULL)
 			continue;
-		}
 
 		if (g_str_has_prefix(obj, service_prefix) == TRUE) {
 			if (device_type == NET_DEVICE_WIFI &&
 					g_strrstr(obj + strlen(service_prefix), "hidden") != NULL)
-				goto get_next;
-
-			dbus_message_iter_next(&entry);
-			dbus_message_iter_recurse(&entry, &next);
+				continue;
 
 			memset(&ProfInfo, 0, sizeof(net_profile_info_t));
 			if ((Error = __net_pm_init_profile_info(device_type, &ProfInfo)) != NET_ERR_NONE) {
@@ -616,25 +533,25 @@ static int __net_extract_all_services(DBusMessageIter *array,
 				g_strlcpy(ProfInfo.ProfileInfo.Wlan.net_info.ProfileName,
 						obj, NET_PROFILE_NAME_LEN_MAX);
 
-				Error = __net_extract_wifi_info(&next, &ProfInfo);
+				Error = __net_extract_wifi_info(next, &ProfInfo);
 				break;
 			case NET_DEVICE_CELLULAR:
 				g_strlcpy(ProfInfo.ProfileInfo.Pdp.net_info.ProfileName,
 						obj, NET_PROFILE_NAME_LEN_MAX);
 
-				Error = __net_extract_mobile_info(&next, &ProfInfo);
+				Error = __net_extract_mobile_info(next, &ProfInfo);
 				break;
 			case NET_DEVICE_ETHERNET:
 				g_strlcpy(ProfInfo.ProfileInfo.Ethernet.net_info.ProfileName,
 						obj, NET_PROFILE_NAME_LEN_MAX);
 
-				Error = __net_extract_ethernet_info(&next, &ProfInfo);
+				Error = __net_extract_ethernet_info(next, &ProfInfo);
 				break;
 			case NET_DEVICE_BLUETOOTH:
 				g_strlcpy(ProfInfo.ProfileInfo.Bluetooth.net_info.ProfileName,
 						obj, NET_PROFILE_NAME_LEN_MAX);
 
-				Error = __net_extract_bluetooth_info(&next, &ProfInfo);
+				Error = __net_extract_bluetooth_info(next, &ProfInfo);
 				break;
 			default:
 				NET_MEMFREE(*ProfilePtr);
@@ -668,9 +585,6 @@ static int __net_extract_all_services(DBusMessageIter *array,
 			memcpy(*ProfilePtr + count, &ProfInfo, sizeof(net_profile_info_t));
 			count++;
 		}
-
-get_next:
-		dbus_message_iter_next(array);
 	}
 
 	*prof_count = count;
@@ -679,19 +593,15 @@ get_next:
 	return NET_ERR_NONE;
 }
 
-static int __net_extract_services(DBusMessage *message, net_device_t device_type,
+static int __net_extract_services(GVariantIter *message, net_device_t device_type,
 		net_profile_info_t** profile_info, int* profile_count)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessageIter iter, dict;
 	net_profile_info_t *ProfilePtr = NULL;
 	int prof_cnt = 0;
 	char *service_prefix = NULL;
-
-	dbus_message_iter_init(message, &iter);
-	dbus_message_iter_recurse(&iter, &dict);
 
 	*profile_count = 0;
 
@@ -716,7 +626,7 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 		break;
 	}
 
-	Error = __net_extract_all_services(&dict, device_type, service_prefix,
+	Error = __net_extract_all_services(message, device_type, service_prefix,
 			&prof_cnt, &ProfilePtr);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to extract services from received message\n");
@@ -736,17 +646,14 @@ static int __net_extract_services(DBusMessage *message, net_device_t device_type
 	return Error;
 }
 
-static int __net_extract_ip(DBusMessageIter *iter, net_addr_t *ipAddr)
+static int __net_extract_ip(const gchar *value, net_addr_t *ipAddr)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	unsigned char *ipValue = NULL;
-	const char *value = NULL;
 	char *saveptr = NULL;
 	char ipString[NETPM_IPV4_STR_LEN_MAX+1];
 	char* ipToken[4];
-	
-	dbus_message_iter_get_basic(iter, &value);	
 
 	ipValue = (unsigned char *)&(ipAddr->Data.Ipv4.s_addr);
 
@@ -780,16 +687,17 @@ static int __net_extract_ip(DBusMessageIter *iter, net_addr_t *ipAddr)
 	return NET_ERR_NONE;
 }
 
-static int __net_extract_common_info(const char *key, DBusMessageIter *variant, net_profile_info_t* ProfInfo)
+static int __net_extract_common_info(const char *key, GVariant *variant, net_profile_info_t* ProfInfo)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessageIter subIter1, subIter2, subIter3, subIter4;
-	const char *subKey = NULL;
-	const char *value = NULL;
+	const gchar *subKey = NULL;
+	const gchar *value = NULL;
 	net_dev_info_t* net_info = NULL;
-	
+	GVariant *var = NULL;
+	GVariantIter *iter = NULL;
+
 	if (ProfInfo->profile_type == NET_DEVICE_CELLULAR) {
 		net_info = &(ProfInfo->ProfileInfo.Pdp.net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_WIFI) {
@@ -805,8 +713,8 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 	}
 
 	if (g_strcmp0(key, "State") == 0) {
-		dbus_message_iter_get_basic(variant, &value);
-		
+		value = g_variant_get_string(variant, NULL);
+
 		if (g_strcmp0(value, "idle") == 0)
 			ProfInfo->ProfileState = NET_STATE_TYPE_IDLE;
 		else if (g_strcmp0(value, "failure") == 0)
@@ -824,52 +732,34 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 		else
 			ProfInfo->ProfileState = NET_STATE_TYPE_UNKNOWN;
 	} else if (g_strcmp0(key, "Favorite") == 0) {
-		dbus_bool_t val;
-		
-		dbus_message_iter_get_basic(variant, &val);
-		
+		gboolean val = g_variant_get_boolean(variant);
+
 		if(val)
 			ProfInfo->Favourite = TRUE;
 		else
 			ProfInfo->Favourite = FALSE;
 	} else if (g_strcmp0(key, "Ethernet") == 0) {
-		dbus_message_iter_recurse(variant, &subIter1);
-		
-		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
-			dbus_message_iter_recurse(&subIter1, &subIter2);
-			dbus_message_iter_get_basic(&subIter2, &subKey);
-
+		g_variant_get(variant, "a{sv}", &iter);
+		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
 			if (g_strcmp0(subKey, "Interface") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &value);
+				value = g_variant_get_string(var, NULL);
 
 				if (value != NULL)
 					g_strlcpy(net_info->DevName, value, NET_MAX_DEVICE_NAME_LEN);
-
 			} else if (g_strcmp0(subKey, "Address") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &value);
+				value = g_variant_get_string(var, NULL);
 
 				if (value != NULL)
 					g_strlcpy(net_info->MacAddr, value, NET_MAX_MAC_ADDR_LEN);
 			}
-			
-			dbus_message_iter_next(&subIter1);
 		}
+		g_variant_iter_free(iter);
 	} else if (g_strcmp0(key, "IPv4") == 0) {
-		dbus_message_iter_recurse(variant, &subIter1);
-		
-		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
-			dbus_message_iter_recurse(&subIter1, &subIter2);
-			dbus_message_iter_get_basic(&subIter2, &subKey);
-
+		g_variant_get(variant, "a{sv}", &iter);
+		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
 			if (g_strcmp0(subKey, "Method") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &value);
-				
+				value = g_variant_get_string(var, NULL);
+
 				if (g_strcmp0(value, "dhcp") == 0)
 					net_info->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
 				else if (g_strcmp0(value, "manual") == 0)
@@ -880,40 +770,32 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 					net_info->IpConfigType = NET_IP_CONFIG_TYPE_OFF;
 
 			} else if (g_strcmp0(subKey, "Address") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				__net_extract_ip(&subIter3, &net_info->IpAddr);
+				value = g_variant_get_string(var, NULL);
+
+				__net_extract_ip(value, &net_info->IpAddr);
 			} else if (g_strcmp0(subKey, "Netmask") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				__net_extract_ip(&subIter3, &net_info->SubnetMask);
+				value = g_variant_get_string(var, NULL);
+
+				__net_extract_ip(value, &net_info->SubnetMask);
 				net_info->BNetmask = TRUE;
 			} else if (g_strcmp0(subKey, "Gateway") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				__net_extract_ip(&subIter3, &net_info->GatewayAddr);
+				value = g_variant_get_string(var, NULL);
+
+				__net_extract_ip(value, &net_info->GatewayAddr);
 				net_info->BDefGateway = TRUE;
 			}
-			
-			dbus_message_iter_next(&subIter1);
 		}
+		g_variant_iter_free(iter);
 	} else if (g_strcmp0(key, "IPv4.Configuration") == 0) {
-
 		if (net_info->IpConfigType != NET_IP_CONFIG_TYPE_DYNAMIC &&
 		    net_info->IpConfigType != NET_IP_CONFIG_TYPE_STATIC &&
 		    net_info->IpConfigType != NET_IP_CONFIG_TYPE_FIXED &&
 		    net_info->IpConfigType != NET_IP_CONFIG_TYPE_OFF) {
 
-			dbus_message_iter_recurse(variant, &subIter1);
-		
-			while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
-				dbus_message_iter_recurse(&subIter1, &subIter2);
-				dbus_message_iter_get_basic(&subIter2, &subKey);
-
+			g_variant_get(variant, "a{sv}", &iter);
+			while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
 				if (g_strcmp0(subKey, "Method") == 0) {
-					dbus_message_iter_next(&subIter2);
-					dbus_message_iter_recurse(&subIter2, &subIter3);
-					dbus_message_iter_get_basic(&subIter3, &value);
+					value = g_variant_get_string(var, NULL);
 					
 					if(g_strcmp0(value, "dhcp") == 0)
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
@@ -926,70 +808,65 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 
 				} else if (g_strcmp0(subKey, "Address") == 0 &&
 				           net_info->IpAddr.Data.Ipv4.s_addr == 0) {
-					dbus_message_iter_next(&subIter2);
-					dbus_message_iter_recurse(&subIter2, &subIter3);
-					__net_extract_ip(&subIter3, &net_info->IpAddr);
+					value = g_variant_get_string(var, NULL);
+
+					__net_extract_ip(value, &net_info->IpAddr);
 				} else if (g_strcmp0(subKey, "Netmask") == 0 &&
 				           net_info->SubnetMask.Data.Ipv4.s_addr == 0) {
-					dbus_message_iter_next(&subIter2);
-					dbus_message_iter_recurse(&subIter2, &subIter3);
-					__net_extract_ip(&subIter3, &net_info->SubnetMask);
+					value = g_variant_get_string(var, NULL);
+
+					__net_extract_ip(value, &net_info->SubnetMask);
 					net_info->BNetmask = TRUE;
 				} else if (g_strcmp0(subKey, "Gateway") == 0 &&
 				           net_info->GatewayAddr.Data.Ipv4.s_addr == 0) {
-					dbus_message_iter_next(&subIter2);
-					dbus_message_iter_recurse(&subIter2, &subIter3);
-					__net_extract_ip(&subIter3, &net_info->GatewayAddr);
+					value = g_variant_get_string(var, NULL);
+
+					__net_extract_ip(value, &net_info->GatewayAddr);
 					net_info->BDefGateway = TRUE;
 				}
-				
-				dbus_message_iter_next(&subIter1);
 			}
+			g_variant_iter_free(iter);
 		}
 	} else if(g_strcmp0(key, "Nameservers") == 0) {
 		int dnsCount = 0;
-		dbus_message_iter_recurse(variant, &subIter1);			
-		
-		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_STRING) {
-			__net_extract_ip(&subIter1, &net_info->DnsAddr[dnsCount]);
+
+		g_variant_get(variant, "as", &iter);
+		while (g_variant_iter_loop(iter, "s", &value)) {
+			__net_extract_ip(value, &net_info->DnsAddr[dnsCount]);
+
 			dnsCount++;
 			if (dnsCount >= NET_DNS_ADDR_MAX)
-				break;					
-			
-			dbus_message_iter_next(&subIter1);
+				break;
 		}
+
+		g_variant_iter_free(iter);
 
 		net_info->DnsCount = dnsCount;
 	} else if (g_strcmp0(key, "Nameservers.Configuration") == 0 && net_info->DnsCount == 0) {
 		int dnsCount = 0;
-		dbus_message_iter_recurse(variant, &subIter1);
 
-		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_STRING) {
-			__net_extract_ip(&subIter1, &net_info->DnsAddr[dnsCount]);
+		g_variant_get(variant, "as", &iter);
+		while (g_variant_iter_loop(iter, "s", &value)) {
+			__net_extract_ip(value, &net_info->DnsAddr[dnsCount]);
+
 			dnsCount++;
-			if(dnsCount >= NET_DNS_ADDR_MAX)
+			if (dnsCount >= NET_DNS_ADDR_MAX)
 				break;
-			
-			dbus_message_iter_next(&subIter1);
 		}
+		g_variant_iter_free(iter);
 
 		net_info->DnsCount = dnsCount;
 	} else if (g_strcmp0(key, "Domains") == 0) {
 	} else if (g_strcmp0(key, "Domains.Configuration") == 0) {
 	} else if (g_strcmp0(key, "Proxy") == 0) {
-		dbus_message_iter_recurse(variant, &subIter1);
 		const char *url = NULL;
 		const char *servers = NULL;
-		
-		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
-			dbus_message_iter_recurse(&subIter1, &subIter2);
-			dbus_message_iter_get_basic(&subIter2, &subKey);
 
+		g_variant_get(variant, "a{sv}", &iter);
+		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
 			if (g_strcmp0(subKey, "Method") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &value);
-				
+				value = g_variant_get_string(var, NULL);
+
 				if (g_strcmp0(value, "direct") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_DIRECT;
 				else if (g_strcmp0(value, "auto") == 0)
@@ -999,45 +876,35 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 				else
 					net_info->ProxyMethod = NET_PROXY_TYPE_UNKNOWN;
 			} else if (g_strcmp0(subKey, "URL") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &url);
+				url = g_variant_get_string(var, NULL);
 			} else if (g_strcmp0(subKey, "Servers") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
+				GVariantIter *iter_sub = NULL;
 
-				if (dbus_message_iter_get_arg_type(&subIter3) == DBUS_TYPE_ARRAY) {
-					dbus_message_iter_recurse(&subIter3, &subIter4);
+				g_variant_get(var, "as", &iter_sub);
 
-					if (dbus_message_iter_get_arg_type(&subIter4) == DBUS_TYPE_STRING)
-						dbus_message_iter_get_basic(&subIter4, &servers);
-				}
+				if (g_variant_iter_loop(iter_sub, "s", &servers) == FALSE)
+					servers = NULL;
+
+				g_variant_iter_free(iter_sub);
 			}
-
-			dbus_message_iter_next(&subIter1);
 		}
+		g_variant_iter_free(iter);
 
 		if (net_info->ProxyMethod == NET_PROXY_TYPE_AUTO && url != NULL)
 			g_strlcpy(net_info->ProxyAddr, url, NET_PROXY_LEN_MAX);
 		else if (net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL && servers != NULL)
 			g_strlcpy(net_info->ProxyAddr, servers, NET_PROXY_LEN_MAX);
-
 	} else if (g_strcmp0(key, "Proxy.Configuration") == 0 &&
 	           net_info->ProxyMethod != NET_PROXY_TYPE_AUTO &&
 	           net_info->ProxyMethod != NET_PROXY_TYPE_MANUAL) {
 
-		dbus_message_iter_recurse(variant, &subIter1);
 		const char *url = NULL;
 		const char *servers = NULL;
 
-		while (dbus_message_iter_get_arg_type(&subIter1) == DBUS_TYPE_DICT_ENTRY) {
-			dbus_message_iter_recurse(&subIter1, &subIter2);
-			dbus_message_iter_get_basic(&subIter2, &subKey);
-
+		g_variant_get(variant, "a{sv}", &iter);
+		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
 			if (g_strcmp0(subKey, "Method") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &value);
+				value = g_variant_get_string(var, NULL);
 
 				if (g_strcmp0(value, "direct") == 0)
 					net_info->ProxyMethod = NET_PROXY_TYPE_DIRECT;
@@ -1048,34 +915,28 @@ static int __net_extract_common_info(const char *key, DBusMessageIter *variant, 
 				else
 					net_info->ProxyMethod = NET_PROXY_TYPE_UNKNOWN;
 			} else if (g_strcmp0(subKey, "URL") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
-				dbus_message_iter_get_basic(&subIter3, &url);
+				url = g_variant_get_string(var, NULL);
 			} else if (g_strcmp0(subKey, "Servers") == 0) {
-				dbus_message_iter_next(&subIter2);
-				dbus_message_iter_recurse(&subIter2, &subIter3);
+				GVariantIter *iter_sub = NULL;
 
-				if (dbus_message_iter_get_arg_type(&subIter3) == DBUS_TYPE_ARRAY) {
-					dbus_message_iter_recurse(&subIter3, &subIter4);
+				g_variant_get(var, "as", &iter_sub);
 
-					if (dbus_message_iter_get_arg_type(&subIter4) == DBUS_TYPE_STRING)
-						dbus_message_iter_get_basic(&subIter4, &servers);
-				}
+				if (g_variant_iter_loop(iter_sub, "s", &servers) == FALSE)
+					servers = NULL;
+
+				g_variant_iter_free(iter_sub);
 			}
-
-			dbus_message_iter_next(&subIter1);
 		}
+		g_variant_iter_free(iter);
 
 		if (net_info->ProxyMethod == NET_PROXY_TYPE_AUTO && url != NULL)
 			g_strlcpy(net_info->ProxyAddr, url, NET_PROXY_LEN_MAX);
 		else if (net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL && servers != NULL)
 			g_strlcpy(net_info->ProxyAddr, servers, NET_PROXY_LEN_MAX);
-
 	} else if(g_strcmp0(key, "Provider") == 0) {
 	}
 
 	__NETWORK_FUNC_EXIT__;
-
 	return Error;
 }
 
@@ -1117,26 +978,20 @@ static wlan_eap_auth_type_t __convert_eap_auth_from_string(const char *eap_auth)
 		return WLAN_SEC_EAP_AUTH_NONE;
 }
 
-static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* ProfInfo)
+static int __net_extract_wifi_info(GVariantIter *array, net_profile_info_t* ProfInfo)
 {
 	net_err_t Error = NET_ERR_NONE;
 	net_wifi_profile_info_t *Wlan = &(ProfInfo->ProfileInfo.Wlan);
+	GVariant *var = NULL;
+	const gchar *key = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry, variant, sub_array;
-		const char *key = NULL;
-		const char *value = NULL;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
-
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &variant);
+	while (g_variant_iter_loop(array, "{sv}", &key, &var)) {
+		const gchar *value = NULL;
 
 		if (g_strcmp0(key, "Mode") == 0) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (g_strcmp0(value, "managed") == 0)
 				Wlan->wlan_mode = NETPM_WLAN_CONNMODE_INFRA;
@@ -1144,11 +999,12 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 				Wlan->wlan_mode = NETPM_WLAN_CONNMODE_ADHOC;
 			else
 				Wlan->wlan_mode = NETPM_WLAN_CONNMODE_AUTO;
-		} else if (g_strcmp0(key, "Security") == 0) {
-			dbus_message_iter_recurse(&variant, &sub_array);
 
-			while (dbus_message_iter_get_arg_type(&sub_array) == DBUS_TYPE_STRING) {
-				dbus_message_iter_get_basic(&sub_array, &value);
+		} else if (g_strcmp0(key, "Security") == 0) {
+			GVariantIter *iter_sub = NULL;
+
+			g_variant_get(var, "as", &iter_sub);
+			while (g_variant_iter_loop(iter_sub, "s", &value)) {
 				if (g_strcmp0(value, "none") == 0 &&
 				    Wlan->security_info.sec_mode < WLAN_SEC_MODE_NONE)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_NONE;
@@ -1171,11 +1027,9 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 					Wlan->security_info.wps_support = TRUE;
 				else if (Wlan->security_info.sec_mode < WLAN_SEC_MODE_NONE)
 					Wlan->security_info.sec_mode = WLAN_SEC_MODE_NONE;
-
-				dbus_message_iter_next(&sub_array);
 			}
 		} else if (g_strcmp0(key, "EncryptionMode") == 0) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (g_strcmp0(value, "none") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_NONE;
@@ -1188,19 +1042,16 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 			else if (g_strcmp0(value, "mixed") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_TKIP_AES_MIXED;
 
-			dbus_message_iter_next(&sub_array);
-
 		} else if (g_strcmp0(key, "Strength") == 0) {
-			dbus_message_iter_get_basic(&variant, &(Wlan->Strength));
+			Wlan->Strength = g_variant_get_byte(var);
 		} else if (g_strcmp0(key, "Name") == 0) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->essid, value, NET_WLAN_ESSID_LEN);
-
 		} else if (g_strcmp0(key, "Passphrase") == 0) {
 			wlan_security_info_t *security_info = &(Wlan->security_info);
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (security_info->sec_mode == WLAN_SEC_MODE_WEP && value != NULL)
 				g_strlcpy(security_info->authentication.wep.wepKey,
@@ -1212,116 +1063,105 @@ static int __net_extract_wifi_info(DBusMessageIter *array, net_profile_info_t* P
 						value, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN+1);
 
 		} else if (g_strcmp0(key, "PassphraseRequired") == 0) {
-			dbus_bool_t val;
+			gboolean val;
 
-			dbus_message_iter_get_basic(&variant, &val);
+			val = g_variant_get_boolean(var);
 
 			if(val)
 				Wlan->PassphraseRequired = TRUE;
 			else
 				Wlan->PassphraseRequired = FALSE;
 		} else if (g_strcmp0(key, "BSSID") == 0) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->bssid, value, NET_MAX_MAC_ADDR_LEN);
 
 		} else if (g_strcmp0(key, "MaxRate") == 0) {
-			unsigned int maxrate;
-			dbus_message_iter_get_basic(&variant, &maxrate);
-
-			Wlan->max_rate = maxrate;
+			Wlan->max_rate = g_variant_get_uint32(var);
 
 		} else if (g_strcmp0(key, "Frequency") == 0) {
 			unsigned short frequency;
-			dbus_message_iter_get_basic(&variant, &frequency);
+			frequency = g_variant_get_uint16(var);
 
 			Wlan->frequency = (unsigned int)frequency;
 
 		} else if (g_str_equal(key, "EAP") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				Wlan->security_info.authentication.eap.eap_type =
 						__convert_eap_type_from_string(value);
 
 		} else if (g_str_equal(key, "Phase2") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				Wlan->security_info.authentication.eap.eap_auth =
 						__convert_eap_auth_from_string(value);
 
 		} else if (g_str_equal(key, "Identity") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->security_info.authentication.eap.username,
 						value, NETPM_WLAN_USERNAME_LEN+1);
 
 		} else if (g_str_equal(key, "Password") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->security_info.authentication.eap.password,
 						value, NETPM_WLAN_PASSWORD_LEN+1);
 
 		} else if (g_str_equal(key, "CACertFile") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->security_info.authentication.eap.ca_cert_filename,
 						value, NETPM_WLAN_CA_CERT_FILENAME_LEN+1);
 
 		} else if (g_str_equal(key, "ClientCertFile") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->security_info.authentication.eap.client_cert_filename,
 						value, NETPM_WLAN_CLIENT_CERT_FILENAME_LEN+1);
 
 		} else if (g_str_equal(key, "PrivateKeyFile") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->security_info.authentication.eap.private_key_filename,
 						value, NETPM_WLAN_PRIVATE_KEY_FILENAME_LEN+1);
 
 		} else if (g_str_equal(key, "PrivateKeyPassphrase") == TRUE) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (value != NULL)
 				g_strlcpy(Wlan->security_info.authentication.eap.private_key_passwd,
 						value, NETPM_WLAN_PRIVATE_KEY_PASSWD_LEN+1);
 		} else
-			Error = __net_extract_common_info(key, &variant, ProfInfo);
-
-		dbus_message_iter_next(array);
+			Error = __net_extract_common_info(key, var, ProfInfo);
 	}
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
-static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t *ProfInfo)
+static int __net_extract_mobile_info(GVariantIter *array, net_profile_info_t *ProfInfo)
 {
 	net_err_t Error = NET_ERR_NONE;
+	GVariant *var = NULL;
+	const gchar *key = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry, variant;
-		const char *key = NULL;
-		const char *value = NULL;
-		
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
-
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &variant);
+	while (g_variant_iter_loop(array, "{sv}", &key, &var)) {
+		const gchar *value = NULL;
 
 		if (g_strcmp0(key, "Mode") == 0) {
-			dbus_message_iter_get_basic(&variant, &value);
+			value = g_variant_get_string(var, NULL);
 
 			if (g_strcmp0(value, "gprs") == 0)
 				ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_GPRS;
@@ -1332,27 +1172,23 @@ static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t 
 			else
 				ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_NONE;
 		} else if (g_strcmp0(key, "Roaming") == 0) {
-			dbus_bool_t val;
-			
-			dbus_message_iter_get_basic(&variant, &val);
+			gboolean val;
 
+			val = g_variant_get_boolean(var);
 			if (val)
 				ProfInfo->ProfileInfo.Pdp.Roaming = TRUE;
 			else
 				ProfInfo->ProfileInfo.Pdp.Roaming = FALSE;
 		} else if (g_strcmp0(key, "SetupRequired") == 0) {
-			dbus_bool_t val;
-			
-			dbus_message_iter_get_basic(&variant, &val);
+			gboolean val;
 
+			val = g_variant_get_boolean(var);
 			if (val)
 				ProfInfo->ProfileInfo.Pdp.SetupRequired = TRUE;
 			else
 				ProfInfo->ProfileInfo.Pdp.SetupRequired = FALSE;
 		} else
-			Error = __net_extract_common_info(key, &variant, ProfInfo);
-
-		dbus_message_iter_next(array);
+			Error = __net_extract_common_info(key, var, ProfInfo);
 	}
 
 	/* Get Specific info from telephony service */
@@ -1412,99 +1248,70 @@ static int __net_extract_mobile_info(DBusMessageIter *array, net_profile_info_t 
 	return Error;
 }
 
-static int __net_extract_ethernet_info(DBusMessageIter *array, net_profile_info_t* ProfInfo)
+static int __net_extract_ethernet_info(GVariantIter *array, net_profile_info_t* ProfInfo)
 {
 	net_err_t Error = NET_ERR_NONE;
+	GVariant *var = NULL;
+	const gchar *key = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry, variant;
-		const char *key = NULL;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
-
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &variant);
-
-		Error = __net_extract_common_info(key, &variant, ProfInfo);
-
-		dbus_message_iter_next(array);
-	}
+	while (g_variant_iter_loop(array, "{sv}", &key, &var))
+		Error = __net_extract_common_info(key, var, ProfInfo);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
-static int __net_extract_bluetooth_info(DBusMessageIter *array, net_profile_info_t* ProfInfo)
+static int __net_extract_bluetooth_info(GVariantIter *array, net_profile_info_t* ProfInfo)
 {
 	net_err_t Error = NET_ERR_NONE;
+	GVariant *var = NULL;
+	const gchar *key = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry, variant;
-		const char *key = NULL;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
-
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &variant);
-
-		Error = __net_extract_common_info(key, &variant, ProfInfo);
-
-		dbus_message_iter_next(array);
-	}
+	while (g_variant_iter_loop(array, "{sv}", &key, &var))
+		Error = __net_extract_common_info(key, var, ProfInfo);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
 static int __net_extract_service_info(
-		const char* ProfileName, DBusMessage *message,
+		const char* ProfileName, GVariant *message,
 		net_profile_info_t* ProfInfo)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessageIter iter, array;
 	net_device_t profileType = NET_DEVICE_UNKNOWN;
+	gchar *key = NULL;
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
 
-	dbus_message_iter_init(message, &iter);
-	dbus_message_iter_recurse(&iter, &array);
-
-	while (dbus_message_iter_get_arg_type(&array) == DBUS_TYPE_DICT_ENTRY) {
-		DBusMessageIter entry, dict;
-		const char *key = NULL;
-		const char *temp = NULL;
-
-		dbus_message_iter_recurse(&array, &entry);
-		dbus_message_iter_get_basic(&entry, &key);
+	g_variant_get(message, "(a{sv})", &iter);
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		const gchar *tech = NULL;
 
 		if (g_strcmp0(key, "Type") == 0) {
-			dbus_message_iter_next(&entry);
-			dbus_message_iter_recurse(&entry, &dict);
-			dbus_message_iter_get_basic(&dict, &temp);
+			tech = g_variant_get_string(value, NULL);
 
-			if (g_strcmp0(temp, "wifi") == 0)
+			if (g_strcmp0(tech, "wifi") == 0)
 				profileType = NET_DEVICE_WIFI;
-			else if (g_strcmp0(temp, "cellular") == 0)
+			else if (g_strcmp0(tech, "cellular") == 0)
 				profileType = NET_DEVICE_CELLULAR;
-			else if (g_strcmp0(temp, "ethernet") == 0)
+			else if (g_strcmp0(tech, "ethernet") == 0)
 				profileType = NET_DEVICE_ETHERNET;
-			else if (g_strcmp0(temp, "bluetooth") == 0)
+			else if (g_strcmp0(tech, "bluetooth") == 0)
 				profileType = NET_DEVICE_BLUETOOTH;
 
 			break;
 		}
-
-		dbus_message_iter_next(&array);
 	}
+	g_variant_iter_free(iter);
 
-	dbus_message_iter_init(message, &iter);
-	dbus_message_iter_recurse(&iter, &array);
+	g_variant_get(message, "(a{sv})", &iter);
 
 	if (profileType == NET_DEVICE_WIFI) {
 		if ((Error = __net_pm_init_profile_info(NET_DEVICE_WIFI, ProfInfo)) != NET_ERR_NONE) {
@@ -1518,7 +1325,7 @@ static int __net_extract_service_info(
 		g_strlcpy(ProfInfo->ProfileInfo.Wlan.net_info.ProfileName,
 				ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
-		Error = __net_extract_wifi_info(&array, ProfInfo);
+		Error = __net_extract_wifi_info(iter, ProfInfo);
 	} else if (profileType == NET_DEVICE_CELLULAR) {
 		if ((Error = __net_pm_init_profile_info(NET_DEVICE_CELLULAR, ProfInfo)) != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
@@ -1531,7 +1338,7 @@ static int __net_extract_service_info(
 		g_strlcpy(ProfInfo->ProfileInfo.Pdp.net_info.ProfileName,
 				ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
-		Error = __net_extract_mobile_info(&array, ProfInfo);
+		Error = __net_extract_mobile_info(iter, ProfInfo);
 	} else if (profileType == NET_DEVICE_ETHERNET) {
 		if ((Error = __net_pm_init_profile_info(NET_DEVICE_ETHERNET, ProfInfo)) != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
@@ -1544,7 +1351,7 @@ static int __net_extract_service_info(
 		g_strlcpy(ProfInfo->ProfileInfo.Ethernet.net_info.ProfileName,
 				ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
-		Error = __net_extract_ethernet_info(&array, ProfInfo);
+		Error = __net_extract_ethernet_info(iter, ProfInfo);
 	} else if (profileType == NET_DEVICE_BLUETOOTH) {
 		if ((Error = __net_pm_init_profile_info(NET_DEVICE_BLUETOOTH, ProfInfo)) != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
@@ -1557,7 +1364,7 @@ static int __net_extract_service_info(
 		g_strlcpy(ProfInfo->ProfileInfo.Bluetooth.net_info.ProfileName,
 				ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
-		Error = __net_extract_bluetooth_info(&array, ProfInfo);
+		Error = __net_extract_bluetooth_info(iter, ProfInfo);
 	} else {
 		NETWORK_LOG(NETWORK_ERROR, "Not supported profile type\n");
 		__NETWORK_FUNC_EXIT__;
@@ -1571,6 +1378,8 @@ static int __net_extract_service_info(
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
+	if (iter)
+		g_variant_iter_free(iter);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1582,7 +1391,7 @@ static int __net_get_profile_info(
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
+	GVariant *message = NULL;
 
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, ProfileName,
 			CONNMAN_SERVICE_INTERFACE, "GetProperties", NULL, &Error);
@@ -1592,7 +1401,7 @@ static int __net_get_profile_info(
 	}
 
 	Error = __net_extract_service_info(ProfileName, message, ProfInfo);
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 done:
 	__NETWORK_FUNC_EXIT__;
@@ -1604,7 +1413,7 @@ static int __net_set_default_cellular_service_profile_sync(const char* ProfileNa
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
+	GVariant *message = NULL;
 	net_profile_name_t telephony_profile;
 	char connman_profile[NET_PROFILE_NAME_LEN_MAX+1] = "";
 
@@ -1626,24 +1435,21 @@ static int __net_set_default_cellular_service_profile_sync(const char* ProfileNa
 	}
 
 	/** Check Reply */
-	DBusMessageIter iter;
-	int result = 0;
+	gboolean result = FALSE;
 
-	dbus_message_iter_init(message, &iter);
-	if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_BOOLEAN) {
-		dbus_message_iter_get_basic(&iter, &result);
-		NETWORK_LOG(NETWORK_HIGH, "Set default cellular profile result : %d\n", result);
-	}
+	g_variant_get(message, "(b)", &result);
+	NETWORK_LOG(NETWORK_HIGH, "Set default cellular profile result : %d\n", result);
 
 	if (result)
 		Error = NET_ERR_NONE;
 	else
 		Error = NET_ERR_UNKNOWN;
 
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 done:
 	__NETWORK_FUNC_EXIT__;
+
 	return Error;
 }
 
@@ -1782,9 +1588,9 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
-	char* param_array[] = {NULL, NULL};
+	GVariant *message = NULL;
 	char param0[NET_PROFILE_NAME_LEN_MAX + 8] = "";
+	GVariant *params = NULL;
 
 	if (WLAN_SEC_MODE_IEEE8021X != sec_mode) {
 		message = _net_invoke_dbus_method(CONNMAN_SERVICE,
@@ -1794,11 +1600,11 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 	} else {
 		g_snprintf(param0, NET_PROFILE_NAME_LEN_MAX + 8, "string:%s",
 				WifiProfName->ProfileName);
-		param_array[0] = param0;
+		params = g_variant_new("(s)", param0);
 
 		message = _net_invoke_dbus_method(NETCONFIG_SERVICE,
 				NETCONFIG_WIFI_PATH, NETCONFIG_WIFI_INTERFACE,
-				"DeleteConfig", param_array, &Error);
+				"DeleteConfig", params, &Error);
 	}
 
 	if (message == NULL) {
@@ -1806,8 +1612,11 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 		goto done;
 	}
 
-	dbus_message_unref(message);
+	g_variant_unref(message);
 done:
+	if (params)
+		g_variant_unref(params);
+
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -1873,7 +1682,7 @@ static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
+	GVariant *message = NULL;
 
 	message = _net_invoke_dbus_method(TELEPHONY_SERVICE, PdpProfName->ProfileName,
 			TELEPHONY_PROFILE_INTERFACE, "RemoveProfile", NULL, &Error);
@@ -1884,21 +1693,17 @@ static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName)
 	}
 
 	/** Check Reply */
-	DBusMessageIter iter;
-	int remove_result = 0;
+	gboolean remove_result = FALSE;
 
-	dbus_message_iter_init(message, &iter);
-	if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_BOOLEAN) {
-		dbus_message_iter_get_basic(&iter, &remove_result);
-		NETWORK_LOG(NETWORK_HIGH, "Profile remove result : %d\n", remove_result);
-	}
+	g_variant_get(message, "(b)", &remove_result);
+	NETWORK_LOG(NETWORK_HIGH, "Profile remove result : %d\n", remove_result);
 
 	if (remove_result)
 		Error = NET_ERR_NONE;
 	else
 		Error = NET_ERR_UNKNOWN;
 
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 done:
 	__NETWORK_FUNC_EXIT__;
@@ -1924,11 +1729,12 @@ static gboolean __net_is_cellular_default_candidate(const char* profile)
 }
 
 static int __net_extract_default_profile(
-		DBusMessageIter *array, net_profile_info_t *ProfilePtr)
+		GVariantIter *array, net_profile_info_t *ProfilePtr)
 {
 	net_err_t Error = NET_ERR_NONE;
-	const char *obj = NULL;
 	net_device_t device_type;
+	const gchar *key = NULL;
+	GVariantIter *value = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
@@ -1938,25 +1744,14 @@ static int __net_extract_default_profile(
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	while (dbus_message_iter_get_arg_type(array) == DBUS_TYPE_STRUCT) {
-		DBusMessageIter entry;
-		DBusMessageIter next;
-
-		dbus_message_iter_recurse(array, &entry);
-		dbus_message_iter_get_basic(&entry, &obj);
-
-		if (obj == NULL) {
-			dbus_message_iter_next(array);
-			continue;
-		}
-
-		if (g_str_has_prefix(obj, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE)
+	while (g_variant_iter_loop(array, "(oa{sv})", &key, &value)) {
+		if (g_str_has_prefix(key, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE)
 			device_type = NET_DEVICE_CELLULAR;
-		else if (g_str_has_prefix(obj, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
+		else if (g_str_has_prefix(key, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
 			device_type = NET_DEVICE_WIFI;
-		else if (g_str_has_prefix(obj, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
+		else if (g_str_has_prefix(key, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
 			device_type = NET_DEVICE_ETHERNET;
-		else if (g_str_has_prefix(obj, CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE)
+		else if (g_str_has_prefix(key, CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE)
 			device_type = NET_DEVICE_BLUETOOTH;
 		else
 			return NET_ERR_NO_SERVICE;
@@ -1969,39 +1764,34 @@ static int __net_extract_default_profile(
 		}
 
 		ProfilePtr->profile_type = device_type;
-		g_strlcpy(ProfilePtr->ProfileName, obj, NET_PROFILE_NAME_LEN_MAX);
-
-		dbus_message_iter_next(&entry);
-		dbus_message_iter_recurse(&entry, &next);
+		g_strlcpy(ProfilePtr->ProfileName, key, NET_PROFILE_NAME_LEN_MAX);
 
 		if (device_type == NET_DEVICE_CELLULAR &&
-				__net_is_cellular_default_candidate(obj) == TRUE) {
+				__net_is_cellular_default_candidate(key) == TRUE) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Pdp.net_info.ProfileName,
-					obj, NET_PROFILE_NAME_LEN_MAX);
+					key, NET_PROFILE_NAME_LEN_MAX);
 
-			Error = __net_extract_mobile_info(&next, ProfilePtr);
+			Error = __net_extract_mobile_info(value, ProfilePtr);
 			break;
 		} else if (device_type == NET_DEVICE_WIFI) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Wlan.net_info.ProfileName,
-					obj, NET_PROFILE_NAME_LEN_MAX);
+					key, NET_PROFILE_NAME_LEN_MAX);
 
-			Error = __net_extract_wifi_info(&next, ProfilePtr);
+			Error = __net_extract_wifi_info(value, ProfilePtr);
 			break;
 		} else if (device_type == NET_DEVICE_ETHERNET) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Ethernet.net_info.ProfileName,
-					obj, NET_PROFILE_NAME_LEN_MAX);
+					key, NET_PROFILE_NAME_LEN_MAX);
 
-			Error = __net_extract_ethernet_info(&next, ProfilePtr);
+			Error = __net_extract_ethernet_info(value, ProfilePtr);
 			break;
 		} else if (device_type == NET_DEVICE_BLUETOOTH) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Bluetooth.net_info.ProfileName,
-					obj, NET_PROFILE_NAME_LEN_MAX);
+					key, NET_PROFILE_NAME_LEN_MAX);
 
-			Error = __net_extract_bluetooth_info(&next, ProfilePtr);
+			Error = __net_extract_bluetooth_info(value, ProfilePtr);
 			break;
 		}
-
-		dbus_message_iter_next(array);
 	}
 
 	if (Error == NET_ERR_NONE &&
@@ -2062,13 +1852,13 @@ int _net_get_profile_list(net_device_t device_type,
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
+	GVariant *message = NULL;
+	GVariantIter *iter = NULL;
 
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, CONNMAN_MANAGER_PATH,
 			CONNMAN_MANAGER_INTERFACE, "GetServices", NULL, &Error);
 	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to get service(profile) list\n");
-
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
@@ -2078,7 +1868,11 @@ int _net_get_profile_list(net_device_t device_type,
 	case NET_DEVICE_WIFI:
 	case NET_DEVICE_ETHERNET:
 	case NET_DEVICE_BLUETOOTH:
-		Error = __net_extract_services(message, device_type, profile_info, profile_count);
+		g_variant_get(message, "(a(oa{sv}))", &iter);
+		Error = __net_extract_services(iter, device_type, profile_info, profile_count);
+
+		if (iter != NULL)
+			g_variant_iter_free(iter);
 		break;
 
 	default :
@@ -2087,7 +1881,7 @@ int _net_get_profile_list(net_device_t device_type,
 	}
 
 	NETWORK_LOG(NETWORK_HIGH, "Error = %d\n", Error);
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -2098,8 +1892,8 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
-	DBusMessageIter iter, dict;
+	GVariant *message = NULL;
+	GVariantIter *iter = NULL;
 	network_services_list_t service_info = {0,};
 	int i = 0;
 
@@ -2112,10 +1906,10 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 		return Error;
 	}
 
-	dbus_message_iter_init(message, &iter);
-	dbus_message_iter_recurse(&iter, &dict);
+	g_variant_get(message, "(a(oa{sv}))", &iter);
+	Error = __net_extract_mobile_services(iter, &service_info, service_type);
 
-	Error = __net_extract_mobile_services(message, &dict, &service_info, service_type);
+	g_variant_iter_free(iter);
 
 	if (Error != NET_ERR_NONE)
 		goto done;
@@ -2130,7 +1924,7 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 		NET_MEMFREE(service_info.ProfileName[i]);
 
 done:
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -2139,8 +1933,8 @@ done:
 int _net_get_default_profile_info(net_profile_info_t *profile_info)
 {
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
-	DBusMessageIter iter, dict;
+	GVariant *message = NULL;
+	GVariantIter *iter = NULL;
 
 	__NETWORK_FUNC_ENTER__;
 
@@ -2152,12 +1946,11 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 		return NET_ERR_NO_SERVICE;
 	}
 
-	dbus_message_iter_init(message, &iter);
-	dbus_message_iter_recurse(&iter, &dict);
+	g_variant_get(message, "(a(oa{sv}))", &iter);
+	Error = __net_extract_default_profile(iter, profile_info);
 
-	Error = __net_extract_default_profile(&dict, profile_info);
-
-	dbus_message_unref(message);
+	g_variant_iter_free (iter);
+	g_variant_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

@@ -101,22 +101,22 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name);
 int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name);
 int _net_dbus_get_technology_state(network_tech_state_info_t* tech_state);
-DBusMessage *_net_invoke_dbus_method(const char* dest, const char* path,
+GVariant *_net_invoke_dbus_method(const char* dest, const char* path,
 		char* interface_name, char* method,
-		char* param_array[], int* dbus_error);
+		GVariant *params, int* dbus_error);
 int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
 		char* interface_name, char* method,
-		DBusPendingCallNotifyFunction notify_func);
+		GAsyncReadyCallback notify_func);
 int _net_dbus_load_wifi_driver(void);
 int _net_dbus_remove_wifi_driver(void);
 int _net_dbus_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size);
 int _net_dbus_set_statistics(net_device_t device_type, net_statistics_type_e statistics_type);
 int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info);
 int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *profile_name);
-dbus_bool_t _net_dbus_is_pending_call_used(void);
-void _net_dbus_set_pending_call_used(dbus_bool_t used);
-DBusPendingCall *_net_dbus_get_pending_call(void);
-void _net_dbus_set_pending_call(DBusPendingCall *call);
+gboolean _net_dbus_is_pending_call_used(void);
+void _net_dbus_set_pending_call_used(gboolean used);
+//DBusPendingCall *_net_dbus_get_pending_call(void);
+void _net_dbus_set_pending_call(void *call);
 void _net_dbus_clear_pending_call(void);
 gboolean __net_dbus_abort_open_request(const char *profile_name);
 int _net_dbus_specific_scan_request(const char *ssid);

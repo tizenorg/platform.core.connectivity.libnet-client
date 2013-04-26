@@ -79,22 +79,24 @@ static int __net_add_route(const char *ip_addr, const char *interface)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
+	GVariant *message = NULL;
 	char dest_ip[30];
 	char netmask[30];
 	char if_name[40];
-	char* param_array[] = { NULL, NULL, NULL, NULL };
-
+	GVariant *params = NULL;
+#if 0
 	g_snprintf(dest_ip, 30, "string:%s", ip_addr);
 	g_snprintf(netmask, 30, "string:255.255.255.255");
 	g_snprintf(if_name, 40, "string:%s", interface);
+#endif
+	g_snprintf(dest_ip, 30, "%s", ip_addr);
+	g_snprintf(netmask, 30, "255.255.255.255");
+	g_snprintf(if_name, 40, "%s", interface);
 
-	param_array[0] = dest_ip;
-	param_array[1] = netmask;
-	param_array[2] = if_name;
+	params = g_variant_new("(sss)", dest_ip, netmask, if_name);
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
-			NETCONFIG_NETWORK_INTERFACE, "AddRoute", param_array, &Error);
+			NETCONFIG_NETWORK_INTERFACE, "AddRoute", params, &Error);
 
 	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to add route\n");
@@ -102,23 +104,22 @@ static int __net_add_route(const char *ip_addr, const char *interface)
 	}
 
 	/** Check Reply */
-	DBusMessageIter iter;
-	int add_result = 0;
+	gboolean add_result = FALSE;
 
-	dbus_message_iter_init(message, &iter);
-	if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_BOOLEAN) {
-		dbus_message_iter_get_basic(&iter, &add_result);
-		NETWORK_LOG(NETWORK_HIGH, "Add route, result : %d\n", add_result);
-	}
+	g_variant_get(message, "(b)", &add_result);
+	NETWORK_LOG(NETWORK_HIGH, "Add route, result : %d\n", add_result);
 
 	if (add_result)
 		Error = NET_ERR_NONE;
 	else
 		Error = NET_ERR_UNKNOWN;
 
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 done:
+	if (params)
+		g_variant_unref(params);
+
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -128,22 +129,23 @@ static int __net_remove_route(const char *ip_addr, const char *interface)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	DBusMessage *message = NULL;
+	GVariant *message = NULL;
 	char dest_ip[30];
 	char netmask[30];
 	char if_name[40];
-	char* param_array[] = { NULL, NULL, NULL, NULL };
-
+	GVariant *params = NULL;
+#if 0
 	g_snprintf(dest_ip, 30, "string:%s", ip_addr);
 	g_snprintf(netmask, 30, "string:255.255.255.255");
 	g_snprintf(if_name, 40, "string:%s", interface);
-
-	param_array[0] = dest_ip;
-	param_array[1] = netmask;
-	param_array[2] = if_name;
+#endif
+	g_snprintf(dest_ip, 30, "%s", ip_addr);
+	g_snprintf(netmask, 30, "255.255.255.255");
+	g_snprintf(if_name, 40, "%s", interface);
+	params = g_variant_new("(sss)", dest_ip, netmask, if_name);
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
-			NETCONFIG_NETWORK_INTERFACE, "RemoveRoute", param_array, &Error);
+			NETCONFIG_NETWORK_INTERFACE, "RemoveRoute", params, &Error);
 
 	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to remove route\n");
@@ -151,23 +153,21 @@ static int __net_remove_route(const char *ip_addr, const char *interface)
 	}
 
 	/** Check Reply */
-	DBusMessageIter iter;
-	int remove_result = 0;
+	gboolean remove_result = FALSE;
 
-	dbus_message_iter_init(message, &iter);
-	if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_BOOLEAN) {
-		dbus_message_iter_get_basic(&iter, &remove_result);
-		NETWORK_LOG(NETWORK_HIGH, "Remove route, result : %d\n", remove_result);
-	}
+	g_variant_get(message, "(b)", &remove_result);
+	NETWORK_LOG(NETWORK_HIGH, "Remove route, result : %d\n", remove_result);
 
 	if (remove_result)
 		Error = NET_ERR_NONE;
 	else
 		Error = NET_ERR_UNKNOWN;
 
-	dbus_message_unref(message);
+	g_variant_unref(message);
 
 done:
+	if (params)
+		g_variant_unref(params);
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }

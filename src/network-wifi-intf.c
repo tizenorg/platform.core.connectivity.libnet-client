@@ -236,7 +236,7 @@ EXPORT_API int net_wifi_power_on(void)
 	if (NetworkInfo.wifi_state != WIFI_OFF) {
 		NETWORK_LOG(NETWORK_ERROR, "Wi-Fi is powered on already!\n");
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_OPERATION;
+		return NET_ERR_ALREADY_EXISTS;
 	}
 
 	if (request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag == TRUE) {
@@ -287,7 +287,7 @@ EXPORT_API int net_wifi_power_off(void)
 	if(NetworkInfo.wifi_state == WIFI_OFF) {
 		NETWORK_LOG(NETWORK_ERROR, "Wi-Fi is powered off already!\n");
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_INVALID_OPERATION;
+		return NET_ERR_ALREADY_EXISTS;
 	}
 
 	if (request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag == TRUE) {
