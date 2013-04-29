@@ -20,25 +20,6 @@
 #ifndef __NETWORK_CM_INTF_H__
 #define __NETWORK_CM_INTF_H__
 
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <sys/un.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <pthread.h>
-#include <signal.h>
-#include <sys/poll.h>
-#include <semaphore.h>
-#include <linux/unistd.h>
-
 #include "network-pm-intf.h"
 
 #ifdef __cplusplus
