@@ -44,7 +44,8 @@ cp LICENSE.Flora %{buildroot}%{_datadir}/license/libnet-client
 
 #Make test app
 cd test
-cp -rf %{buildroot}%{_libdir} ./
+mkdir ./lib
+cp -rf %{buildroot}%{_libdir}/* ./lib/
 ./build.sh
 cd ..
 
