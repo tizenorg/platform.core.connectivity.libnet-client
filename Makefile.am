@@ -1,5 +1,5 @@
 CPPFLAGS = $(DBUS_CFLAGS) $(GLIB_CFLAGS) $(DLOG_CFLAGS) $(VCONF_CFLAGS)
-CPPFLAGS += -Wall -Werror -fvisibility=hidden
+CPPFLAGS += -Wall -fvisibility=hidden
 
 ACLOCAL_AMFLAGS = -I m4
 

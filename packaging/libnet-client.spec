@@ -29,7 +29,7 @@ Network Client library (Development)
 
 
 %build
-./autogen.sh
+%autogen.sh
 %configure
 
 make %{?_smp_mflags}
