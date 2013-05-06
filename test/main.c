@@ -38,7 +38,7 @@
 #define	MAIN_MEMFREE(x)	do {if (x != NULL) free(x); x = NULL;} while(0)
 
 #define PROFILE_NAME_LEN 256
-#define FORMAT_SIZE 32
+#define FORMAT_SIZE 100
 
 typedef enum {
 	PROFILE_FULL_INFO = 0x01,
@@ -541,30 +541,30 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 	wlan_security_info_t *security_info2 =
 			&profile_info->ProfileInfo.Wlan.security_info;
 	net_pdp_profile_info_t *pdp_info = &profile_info->ProfileInfo.Pdp;
-	char input_str[100] = {0,};
+	char input_str[FORMAT_SIZE] = {0,};
 	int ei = 0;
 
 	if (profile_info->profile_type == NET_DEVICE_WIFI) {
-		debug_print("\nInput Passphrase(Enter for skip) :\n");
+		debug_print("\nInput Passphrase('s' for skip) :\n");
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str) - 1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+		if (input_str[0] != 's')
 			g_strlcpy(security_info2->authentication.psk.pskKey,
 					input_str, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN + 1);
 
 		debug_print("\nInput Proxy Type(1:direct, 2:auto, 3:manual - current:%d)"
-				" - (Enter for skip) :\n", net_info2->ProxyMethod);
+				" - ('s' for skip) :\n", net_info2->ProxyMethod);
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str) - 1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
+		if (input_str[0] != 's') {
 			int proxyType = 0;
 			proxyType = atoi(input_str);
 
@@ -583,139 +583,129 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 							"(Enter for DHCP/WPAD auto-discover) :\n");
 				else
 					debug_print("\nInput manual Proxy address - "
-							"(Enter for skip) :\n");
+							"('s' for skip) :\n");
 
-				memset(input_str, '\0', 100);
-				read(0, input_str, 100);
+				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+					debug_print("Fail to get input string\n");
+					return FALSE;
+				}
 
-				if (input_str[0] != '\0' &&
-				    *input_str != '\n' &&
-				    *input_str != '\r') {
-					input_str[strlen(input_str)-1] = '\0';
+				if (input_str[0] != 's')
 					g_strlcpy(net_info2->ProxyAddr,
 							input_str, NET_PROXY_LEN_MAX + 1);
-				} else {
+				else
 					net_info2->ProxyAddr[0] = '\0';
-				}
 			}
 		}
 
-		debug_print("\nInput IPv4 Address Type dhcp/manual (Enter for skip) :\n");
+		debug_print("\nInput IPv4 Address Type dhcp/manual ('s' for skip) :\n");
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str) - 1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
+		if (input_str[0] != 's') {
 			if (strcmp(input_str, "dhcp") == 0) {
 				net_info2->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
 			} else if (strcmp(input_str, "manual") == 0) {
 				net_info2->IpConfigType = NET_IP_CONFIG_TYPE_STATIC;
 
-				debug_print("\nInput IP Address (Enter for skip) :\n");
+				debug_print("\nInput IP Address ('s' for skip) :\n");
 
-				memset(input_str, '\0', 100);
-				read(0, input_str, 100);
-
-				input_str[strlen(input_str) - 1] = '\0';
-				net_info2->IpAddr.Data.Ipv4.s_addr = 0;
-
-				if ((input_str[0] != '\0' &&
-				     *input_str != '\n' &&
-				     *input_str != '\r') &&
-				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN) {
-					inet_aton(input_str, &(net_info2->IpAddr.Data.Ipv4));
+				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+					debug_print("Fail to get input string\n");
+					return FALSE;
 				}
 
-				debug_print("\nInput Netmask (Enter for skip) :\n");
+				if (input_str[0] != 's' &&
+				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN)
+					if (inet_aton(input_str, &(net_info2->IpAddr.Data.Ipv4)) == 0)
+						net_info2->IpAddr.Data.Ipv4.s_addr = 0;;
 
-				memset(input_str, '\0', 100);
-				read(0, input_str, 100);
+				debug_print("\nInput Netmask ('s' for skip) :\n");
 
-				input_str[strlen(input_str) - 1] = '\0';
-				net_info2->SubnetMask.Data.Ipv4.s_addr = 0;
-
-				if ((input_str[0] != '\0' &&
-				     *input_str != '\n' &&
-				     *input_str != '\r') &&
-				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN) {
-					inet_aton(input_str, &(net_info2->SubnetMask.Data.Ipv4));
+				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+					debug_print("Fail to get input string\n");
+					return FALSE;
 				}
+
+				if (input_str[0] != 's' &&
+				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN)
+					if (inet_aton(input_str, &(net_info2->SubnetMask.Data.Ipv4)) == 0)
+						net_info2->SubnetMask.Data.Ipv4.s_addr = 0;;
 
 				debug_print("\nInput Gateway (Enter for skip) :\n");
 
-				memset(input_str, '\0', 100);
-				read(0, input_str, 100);
-
-				input_str[strlen(input_str)-1] = '\0';
-				net_info2->GatewayAddr.Data.Ipv4.s_addr = 0;
-
-				if ((input_str[0] != '\0' &&
-				     *input_str != '\n' &&
-				     *input_str != '\r') &&
-				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN) {
-					inet_aton(input_str, &(net_info2->GatewayAddr.Data.Ipv4));
+				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+					debug_print("Fail to get input string\n");
+					return FALSE;
 				}
+
+				if ((input_str[0] != 's') &&
+				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN)
+					if (inet_aton(input_str, &(net_info2->GatewayAddr.Data.Ipv4)) == 0)
+						net_info2->GatewayAddr.Data.Ipv4.s_addr = 0;
 			}
 		}
 
 		for (ei = 0;ei < NET_DNS_ADDR_MAX;ei++) {
-			debug_print("\nInput DNS %d Address(Enter for skip) :\n", ei);
+			debug_print("\nInput DNS %d Address('s' for skip) :\n", ei);
 
-			memset(input_str, '\0', 100);
-			read(0, input_str, 100);
+			if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+				debug_print("Fail to get input string\n");
+				return FALSE;
+			}
 
-			input_str[strlen(input_str)-1] = '\0';
-			net_info2->DnsAddr[ei].Data.Ipv4.s_addr = 0;
+			if (input_str[0] != 's') {
+				if (inet_aton(input_str, &(net_info2->DnsAddr[ei].Data.Ipv4)) == 0)
+					net_info2->DnsAddr[ei].Data.Ipv4.s_addr = 0;;
 
-			if (input_str[0] != '\0' &&
-			    *input_str != '\n' &&
-			    *input_str != '\r') {
-				inet_aton(input_str, &(net_info2->DnsAddr[ei].Data.Ipv4));
 				net_info2->DnsCount = ei+1;
 			}
 		}
 	} else if (profile_info->profile_type == NET_DEVICE_CELLULAR) {
-		debug_print("\nInput Apn(current:%s) - (Enter for skip) :\n", pdp_info->Apn);
+		debug_print("\nInput Apn(current:%s) - ('s' for skip) :\n", pdp_info->Apn);
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str)-1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+		if (input_str[0] != 's')
 			g_strlcpy(pdp_info->Apn, input_str, NET_PDP_APN_LEN_MAX+1);
 
-		debug_print("\nInput Proxy(current:%s) - (Enter for skip) :\n",
+		debug_print("\nInput Proxy(current:%s) - ('s' for skip) :\n",
 				pdp_info->net_info.ProxyAddr);
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str)-1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+		if (input_str[0] != 's')
 			g_strlcpy(pdp_info->net_info.ProxyAddr, input_str, NET_PROXY_LEN_MAX+1);
 
-		debug_print("\nInput HomeURL(current:%s) - (Enter for skip) :\n",
+		debug_print("\nInput HomeURL(current:%s) - ('s' for skip) :\n",
 				pdp_info->HomeURL);
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str)-1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+		if (input_str[0] != 's')
 			g_strlcpy(pdp_info->HomeURL, input_str, NET_HOME_URL_LEN_MAX+1);
 
 		debug_print("\nInput AuthType(0:None, 1:PAP, 2:CHAP - current:%d)"
-				" - (Enter for skip) :\n", pdp_info->AuthInfo.AuthType);
+				" - ('s' for skip) :\n", pdp_info->AuthInfo.AuthType);
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
+		if (input_str[0] != 's') {
 			int typeValue = 0;
 			typeValue = atoi(input_str);
 
@@ -729,27 +719,27 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 		if (pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_PAP ||
 		    pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_CHAP) {
-			debug_print("\nInput AuthId(current:%s) - (Enter for skip) :\n",
+			debug_print("\nInput AuthId(current:%s) - ('s' for skip) :\n",
 					pdp_info->AuthInfo.UserName);
 
-			memset(input_str, '\0', 100);
-			read(0, input_str, 100);
+			if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+				debug_print("Fail to get input string\n");
+				return FALSE;
+			}
 
-			input_str[strlen(input_str)-1] = '\0';
-
-			if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+			if (input_str[0] != 's')
 				g_strlcpy(pdp_info->AuthInfo.UserName,
 						input_str, NET_PDP_AUTH_USERNAME_LEN_MAX+1);
 
-			debug_print("\nInput AuthPwd(current:%s) - (Enter for skip) :\n",
+			debug_print("\nInput AuthPwd(current:%s) - ('s' for skip) :\n",
 					pdp_info->AuthInfo.Password);
 
-			memset(input_str, '\0', 100);
-			read(0, input_str, 100);
+			if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+				debug_print("Fail to get input string\n");
+				return FALSE;
+			}
 
-			input_str[strlen(input_str)-1] = '\0';
-
-			if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+			if (input_str[0] != 's')
 				g_strlcpy(pdp_info->AuthInfo.Password,
 						input_str, NET_PDP_AUTH_PASSWORD_LEN_MAX+1);
 		}
@@ -760,62 +750,64 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 int __network_add_profile_info(net_profile_info_t *profile_info)
 {
 	net_pdp_profile_info_t *pdp_info = &profile_info->ProfileInfo.Pdp;
-	char input_str[100] = {0,};
+	char input_str[FORMAT_SIZE] = {0,};
 
-	debug_print("\nInput Keyword(Profile name) - (Enter for skip) :\n");
+	debug_print("\nInput Keyword(Profile name) - ('s' for skip) :\n");
 
-	memset(input_str, '\0', 100);
-	read(0, input_str, 100);
+	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+		debug_print("Fail to get input string\n");
+		return FALSE;
+	}
 
-	input_str[strlen(input_str)-1] = '\0';
-
-	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+	if (input_str[0] != 's')
 		g_strlcpy(pdp_info->Keyword, input_str, NET_PDP_APN_LEN_MAX+1);
 	else
 		pdp_info->Keyword[0] = '\0';
 
-	debug_print("\nInput Apn - (Enter for skip) :\n");
+	debug_print("\nInput Apn - ('s' for skip) :\n");
 
-	memset(input_str, '\0', 100);
-	read(0, input_str, 100);
+	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+		debug_print("Fail to get input string\n");
+		return FALSE;
+	}
 
-	input_str[strlen(input_str)-1] = '\0';
-
-	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+	if (input_str[0] != 's')
 		g_strlcpy(pdp_info->Apn, input_str, NET_PDP_APN_LEN_MAX+1);
 	else
 		pdp_info->Apn[0] = '\0';
 
-	debug_print("\nInput Proxy - (Enter for skip) :\n");
+	debug_print("\nInput Proxy - ('s' for skip) :\n");
 
-	memset(input_str, '\0', 100);
-	read(0, input_str, 100);
+	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+		debug_print("Fail to get input string\n");
+		return FALSE;
+	}
 
-	input_str[strlen(input_str)-1] = '\0';
-
-	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+	if (input_str[0] != 's')
 		g_strlcpy(pdp_info->net_info.ProxyAddr, input_str, NET_PROXY_LEN_MAX+1);
 	else
 		pdp_info->net_info.ProxyAddr[0] = '\0';
 
-	debug_print("\nInput HomeURL - (Enter for skip) :\n");
+	debug_print("\nInput HomeURL - ('s' for skip) :\n");
 
-	memset(input_str, '\0', 100);
-	read(0, input_str, 100);
+	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+		debug_print("Fail to get input string\n");
+		return FALSE;
+	}
 
-	input_str[strlen(input_str)-1] = '\0';
-
-	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+	if (input_str[0] != 's')
 		g_strlcpy(pdp_info->HomeURL, input_str, NET_HOME_URL_LEN_MAX+1);
 	else
 		pdp_info->HomeURL[0] = '\0';
 
-	debug_print("\nInput AuthType(0:NONE 1:PAP 2:CHAP) - (Enter for skip) :\n");
+	debug_print("\nInput AuthType(0:NONE 1:PAP 2:CHAP) - ('s' for skip) :\n");
 
-	memset(input_str, '\0', 100);
-	read(0, input_str, 100);
+	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+		debug_print("Fail to get input string\n");
+		return FALSE;
+	}
 
-	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
+	if (input_str[0] != 's') {
 		int typeValue = 0;
 		typeValue = atoi(input_str);
 
@@ -831,27 +823,27 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 	if (pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_PAP ||
 	    pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_CHAP) {
-		debug_print("\nInput AuthId - (Enter for skip) :\n");
+		debug_print("\nInput AuthId - ('s' for skip) :\n");
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str)-1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+		if (input_str[0] != 's')
 			g_strlcpy(pdp_info->AuthInfo.UserName,
 					input_str, NET_PDP_AUTH_USERNAME_LEN_MAX+1);
 		else
 			pdp_info->AuthInfo.UserName[0] = '\0';
 
-		debug_print("\nInput AuthPwd - (Enter for skip) :\n");
+		debug_print("\nInput AuthPwd - ('s' for skip) :\n");
 
-		memset(input_str, '\0', 100);
-		read(0, input_str, 100);
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
 
-		input_str[strlen(input_str)-1] = '\0';
-
-		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
+		if (input_str[0] != 's')
 			g_strlcpy(pdp_info->AuthInfo.Password,
 					input_str, NET_PDP_AUTH_PASSWORD_LEN_MAX+1);
 		else
