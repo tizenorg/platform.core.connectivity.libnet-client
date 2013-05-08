@@ -634,8 +634,6 @@ int _net_register_signal(void)
 	GError *error = NULL;
 	gchar *addr;
 
-	g_type_init();
-
 	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (!addr) {
 		NETWORK_LOG(NETWORK_ERROR,
