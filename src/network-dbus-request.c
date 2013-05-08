@@ -1015,14 +1015,12 @@ static void __net_create_config_reply(GObject *source_object,
 	GDBusConnection *conn = NULL;
 	GVariant *dbus_result =NULL;
 	GError *error = NULL;
-	net_err_t Error = NET_ERR_NONE;
 
 	conn = G_DBUS_CONNECTION (source_object);
 	dbus_result = g_dbus_connection_call_finish(conn, res, &error);
 
 	if (error != NULL) {
 		NETWORK_LOG(NETWORK_LOW, "error msg - [%s]\n", error->message);
-		Error = __net_error_string_to_enum(error->message);
 		g_error_free(error);
 	} else
 		NETWORK_LOG(NETWORK_LOW, "error msg is NULL\n");
@@ -1257,8 +1255,6 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 {
 	__NETWORK_FUNC_ENTER__;
 
-	net_err_t Error = NET_ERR_NONE;
-
 	const char *manual_method = "manual";
 	const char *dhcp_method = "dhcp";
 	const char *off_method = "off";
@@ -1356,7 +1352,6 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 			NETWORK_LOG(NETWORK_ERROR,
 						"g_dbus_connection_call_sync() failed."
 						"error [%d: %s]\n", error->code, error->message);
-			Error = __net_error_string_to_enum(error->message);
 			g_error_free(error);
 		} else {
 			NETWORK_LOG(NETWORK_ERROR,
@@ -1383,8 +1378,6 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 {
 	__NETWORK_FUNC_ENTER__;
-
-	net_err_t Error = NET_ERR_NONE;
 
 	const char *prop_nameserver_configuration = "Nameservers.Configuration";
 	char dns_buffer[NET_DNS_ADDR_MAX][NETPM_IPV4_STR_LEN_MAX+1];
@@ -1438,7 +1431,6 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 				NETWORK_LOG(NETWORK_ERROR,
 							"g_dbus_connection_call_sync() failed."
 							"error [%d: %s]\n", error->code, error->message);
-				Error = __net_error_string_to_enum(error->message);
 				g_error_free(error);
 			} else {
 				NETWORK_LOG(NETWORK_ERROR,
@@ -1466,8 +1458,6 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 {
 	__NETWORK_FUNC_ENTER__;
-
-	net_err_t Error = NET_ERR_NONE;
 
 	const char *direct_method = "direct";
 	const char *auto_method = "auto";
@@ -1540,7 +1530,6 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 			NETWORK_LOG(NETWORK_ERROR,
 						"g_dbus_connection_call_sync() failed."
 						"error [%d: %s]\n", error->code, error->message);
-			Error = __net_error_string_to_enum(error->message);
 			g_error_free(error);
 		} else {
 			NETWORK_LOG(NETWORK_ERROR,
