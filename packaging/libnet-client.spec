@@ -5,6 +5,7 @@ Release:    1
 Group:      System/Network
 License:    Flora License
 Source0:    %{name}-%{version}.tar.gz
+URL:        https://review.tizen.org/git/?p=framework/connectivity/libnet-client.git;a=summary
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(vconf)
@@ -17,7 +18,7 @@ Network Client library (Shared library)
 
 %package devel
 Summary:    Network Client library (Development)
-Group:      Development/Library
+Group:      Development/Libraries
 Requires:   %{name} = %{version}-%{release}
 
 %description devel
@@ -46,6 +47,10 @@ cd test
 cp -rf %{buildroot}/usr/lib/ ./
 ./build.sh
 cd ..
+
+%post -p /sbin/ldconfig
+
+%postun -p /sbin/ldconfig
 
 %files
 %manifest libnet-client.manifest
