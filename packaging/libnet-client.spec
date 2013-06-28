@@ -5,6 +5,7 @@ Release:    1
 Group:      System/Network
 License:    Flora License
 Source0:    %{name}-%{version}.tar.gz
+Source1001: 	libnet-client.manifest
 URL:        https://review.tizen.org/git/?p=framework/connectivity/libnet-client.git;a=summary
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -29,6 +30,7 @@ Network Client library (Development)
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
 
 %build
@@ -57,12 +59,13 @@ cd ..
 %postun -p /sbin/ldconfig
 
 %files
-%manifest libnet-client.manifest
+%manifest %{name}.manifest
 %{_libdir}/libnetwork.so
 %{_libdir}/libnetwork.so.0
 %attr(644,-,-) %{_libdir}/libnetwork.so.0.0.0
 %{_datadir}/license/libnet-client
 
 %files devel
+%manifest %{name}.manifest
 %{_includedir}/network/*.h
 %{_libdir}/pkgconfig/network.pc
