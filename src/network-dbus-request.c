@@ -1409,7 +1409,8 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 		dns_address[i] = dns_buffer[i];
 	}
 
-	if (prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_STATIC) {
+	if (prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_STATIC ||
+	    prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC) {
 
 		builder = g_variant_builder_new(G_VARIANT_TYPE ("as"));
 		for (i = 0; i < prof_info->ProfileInfo.Wlan.net_info.DnsCount; i++) {
