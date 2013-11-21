@@ -640,7 +640,9 @@ int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
 	g_dbus_connection_call(h_connection.signal_conn,
 			dest, path, interface_name,
 			method, NULL, NULL,
-			G_DBUS_CALL_FLAGS_NONE, -1, h_connection.cancellable,
+			G_DBUS_CALL_FLAGS_NONE,
+			DBUS_REPLY_TIMEOUT,
+			h_connection.cancellable,
 			(GAsyncReadyCallback) notify_func, NULL);
 
 	if (notify_func) {
