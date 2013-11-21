@@ -1927,9 +1927,6 @@ void _net_dbus_set_pending_call(void *call)
 void _net_dbus_clear_pending_call(void)
 {
 	if (_net_dbus_is_pending_call_used()) {
-		//dbus_pending_call_cancel(_net_dbus_get_pending_call());
-		//g_cancellable_cancel(h_connection.cancellable);
-
 		_net_dbus_set_pending_call(NULL);
 		_net_dbus_set_pending_call_used(FALSE);
 	}

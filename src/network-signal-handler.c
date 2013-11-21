@@ -612,7 +612,7 @@ int _net_deregister_signal(void)
 	NETWORK_LOG(NETWORK_LOW, "Successfully remove signal filters\n");
 
 	/* If DBusPendingCall remains, it should be released */
-	//_net_dbus_clear_pending_call();
+	_net_dbus_clear_pending_call();
 	if (g_dbus_connection_close_sync(h_connection.signal_conn, NULL, NULL) == FALSE) {
 		NETWORK_LOG(NETWORK_HIGH, "Failed to close dbus\n");
 		return NET_ERR_UNKNOWN;

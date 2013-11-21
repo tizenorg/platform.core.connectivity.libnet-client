@@ -30,7 +30,6 @@ extern "C" {
 /*****************************************************************************
  * 	Macros and Typedefs
  *****************************************************************************/
-	
 #define CONNMAN_CLIENT_DBUS_TYPE_STRING 	"string"
 #define CONNMAN_CLIENT_DBUS_TYPE_INT16 		"int16"
 #define CONNMAN_CLIENT_DBUS_TYPE_UINT16		"uint16"
@@ -84,7 +83,7 @@ typedef struct {
 } net_wifi_connect_service_info_t;
 
 /*****************************************************************************
- * 	Global Functions 
+ * 	Global Functions
  *****************************************************************************/
 int _net_dbus_scan_request(void);
 int _net_dbus_set_bgscan_mode(net_wifi_background_scan_mode_t mode);
