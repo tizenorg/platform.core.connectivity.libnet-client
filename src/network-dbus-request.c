@@ -262,7 +262,7 @@ static void __net_close_connection_reply(GObject *source_object, GAsyncResult *r
 	conn = G_DBUS_CONNECTION (source_object);
 	dbus_result = g_dbus_connection_call_finish(conn, res, &error);
 	if (error != NULL) {
-		Error = __net_netconfig_error_string_to_enum(error->message);
+		Error = __net_error_string_to_enum(error->message);
 		g_error_free(error);
 	}
 

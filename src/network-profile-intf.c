@@ -1485,10 +1485,8 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 	int i = 0;
 	char profilePath[NET_PROFILE_NAME_LEN_MAX+1] = "";
 
-	wlan_security_info_t *security_info =
-								&(ProfInfo->ProfileInfo.Wlan.security_info);
-	wlan_security_info_t *ex_security_info =
-								&(exProfInfo->ProfileInfo.Wlan.security_info);
+	wlan_security_info_t *security_info = &(ProfInfo->ProfileInfo.Wlan.security_info);
+	wlan_security_info_t *ex_security_info = &(exProfInfo->ProfileInfo.Wlan.security_info);
 
 	net_dev_info_t *net_info = &(ProfInfo->ProfileInfo.Wlan.net_info);
 	net_dev_info_t *ex_net_info = &(exProfInfo->ProfileInfo.Wlan.net_info);
