@@ -296,7 +296,7 @@ EXPORT_API int net_wifi_power_off(void)
 		return NET_ERR_IN_PROGRESS;
 	}
 
-	_net_dbus_clear_pending_call();
+	_net_dbus_pending_call_unref();
 	memset(request_table, 0, sizeof(request_table));
 
 	request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag = TRUE;

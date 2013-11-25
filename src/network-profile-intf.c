@@ -2219,10 +2219,6 @@ EXPORT_API int net_set_default_cellular_service_profile(const char *profile_name
 	return NET_ERR_NONE;
 }
 
-/*****************************************************************************
- * 	ConnMan Wi-Fi Client Interface Async Function Definition
- *****************************************************************************/
-
 EXPORT_API int net_set_default_cellular_service_profile_async(const char *profile_name)
 {
 	net_err_t Error = NET_ERR_NONE;

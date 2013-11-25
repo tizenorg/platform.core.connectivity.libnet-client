@@ -23,20 +23,15 @@
 #include "network-dbus-request.h"
 #include "network-signal-handler.h"
 
-/*****************************************************************************
- * 	Extern Global Variables
- *****************************************************************************/
 extern network_info_t NetworkInfo;
-
 extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
-handle_connection h_connection;
 
-/*****************************************************************************
- * 	Global Variables
- *****************************************************************************/
 static net_state_type_t service_state_table[NET_DEVICE_MAX] = {NET_STATE_TYPE_UNKNOWN,};
-
 static int net_service_error = NET_ERR_NONE;
+static guint gdbus_conn_subscribe_id_connman_svc = 0;
+static guint gdbus_conn_subscribe_id_connman_man = 0;
+static guint gdbus_conn_subscribe_id_supplicant = 0;
+static guint gdbus_conn_subscribe_id_netconfig = 0;
 
 static int __net_handle_wifi_power_rsp(gboolean value)
 {
@@ -64,7 +59,7 @@ static int __net_handle_wifi_power_rsp(gboolean value)
 		NETWORK_LOG(NETWORK_LOW, "NET_EVENT_WIFI_POWER_RSP wifi state: %d\n",
 				NetworkInfo.wifi_state);
 
-		_net_dbus_clear_pending_call();
+		_net_dbus_pending_call_unref();
 	} else {
 		event_data.Event = NET_EVENT_WIFI_POWER_IND;
 		NETWORK_LOG(NETWORK_LOW, "NET_EVENT_WIFI_POWER_IND wifi state: %d\n",
@@ -103,7 +98,7 @@ static int __net_handle_specific_scan_resp(GSList *bss_info_list)
 		memset(&request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN],
 				0, sizeof(network_request_table_t));
 
-		_net_dbus_clear_pending_call();
+		_net_dbus_pending_call_unref();
 
 		NETWORK_LOG(NETWORK_LOW,
 				"Sending NET_EVENT_SPECIFIC_SCAN_IND"
@@ -217,7 +212,7 @@ static void __net_handle_failure_ind(const char *profile_name)
 
 		event_data.Event = NET_EVENT_OPEN_RSP;
 
-		_net_dbus_clear_pending_call();
+		_net_dbus_pending_call_unref();
 	} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
 			g_strcmp0(profile_name, svc_name2) == 0) {
 		memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
@@ -225,7 +220,7 @@ static void __net_handle_failure_ind(const char *profile_name)
 
 		event_data.Event = NET_EVENT_WIFI_WPS_RSP;
 
-		_net_dbus_clear_pending_call();
+		_net_dbus_pending_call_unref();
 	} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
 			g_strcmp0(profile_name, svc_name3) == 0) {
 		memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION], 0,
@@ -233,7 +228,7 @@ static void __net_handle_failure_ind(const char *profile_name)
 
 		event_data.Event = NET_EVENT_CLOSE_RSP;
 
-		_net_dbus_clear_pending_call();
+		_net_dbus_pending_call_unref();
 	} else {
 		__net_handle_state_ind(profile_name, NET_STATE_TYPE_FAILURE);
 
@@ -333,7 +328,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
 
-				_net_dbus_clear_pending_call();
+				_net_dbus_pending_call_unref();
 			} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
 					g_strcmp0(sig_path, svc_name2) == 0) {
 				memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
@@ -343,7 +338,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
 
-				_net_dbus_clear_pending_call();
+				_net_dbus_pending_call_unref();
 			} else {
 				event_data.Event = NET_EVENT_OPEN_IND;
 
@@ -395,7 +390,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
 
-			_net_dbus_clear_pending_call();
+			_net_dbus_pending_call_unref();
 
 			_net_client_callback(&event_data);
 		} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
@@ -412,8 +407,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 			event_data.Data = NULL;
 
 			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
-
-			_net_dbus_clear_pending_call();
+			_net_dbus_pending_call_unref();
 
 			_net_client_callback(&event_data);
 		} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
@@ -431,7 +425,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_RSP\n");
 
-			_net_dbus_clear_pending_call();
+			_net_dbus_pending_call_unref();
 
 			_net_client_callback(&event_data);
 		} else {
@@ -511,7 +505,7 @@ static int __net_handle_scan_done(GVariant *param)
 
 		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
 
-		_net_dbus_clear_pending_call();
+		_net_dbus_pending_call_unref();
 
 		NETWORK_LOG(NETWORK_LOW, "response ScanDone\n");
 	} else {
@@ -590,124 +584,106 @@ int _net_deregister_signal(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	if (h_connection.signal_conn == NULL) {
+	GDBusConnection *connection;
+	net_err_t Error = NET_ERR_NONE;
+
+	connection = _net_dbus_get_gdbus_conn();
+	if (connection == NULL) {
 		NETWORK_LOG(NETWORK_HIGH, "Already de-registered\n");
-
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_NONE;
+		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
-	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
-						h_connection.conn_id_connman);
-	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
-						h_connection.conn_id_connman_manager);
-	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
-						h_connection.conn_id_supplicant);
-	g_dbus_connection_signal_unsubscribe(h_connection.signal_conn,
-						h_connection.conn_id_netconfig);
+	g_dbus_connection_signal_unsubscribe(connection,
+				gdbus_conn_subscribe_id_connman_svc);
+	g_dbus_connection_signal_unsubscribe(connection,
+				gdbus_conn_subscribe_id_connman_man);
+	g_dbus_connection_signal_unsubscribe(connection,
+				gdbus_conn_subscribe_id_supplicant);
+	g_dbus_connection_signal_unsubscribe(connection,
+				gdbus_conn_subscribe_id_netconfig);
 
-	g_cancellable_cancel(h_connection.cancellable);
-	g_object_unref(h_connection.cancellable);
+	Error = _net_dbus_close_gdbus_call();
+	if (Error != NET_ERR_NONE)
+		return Error;
 
-	NETWORK_LOG(NETWORK_LOW, "Successfully remove signal filters\n");
-
-	/* If DBusPendingCall remains, it should be released */
-	_net_dbus_clear_pending_call();
-	if (g_dbus_connection_close_sync(h_connection.signal_conn, NULL, NULL) == FALSE) {
-		NETWORK_LOG(NETWORK_HIGH, "Failed to close dbus\n");
-		return NET_ERR_UNKNOWN;
-	}
-
-	g_object_unref(h_connection.signal_conn);
-
-	NETWORK_LOG(NETWORK_LOW, "Successfully deregister \n");
+	NETWORK_LOG(NETWORK_LOW, "Successfully remove signals\n");
 
 	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
+	return Error;
 }
 
 int _net_register_signal(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	gpointer dbus_connection;
-	GError *error = NULL;
-	gchar *addr;
+	GDBusConnection *connection;
+	net_err_t Error = NET_ERR_NONE;
 
-	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-	if (!addr) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Failed to get D-BUS : [%s]\n", error->message);
-		g_error_free(error);
+	Error = _net_dbus_create_gdbus_call();
+	if (Error != NET_ERR_NONE)
+		return Error;
+
+	connection = _net_dbus_get_gdbus_conn();
+	if (connection == NULL)
 		return NET_ERR_UNKNOWN;
-	}
-
-	dbus_connection = g_dbus_connection_new_for_address_sync(addr,
-			G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
-			G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
-			NULL, NULL, &error);
-	g_free(addr);
-	if (!dbus_connection) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Failed to connect to the D-BUS daemon: [%s]\n", error->message);
-		g_error_free(error);
-		return NET_ERR_UNKNOWN;
-	}
-
-	h_connection.signal_conn = dbus_connection;
-	h_connection.cancellable = g_cancellable_new();
 
 	/* Create connman service connection */
-	h_connection.conn_id_connman = g_dbus_connection_signal_subscribe(dbus_connection,
-							CONNMAN_SERVICE,
-							CONNMAN_SERVICE_INTERFACE,
-							NULL,
-							NULL,
-							NULL,
-							G_DBUS_SIGNAL_FLAGS_NONE,
-							__net_connman_service_signal_filter,
-							NULL,
-							NULL);
+	gdbus_conn_subscribe_id_connman_svc = g_dbus_connection_signal_subscribe(
+						connection,
+						CONNMAN_SERVICE,
+						CONNMAN_SERVICE_INTERFACE,
+						NULL,
+						NULL,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__net_connman_service_signal_filter,
+						NULL,
+						NULL);
 
-	h_connection.conn_id_connman_manager = g_dbus_connection_signal_subscribe(dbus_connection,
-							CONNMAN_SERVICE,
-							CONNMAN_MANAGER_INTERFACE,
-							NULL,
-							NULL,
-							NULL,
-							G_DBUS_SIGNAL_FLAGS_NONE,
-							__net_connman_manager_signal_filter,
-							NULL,
-							NULL);
+	/* Create connman manager connection */
+	gdbus_conn_subscribe_id_connman_man = g_dbus_connection_signal_subscribe(
+						connection,
+						CONNMAN_SERVICE,
+						CONNMAN_MANAGER_INTERFACE,
+						NULL,
+						NULL,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__net_connman_manager_signal_filter,
+						NULL,
+						NULL);
 
 	/* Create supplicant service connection */
-	h_connection.conn_id_supplicant = g_dbus_connection_signal_subscribe(dbus_connection,
-							SUPPLICANT_SERVICE,
-							SUPPLICANT_SERVICE_INTERFACE,
-							NULL,
-							NULL,
-							NULL,
-							G_DBUS_SIGNAL_FLAGS_NONE,
-							__net_supplicant_signal_filter,
-							NULL,
-							NULL);
+	gdbus_conn_subscribe_id_supplicant = g_dbus_connection_signal_subscribe(
+						connection,
+						SUPPLICANT_SERVICE,
+						SUPPLICANT_SERVICE_INTERFACE,
+						NULL,
+						NULL,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__net_supplicant_signal_filter,
+						NULL,
+						NULL);
 
 	/* Create net-config service connection */
-	h_connection.conn_id_netconfig = g_dbus_connection_signal_subscribe(dbus_connection,
-							NETCONFIG_SERVICE,
-							NETCONFIG_WIFI_INTERFACE,
-							NULL,
-							NETCONFIG_WIFI_PATH,
-							NULL,
-							G_DBUS_SIGNAL_FLAGS_NONE,
-							__net_netconfig_signal_filter,
-							NULL,
-							NULL);
+	gdbus_conn_subscribe_id_netconfig = g_dbus_connection_signal_subscribe(
+						connection,
+						NETCONFIG_SERVICE,
+						NETCONFIG_WIFI_INTERFACE,
+						NULL,
+						NETCONFIG_WIFI_PATH,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__net_netconfig_signal_filter,
+						NULL,
+						NULL);
 
-	NETWORK_LOG(NETWORK_LOW, "Successfully register signal filters\n");
+	NETWORK_LOG(NETWORK_LOW, "Successfully register signals\n");
 
 	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
+	return Error;
 }
 
 int _net_init_service_state_table(void)

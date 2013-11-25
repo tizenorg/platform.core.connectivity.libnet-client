@@ -21,14 +21,6 @@
 #include "network-signal-handler.h"
 
 /*****************************************************************************
- * 	Local Functions Declaration
- *****************************************************************************/
-
-/*****************************************************************************
- * 	Global Functions
- *****************************************************************************/
-
-/*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
 extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
@@ -38,9 +30,6 @@ extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
  *****************************************************************************/
 network_info_t NetworkInfo = {0, };
 
-/*****************************************************************************
- * 	Local Functions Definition
- *****************************************************************************/
 static int __net_get_default_profile(void *param, net_profile_info_t *active_profile_info)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -229,7 +218,7 @@ EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
 		}
 
 		Error = _net_register_signal();
-		if (Error != NET_ERR_NONE) {
+		if (Error != NET_ERR_NONE && Error != NET_ERR_APP_ALREADY_REGISTERED) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to register DBus signal [%s]\n",
 					_net_print_error(Error));
 			_net_mutex_destroy();
@@ -285,7 +274,7 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 			return NET_ERR_UNKNOWN;
 
 		Error = _net_register_signal();
-		if (Error != NET_ERR_NONE) {
+		if (Error != NET_ERR_NONE && Error != NET_ERR_APP_ALREADY_REGISTERED) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to register DBus signal [%s]\n",
 					_net_print_error(Error));
 			_net_mutex_destroy();

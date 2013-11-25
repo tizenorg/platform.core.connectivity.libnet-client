@@ -17,20 +17,22 @@
  *
  */
 
+#include <dlfcn.h>
+
 #include "network-internal.h"
 #include "network-dbus-request.h"
 
-/*****************************************************************************
- * 	Macros and Typedefs
- *****************************************************************************/
+struct networkinfo_mutex_data {
+	pthread_mutex_t callback_mutex;
+	pthread_mutex_t wifi_state_mutex;
+};
 
-/*****************************************************************************
- * 	Local Functions Declaration
- *****************************************************************************/
-
-/*****************************************************************************
- * 	Global Functions
- *****************************************************************************/
+struct gdbus_connection_data {
+	GDBusConnection *connection;
+	int conn_ref_count;
+	GCancellable *cancellable;
+	void *handle_libnetwork;
+};
 
 /*****************************************************************************
  * 	Extern Global Variables
@@ -40,18 +42,11 @@ extern network_info_t NetworkInfo;
 /*****************************************************************************
  * 	Global Variables
  *****************************************************************************/
-
-/** set all request to FALSE (0) */
 network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = {{0,},};
 
-struct {
-	pthread_mutex_t callback_mutex;
-	pthread_mutex_t wifi_state_mutex;
-} networkinfo_mutex;
-
-/*****************************************************************************
- * 	Local Functions Definition
- *****************************************************************************/
+static struct networkinfo_mutex_data networkinfo_mutex =
+							{ { { 0, }, }, { { 0, }, } };
+static struct gdbus_connection_data gdbus_conn = { NULL, };
 
 static char *__convert_eap_type_to_string(gchar eap_type)
 {
@@ -510,4 +505,122 @@ void _net_clear_request_table(void)
 		memset(&request_table[i], 0, sizeof(network_request_table_t));
 
 	__NETWORK_FUNC_EXIT__;
+}
+
+gboolean _net_dbus_is_pending_call_used(void)
+{
+	if (g_atomic_int_get(&gdbus_conn.conn_ref_count) > 0)
+		return TRUE;
+
+	return FALSE;
+}
+
+void _net_dbus_pending_call_ref(void)
+{
+	g_object_ref(gdbus_conn.connection);
+	g_atomic_int_inc(&gdbus_conn.conn_ref_count);
+}
+
+void _net_dbus_pending_call_unref(void)
+{
+	if (g_atomic_int_get(&gdbus_conn.conn_ref_count) < 1)
+		return;
+
+	g_object_unref(gdbus_conn.connection);
+	if (g_atomic_int_dec_and_test(&gdbus_conn.conn_ref_count) == TRUE &&
+			gdbus_conn.handle_libnetwork != NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL\n");
+
+		gdbus_conn.connection = NULL;
+	}
+}
+
+int _net_dbus_create_gdbus_call(void)
+{
+	GError *error = NULL;
+	gchar *addr;
+
+	if (gdbus_conn.connection != NULL) {
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_ALREADY_REGISTERED;
+	}
+
+	g_type_init();
+
+	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+	if (!addr) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"Failed to get D-BUS : [%s]\n", error->message);
+		g_error_free(error);
+		return NET_ERR_UNKNOWN;
+	}
+
+	gdbus_conn.connection = g_dbus_connection_new_for_address_sync(addr,
+			G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+			G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+			NULL, NULL, &error);
+	g_free(addr);
+	if (gdbus_conn.connection == NULL) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"Failed to connect to the D-BUS daemon: [%s]\n", error->message);
+		g_error_free(error);
+		return NET_ERR_UNKNOWN;
+	}
+
+	gdbus_conn.cancellable = g_cancellable_new();
+
+	if (gdbus_conn.handle_libnetwork != NULL) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"A handle of libnetwork is not NULL and should be released\n");
+
+		dlclose(gdbus_conn.handle_libnetwork);
+		gdbus_conn.handle_libnetwork = NULL;
+	}
+
+	return NET_ERR_NONE;
+}
+
+int _net_dbus_close_gdbus_call(void)
+{
+	int refcount = 0;
+
+	g_cancellable_cancel(gdbus_conn.cancellable);
+	g_object_unref(gdbus_conn.cancellable);
+	gdbus_conn.cancellable = NULL;
+
+	if (g_dbus_connection_close_sync(gdbus_conn.connection, NULL, NULL) == FALSE) {
+		NETWORK_LOG(NETWORK_HIGH, "Failed to close GDBus\n");
+		return NET_ERR_UNKNOWN;
+	}
+
+	refcount = g_atomic_int_get(&gdbus_conn.conn_ref_count);
+	if (refcount < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "There is no pending call\n");
+
+		g_object_unref(gdbus_conn.connection);
+		gdbus_conn.connection = NULL;
+	} else {
+		NETWORK_LOG(NETWORK_ERROR,
+				"There are %d pending calls, waiting to be cleared\n", refcount);
+
+		if (gdbus_conn.handle_libnetwork != NULL)
+			NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL\n");
+
+		gdbus_conn.handle_libnetwork =
+							dlopen("/usr/lib/libnetwork.so", RTLD_LAZY);
+
+		g_object_unref(gdbus_conn.connection);
+	}
+
+	return NET_ERR_NONE;
+}
+
+GDBusConnection *_net_dbus_get_gdbus_conn(void)
+{
+	return gdbus_conn.connection;
+}
+
+GCancellable *_net_dbus_get_gdbus_cancellable(void)
+{
+	return gdbus_conn.cancellable;
 }

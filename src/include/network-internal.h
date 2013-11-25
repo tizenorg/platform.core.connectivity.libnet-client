@@ -167,17 +167,6 @@ typedef struct
 /*****************************************************************************
  * 	Global Structures
  *****************************************************************************/
-
-typedef struct
-{
-	gpointer signal_conn;
-	GCancellable *cancellable;
-	int conn_id_connman;
-	int conn_id_connman_manager;
-	int conn_id_supplicant;
-	int conn_id_netconfig;
-} handle_connection;
-
 typedef struct
 {
 	int num_of_services;
@@ -249,6 +238,14 @@ int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t
 int _net_get_default_profile_info(net_profile_info_t *profile_info);
 net_wifi_state_t _net_get_wifi_state(void);
 void _net_clear_request_table(void);
+
+gboolean _net_dbus_is_pending_call_used(void);
+void _net_dbus_pending_call_ref(void);
+void _net_dbus_pending_call_unref(void);
+int _net_dbus_create_gdbus_call(void);
+int _net_dbus_close_gdbus_call(void);
+GDBusConnection *_net_dbus_get_gdbus_conn(void);
+GCancellable *_net_dbus_get_gdbus_cancellable(void);
 
 #ifdef __cplusplus
 }

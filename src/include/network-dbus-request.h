@@ -112,11 +112,6 @@ int _net_dbus_get_statistics(net_device_t device_type, net_statistics_type_e sta
 int _net_dbus_set_statistics(net_device_t device_type, net_statistics_type_e statistics_type);
 int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info);
 int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *profile_name);
-gboolean _net_dbus_is_pending_call_used(void);
-void _net_dbus_set_pending_call_used(gboolean used);
-//DBusPendingCall *_net_dbus_get_pending_call(void);
-void _net_dbus_set_pending_call(void *call);
-void _net_dbus_clear_pending_call(void);
 gboolean __net_dbus_abort_open_request(const char *profile_name);
 int _net_dbus_specific_scan_request(const char *ssid);
 int _net_dbus_set_default(const char* profile_name);
