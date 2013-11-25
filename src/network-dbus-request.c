@@ -50,7 +50,7 @@ static int __net_error_string_to_enum(const char* error)
 	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".PermissionDenied"))
 		return NET_ERR_ACCESS_DENIED;
 	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".PassphraseRequired"))
-		return NET_ERR_INVALID_OPERATION;
+		return NET_ERR_CONNECTION_INVALID_KEY;
 	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotRegistered"))
 		return NET_ERR_INVALID_OPERATION;
 	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotUnique"))
