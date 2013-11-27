@@ -1,6 +1,6 @@
 Name:       libnet-client
 Summary:    Network Client library (Shared library)
-Version:    0.1.77_43
+Version:    0.1.77_44
 Release:    1
 Group:      System/Network
 License:    Flora License

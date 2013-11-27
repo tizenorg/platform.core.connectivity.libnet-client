@@ -1378,8 +1378,8 @@ static int __net_extract_service_info(
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-	if (iter)
-		g_variant_iter_free(iter);
+	
+	g_variant_iter_free(iter);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
