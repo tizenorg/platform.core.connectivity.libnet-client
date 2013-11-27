@@ -1654,9 +1654,6 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 
 	g_variant_unref(message);
 done:
-	if (params)
-		g_variant_unref(params);
-
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }

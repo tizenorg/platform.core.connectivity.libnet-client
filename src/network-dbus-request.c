@@ -539,17 +539,11 @@ static int __net_dbus_set_agent_field(const char *key, const char *value)
 					"g_dbus_connection_call_sync() failed.\n");
 		}
 
-		if (params)
-			g_variant_unref(params);
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
 
 	g_variant_unref(reply);
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -724,9 +718,6 @@ int _net_dbus_set_bgscan_mode(net_wifi_background_scan_mode_t mode)
 
 	if (message != NULL)
 		g_variant_unref(message);
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1103,9 +1094,6 @@ int _net_dbus_set_eap_config_fields(
 
 	NETWORK_LOG(NETWORK_HIGH, "Successfully sent eap config fields\n");
 
-	if (params)
-		g_variant_unref(params);
-
 	_net_dbus_pending_call_ref();
 
 	__NETWORK_FUNC_EXIT__;
@@ -1380,18 +1368,12 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 				"g_dbus_connection_call_sync() failed.\n");
 		}
 
-		if (params)
-			g_variant_unref(params);
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
 
 	NETWORK_LOG(NETWORK_HIGH, "Successfully configured IPv4.Configuration\n");
 	g_variant_unref(reply);
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -1468,9 +1450,6 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 					"g_dbus_connection_call_sync() failed.\n");
 			}
 
-			if (params)
-				g_variant_unref(params);
-
 			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_UNKNOWN;
 		}
@@ -1478,9 +1457,6 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 		NETWORK_LOG(NETWORK_HIGH, "Successfully configured Nameservers.Configuration\n");
 		g_variant_unref(reply);
 	}
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -1577,18 +1553,12 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 				"g_dbus_connection_call_sync() failed.\n");
 		}
 
-		if (params)
-			g_variant_unref(params);
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
 
 	NETWORK_LOG(NETWORK_HIGH, "Successfully configured Proxy.Configuration\n");
 	g_variant_unref(reply);
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -1720,9 +1690,6 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 				"g_dbus_connection_call_sync() failed.\n");
 		}
 
-		if (params)
-			g_variant_unref(params);
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
@@ -1741,9 +1708,6 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 		Error = NET_ERR_UNKNOWN;
 
 	g_variant_unref(reply);
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1903,9 +1867,6 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 					"g_dbus_connection_call_sync() failed.\n");
 		}
 
-		if (params)
-			g_variant_unref(params);
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
 	}
@@ -1923,9 +1884,6 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 		Error = NET_ERR_UNKNOWN;
 
 	g_variant_unref(reply);
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -2031,9 +1989,6 @@ int _net_dbus_specific_scan_request(const char *ssid)
 	NETWORK_LOG(NETWORK_HIGH, "Successfully configured\n");
 
 	_net_dbus_pending_call_ref();
-
-	if (params)
-		g_variant_unref(params);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;

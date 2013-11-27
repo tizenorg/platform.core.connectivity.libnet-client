@@ -106,9 +106,6 @@ static int __net_add_route(const char *ip_addr, const char *interface)
 	g_variant_unref(message);
 
 done:
-	if (params)
-		g_variant_unref(params);
-
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -155,8 +152,6 @@ static int __net_remove_route(const char *ip_addr, const char *interface)
 	g_variant_unref(message);
 
 done:
-	if (params)
-		g_variant_unref(params);
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
