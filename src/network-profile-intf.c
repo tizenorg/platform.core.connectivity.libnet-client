@@ -177,6 +177,20 @@ static int __net_telephony_init_profile_info(net_telephony_profile_info_t* ProfI
 	return NET_ERR_NONE;
 }
 
+static int __net_get_service_type(gchar *obj_path)
+{
+	if (g_str_has_prefix(obj_path, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
+		return NET_DEVICE_WIFI;
+	else if (g_str_has_prefix(obj_path, CONNMAN_CELLULAR_SERVICE_PROFILE_PREFIX) == TRUE)
+		return NET_DEVICE_CELLULAR;
+	else if (g_str_has_prefix(obj_path, CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX) == TRUE)
+		return NET_DEVICE_ETHERNET;
+	else if (g_str_has_prefix(obj_path, CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE)
+		return NET_DEVICE_BLUETOOTH;
+	else
+		return NET_DEVICE_UNKNOWN;
+}
+
 static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net_telephony_profile_info_t *ProfileInfo)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -487,8 +501,7 @@ static int __net_extract_mobile_services(GVariantIter *iter,
 }
 
 static int __net_extract_all_services(GVariantIter *array,
-		net_device_t device_type, const char *service_prefix,
-		int *prof_count, net_profile_info_t **ProfilePtr)
+		const char *service_prefix, int *prof_count, net_profile_info_t **ProfilePtr)
 {
 	int count = 0;
 	net_profile_info_t ProfInfo = {0, };
@@ -510,12 +523,17 @@ static int __net_extract_all_services(GVariantIter *array,
 			continue;
 
 		if (g_str_has_prefix(obj, service_prefix) == TRUE) {
-			if (device_type == NET_DEVICE_WIFI &&
+			net_device_t local_device_type = __net_get_service_type(obj);
+
+			if (local_device_type == NET_DEVICE_UNKNOWN)
+				continue;
+
+			if (local_device_type == NET_DEVICE_WIFI &&
 					g_strrstr(obj + strlen(service_prefix), "hidden") != NULL)
 				continue;
 
 			memset(&ProfInfo, 0, sizeof(net_profile_info_t));
-			if ((Error = __net_pm_init_profile_info(device_type, &ProfInfo)) != NET_ERR_NONE) {
+			if ((Error = __net_pm_init_profile_info(local_device_type, &ProfInfo)) != NET_ERR_NONE) {
 				NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
 
 				NET_MEMFREE(*ProfilePtr);
@@ -525,10 +543,10 @@ static int __net_extract_all_services(GVariantIter *array,
 				return Error;
 			}
 
-			ProfInfo.profile_type = device_type;
+			ProfInfo.profile_type = local_device_type;
 			g_strlcpy(ProfInfo.ProfileName, obj, NET_PROFILE_NAME_LEN_MAX);
 
-			switch(device_type) {
+			switch(local_device_type) {
 			case NET_DEVICE_WIFI:
 				g_strlcpy(ProfInfo.ProfileInfo.Wlan.net_info.ProfileName,
 						obj, NET_PROFILE_NAME_LEN_MAX);
@@ -618,6 +636,9 @@ static int __net_extract_services(GVariantIter *message, net_device_t device_typ
 	case NET_DEVICE_BLUETOOTH :
 		service_prefix = CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX;
 		break;
+	case NET_DEVICE_MAX :
+		service_prefix = CONNMAN_SERVICE_PROFILE_PREFIX;
+		break;
 	default :
 		*profile_count = 0;
 		*profile_info = NULL;
@@ -626,8 +647,7 @@ static int __net_extract_services(GVariantIter *message, net_device_t device_typ
 		break;
 	}
 
-	Error = __net_extract_all_services(message, device_type, service_prefix,
-			&prof_cnt, &ProfilePtr);
+	Error = __net_extract_all_services(message, service_prefix, &prof_cnt, &ProfilePtr);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to extract services from received message\n");
 		*profile_count = 0;
@@ -1866,6 +1886,7 @@ int _net_get_profile_list(net_device_t device_type,
 	case NET_DEVICE_WIFI:
 	case NET_DEVICE_ETHERNET:
 	case NET_DEVICE_BLUETOOTH:
+	case NET_DEVICE_MAX:
 		g_variant_get(message, "(a(oa{sv}))", &iter);
 		Error = __net_extract_services(iter, device_type, profile_info, profile_count);
 
@@ -2165,7 +2186,8 @@ EXPORT_API int net_get_profile_list(net_device_t device_type, net_profile_info_t
 	if (device_type != NET_DEVICE_CELLULAR &&
 	    device_type != NET_DEVICE_WIFI &&
 	    device_type != NET_DEVICE_ETHERNET &&
-	    device_type != NET_DEVICE_BLUETOOTH) {
+	    device_type != NET_DEVICE_BLUETOOTH &&
+	    device_type != NET_DEVICE_MAX) {
 		NETWORK_LOG(NETWORK_ERROR, "Not Supported\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_NOT_SUPPORTED;

@@ -1224,7 +1224,7 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'd':
-		debug_print("Input profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth : \n");
+		debug_print("Input profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth 5:all : \n");
 		scanf("%d", &input_int);
 
 		net_device_t deviceType = NET_DEVICE_UNKNOWN;
@@ -1246,6 +1246,9 @@ static gboolean network_main_gthread(gpointer data)
 			break;
 		case 4:
 			deviceType = NET_DEVICE_BLUETOOTH;
+			break;
+		case 5:
+			deviceType = NET_DEVICE_MAX;
 			break;
 		default:
 			deviceType = NET_DEVICE_UNKNOWN;

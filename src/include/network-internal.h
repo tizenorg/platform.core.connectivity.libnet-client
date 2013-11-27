@@ -104,6 +104,7 @@ extern "C" {
 #define CONNMAN_WIFI_SERVICE_PROFILE_PREFIX		CONNMAN_PATH "/service/wifi_"
 #define CONNMAN_ETHERNET_SERVICE_PROFILE_PREFIX		CONNMAN_PATH "/service/ethernet_"
 #define CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX	CONNMAN_PATH "/service/bluetooth_"
+#define CONNMAN_SERVICE_PROFILE_PREFIX			CONNMAN_PATH "/service/"
 
 /** Network related Daemon Signals */
 #define NETCONFIG_SIGNAL_POWERON_COMPLETED	"PowerOnCompleted"
