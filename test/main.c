@@ -234,15 +234,17 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 	}
 
 	if (print_type == PROFILE_FULL_INFO) {
-		unsigned char *dns = (unsigned char *)&net_info->DnsAddr[di].Data.Ipv4.s_addr;
+		unsigned char *dns = NULL;
 
 		debug_print("Profile Favourite = [%d]\n", (int)ProfInfo->Favourite);
 		debug_print("Profile Device Name = [%s]\n", net_info->DevName);
 		debug_print("Profile DNS Count = [%d]\n", net_info->DnsCount);
 
-		for (di = 0;di < net_info->DnsCount;di++)
+		for (di = 0;di < net_info->DnsCount;di++) {
+			dns = (unsigned char *)&net_info->DnsAddr[di].Data.Ipv4.s_addr;
 			debug_print("Profile DNS Address %d = [%d.%d.%d.%d]\n",
 					di+1, dns[0], dns[1], dns[2], dns[3]);
+		}
 
 		if (net_info->IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC)
 			debug_print("Profile IPv4 Method = [NET_IP_CONFIG_TYPE_DYNAMIC]\n");

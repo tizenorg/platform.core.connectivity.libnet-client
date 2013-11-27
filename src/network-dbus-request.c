@@ -965,7 +965,7 @@ int _net_dbus_get_state(char* state)
 	GVariant *message = NULL;
 	GVariant *value = NULL;
 	GVariantIter *iter = NULL;
-	const gchar *key = NULL;
+	gchar *key = NULL;
 	const gchar *net_state = NULL;
 
 	message = _net_invoke_dbus_method(
@@ -984,6 +984,9 @@ int _net_dbus_get_state(char* state)
 		if (g_strcmp0(key, "State") == 0) {
 			net_state = g_variant_get_string(value, NULL);
 			g_strlcpy(state, net_state, CONNMAN_STATE_STRLEN);
+
+			g_variant_unref(value);
+			g_free(key);
 			break;
 		}
 	}
@@ -992,9 +995,6 @@ int _net_dbus_get_state(char* state)
 
 	g_variant_iter_free(iter);
 	g_variant_unref(message);
-
-	if (value)
-		g_variant_unref(value);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

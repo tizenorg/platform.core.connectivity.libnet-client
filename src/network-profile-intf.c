@@ -423,7 +423,7 @@ static int __net_extract_mobile_services(GVariantIter *iter,
 	const char pre_mms_suffix[] = "_4";
 	const char tethering_suffix[] = "_5";
 	char *suffix = NULL;
-	const char *obj = NULL;
+	gchar *obj = NULL;
 	GVariantIter *value = NULL;
 	gboolean found = FALSE;
 
@@ -482,6 +482,8 @@ static int __net_extract_mobile_services(GVariantIter *iter,
 					for (i = 0; i < count; i++)
 						NET_MEMFREE(service_info->ProfileName[i]);
 
+					g_variant_iter_free(value);
+					g_free(obj);
 					__NETWORK_FUNC_EXIT__;
 					return NET_ERR_UNKNOWN;
 				}
@@ -506,7 +508,7 @@ static int __net_extract_all_services(GVariantIter *array,
 	int count = 0;
 	net_profile_info_t ProfInfo = {0, };
 	net_err_t Error = NET_ERR_NONE;
-	const gchar *obj;
+	gchar *obj;
 	GVariantIter *next = NULL;
 
 	__NETWORK_FUNC_ENTER__;
@@ -539,8 +541,7 @@ static int __net_extract_all_services(GVariantIter *array,
 				NET_MEMFREE(*ProfilePtr);
 				*prof_count = 0;
 
-				__NETWORK_FUNC_EXIT__;
-				return Error;
+				goto error;
 			}
 
 			ProfInfo.profile_type = local_device_type;
@@ -575,8 +576,8 @@ static int __net_extract_all_services(GVariantIter *array,
 				NET_MEMFREE(*ProfilePtr);
 				*prof_count = 0;
 
-				__NETWORK_FUNC_EXIT__;
-				return NET_ERR_NOT_SUPPORTED;
+				Error = NET_ERR_NOT_SUPPORTED;
+				goto error;
 			}
 
 			if (Error != NET_ERR_NONE) {
@@ -586,8 +587,7 @@ static int __net_extract_all_services(GVariantIter *array,
 				NET_MEMFREE(*ProfilePtr);
 				*prof_count = 0;
 
-				__NETWORK_FUNC_EXIT__;
-				return Error;
+				goto error;
 			}
 
 			*ProfilePtr = (net_profile_info_t *)realloc(*ProfilePtr,
@@ -596,8 +596,8 @@ static int __net_extract_all_services(GVariantIter *array,
 				NETWORK_LOG(NETWORK_ERROR, "Failed to allocate memory\n");
 				*prof_count = 0;
 
-				__NETWORK_FUNC_EXIT__;
-				return NET_ERR_UNKNOWN;
+				Error = NET_ERR_UNKNOWN;
+				goto error;
 			}
 
 			memcpy(*ProfilePtr + count, &ProfInfo, sizeof(net_profile_info_t));
@@ -609,6 +609,16 @@ static int __net_extract_all_services(GVariantIter *array,
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
+
+error:
+	if (next)
+		g_variant_iter_free(next);
+
+	if (obj)
+		g_free(obj);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
 }
 
 static int __net_extract_services(GVariantIter *message, net_device_t device_type,
@@ -816,7 +826,7 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
 				if (g_strcmp0(subKey, "Method") == 0) {
 					value = g_variant_get_string(var, NULL);
-					
+
 					if(g_strcmp0(value, "dhcp") == 0)
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
 					else if(g_strcmp0(value, "manual") == 0)
@@ -855,8 +865,10 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			__net_extract_ip(value, &net_info->DnsAddr[dnsCount]);
 
 			dnsCount++;
-			if (dnsCount >= NET_DNS_ADDR_MAX)
+			if (dnsCount >= NET_DNS_ADDR_MAX) {
+				g_free((gchar*)value);
 				break;
+			}
 		}
 
 		g_variant_iter_free(iter);
@@ -870,8 +882,10 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			__net_extract_ip(value, &net_info->DnsAddr[dnsCount]);
 
 			dnsCount++;
-			if (dnsCount >= NET_DNS_ADDR_MAX)
+			if (dnsCount >= NET_DNS_ADDR_MAX) {
+				g_free((gchar*)value);
 				break;
+			}
 		}
 		g_variant_iter_free(iter);
 
@@ -879,8 +893,8 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 	} else if (g_strcmp0(key, "Domains") == 0) {
 	} else if (g_strcmp0(key, "Domains.Configuration") == 0) {
 	} else if (g_strcmp0(key, "Proxy") == 0) {
-		const char *url = NULL;
-		const char *servers = NULL;
+		const gchar *url = NULL;
+		gchar *servers = NULL;
 
 		g_variant_get(variant, "a{sv}", &iter);
 		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
@@ -914,12 +928,15 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			g_strlcpy(net_info->ProxyAddr, url, NET_PROXY_LEN_MAX);
 		else if (net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL && servers != NULL)
 			g_strlcpy(net_info->ProxyAddr, servers, NET_PROXY_LEN_MAX);
+
+		if (servers)
+			g_free(servers);
 	} else if (g_strcmp0(key, "Proxy.Configuration") == 0 &&
 	           net_info->ProxyMethod != NET_PROXY_TYPE_AUTO &&
 	           net_info->ProxyMethod != NET_PROXY_TYPE_MANUAL) {
 
-		const char *url = NULL;
-		const char *servers = NULL;
+		const gchar *url = NULL;
+		gchar *servers = NULL;
 
 		g_variant_get(variant, "a{sv}", &iter);
 		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
@@ -953,6 +970,9 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			g_strlcpy(net_info->ProxyAddr, url, NET_PROXY_LEN_MAX);
 		else if (net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL && servers != NULL)
 			g_strlcpy(net_info->ProxyAddr, servers, NET_PROXY_LEN_MAX);
+
+		if (servers)
+			g_free(servers);
 	} else if(g_strcmp0(key, "Provider") == 0) {
 	}
 
@@ -1326,6 +1346,8 @@ static int __net_extract_service_info(
 			else if (g_strcmp0(tech, "bluetooth") == 0)
 				profileType = NET_DEVICE_BLUETOOTH;
 
+			g_variant_unref(value);
+			g_free(key);
 			break;
 		}
 	}
@@ -1398,7 +1420,7 @@ static int __net_extract_service_info(
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-	
+
 	g_variant_iter_free(iter);
 
 	__NETWORK_FUNC_EXIT__;
@@ -1751,7 +1773,7 @@ static int __net_extract_default_profile(
 {
 	net_err_t Error = NET_ERR_NONE;
 	net_device_t device_type;
-	const gchar *key = NULL;
+	gchar *key = NULL;
 	GVariantIter *value = NULL;
 
 	__NETWORK_FUNC_ENTER__;
@@ -1771,12 +1793,18 @@ static int __net_extract_default_profile(
 			device_type = NET_DEVICE_ETHERNET;
 		else if (g_str_has_prefix(key, CONNMAN_BLUETOOTH_SERVICE_PROFILE_PREFIX) == TRUE)
 			device_type = NET_DEVICE_BLUETOOTH;
-		else
+		else {
+			g_variant_iter_free(value);
+			g_free(key);
+			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_NO_SERVICE;
+		}
 
 		Error = __net_pm_init_profile_info(device_type, ProfilePtr);
 		if (Error != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to init profile\n");
+			g_variant_iter_free(value);
+			g_free(key);
 			__NETWORK_FUNC_EXIT__;
 			return Error;
 		}
@@ -1790,24 +1818,28 @@ static int __net_extract_default_profile(
 					key, NET_PROFILE_NAME_LEN_MAX);
 
 			Error = __net_extract_mobile_info(value, ProfilePtr);
+
 			break;
 		} else if (device_type == NET_DEVICE_WIFI) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Wlan.net_info.ProfileName,
 					key, NET_PROFILE_NAME_LEN_MAX);
 
 			Error = __net_extract_wifi_info(value, ProfilePtr);
+
 			break;
 		} else if (device_type == NET_DEVICE_ETHERNET) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Ethernet.net_info.ProfileName,
 					key, NET_PROFILE_NAME_LEN_MAX);
 
 			Error = __net_extract_ethernet_info(value, ProfilePtr);
+
 			break;
 		} else if (device_type == NET_DEVICE_BLUETOOTH) {
 			g_strlcpy(ProfilePtr->ProfileInfo.Bluetooth.net_info.ProfileName,
 					key, NET_PROFILE_NAME_LEN_MAX);
 
 			Error = __net_extract_bluetooth_info(value, ProfilePtr);
+
 			break;
 		}
 	}
@@ -1820,11 +1852,21 @@ static int __net_extract_default_profile(
 	NETWORK_LOG(NETWORK_ERROR, "Fail to find default service\n");
 	Error = NET_ERR_NO_SERVICE;
 
+	if (value)
+		g_variant_iter_free(value);
+	if (key)
+		g_free(key);
+
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 
 found:
 	NETWORK_LOG(NETWORK_HIGH, "Default: %s\n", ProfilePtr->ProfileName);
+
+	if (value)
+		g_variant_iter_free(value);
+	if (key)
+		g_free(key);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
