@@ -91,7 +91,7 @@ static net_wifi_state_t __net_get_wifi_service_state(char *profile_name)
 		case NET_STATE_TYPE_FAILURE :
 		case NET_STATE_TYPE_DISCONNECT :
 			break;
-		}		
+		}
 	}
 
 	if (wifi_state == WIFI_CONNECTED &&
@@ -102,6 +102,32 @@ static net_wifi_state_t __net_get_wifi_service_state(char *profile_name)
 
 	__NETWORK_FUNC_EXIT__;
 	return wifi_state;
+}
+
+static gboolean __net_check_wifi_pending(void)
+{
+	if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag) {
+		char *name = (char*)request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName;
+
+		if (g_str_has_prefix(name, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
+			return TRUE;
+		else
+			return FALSE;
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag) {
+		char *name = (char*)request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].ProfileName;
+
+		if (g_str_has_prefix(name, CONNMAN_WIFI_SERVICE_PROFILE_PREFIX) == TRUE)
+			return TRUE;
+		else
+			return FALSE;
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT].flag)
+			return FALSE;
+
+	return TRUE;
 }
 
 /*****************************************************************************
@@ -297,8 +323,16 @@ EXPORT_API int net_wifi_power_off(void)
 		return NET_ERR_IN_PROGRESS;
 	}
 
-	_net_dbus_pending_call_unref();
-	memset(request_table, 0, sizeof(request_table));
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		if (__net_check_wifi_pending() == TRUE) {
+			_net_dbus_pending_call_unref();
+			memset(request_table, 0, sizeof(request_table));
+		} else {
+			NETWORK_LOG(NETWORK_ERROR, "Error!! pending call already in progress\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_INVALID_OPERATION;
+		}
+	}
 
 	request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag = TRUE;
 
