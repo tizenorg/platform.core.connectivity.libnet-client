@@ -29,7 +29,6 @@ extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 static net_state_type_t service_state_table[NET_DEVICE_MAX] = {NET_STATE_TYPE_UNKNOWN,};
 static int net_service_error = NET_ERR_NONE;
 static guint gdbus_conn_subscribe_id_connman_svc = 0;
-static guint gdbus_conn_subscribe_id_connman_man = 0;
 static guint gdbus_conn_subscribe_id_supplicant = 0;
 static guint gdbus_conn_subscribe_id_netconfig = 0;
 
@@ -494,8 +493,6 @@ static int __net_handle_scan_done(GVariant *param)
 
 	net_event_info_t event_data = { 0, };
 
-	NETWORK_LOG(NETWORK_LOW, "ServiceChanged signal from ConnMan\n");
-
 	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
 		NETWORK_LOG(NETWORK_LOW, "Flag for specific scan is TRUE, so ignore this signal\n");
 		return NET_ERR_NONE;
@@ -547,21 +544,13 @@ static void __net_connman_service_signal_filter(GDBusConnection *conn,
 	}
 }
 
-static void __net_connman_manager_signal_filter(GDBusConnection *conn,
-		const gchar *name, const gchar *path, const gchar *interface,
-		const gchar *sig, GVariant *param, gpointer user_data)
-{
-	if (g_strcmp0(sig, SIGNAL_SERVICES_CHANGED) == 0)
-		__net_handle_scan_done(param);
-}
-
 static void __net_supplicant_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
 		const gchar *sig, GVariant *param, gpointer user_data)
 {
 	if (g_strcmp0(sig, SIGNAL_SCAN_DONE) == 0) {
 		NETWORK_LOG(NETWORK_HIGH, "ScanDone signal from wpasupplicant\n");
-	/*	__net_handle_scan_done(param); */
+		__net_handle_scan_done(param);
 	}
 }
 
@@ -596,8 +585,6 @@ int _net_deregister_signal(void)
 
 	g_dbus_connection_signal_unsubscribe(connection,
 				gdbus_conn_subscribe_id_connman_svc);
-	g_dbus_connection_signal_unsubscribe(connection,
-				gdbus_conn_subscribe_id_connman_man);
 	g_dbus_connection_signal_unsubscribe(connection,
 				gdbus_conn_subscribe_id_supplicant);
 	g_dbus_connection_signal_unsubscribe(connection,
@@ -638,19 +625,6 @@ int _net_register_signal(void)
 						NULL,
 						G_DBUS_SIGNAL_FLAGS_NONE,
 						__net_connman_service_signal_filter,
-						NULL,
-						NULL);
-
-	/* Create connman manager connection */
-	gdbus_conn_subscribe_id_connman_man = g_dbus_connection_signal_subscribe(
-						connection,
-						CONNMAN_SERVICE,
-						CONNMAN_MANAGER_INTERFACE,
-						NULL,
-						NULL,
-						NULL,
-						G_DBUS_SIGNAL_FLAGS_NONE,
-						__net_connman_manager_signal_filter,
 						NULL,
 						NULL);
 
