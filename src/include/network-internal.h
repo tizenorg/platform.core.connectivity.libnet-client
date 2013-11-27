@@ -45,7 +45,7 @@ extern "C" {
 
 #define CONNMAN_STATE_STRLEN 16
 
-#define	NET_MEMFREE(x)	{if(x != NULL) free(x); x = NULL;}
+#define	NET_MEMFREE(x)	do { g_free(x); x=NULL; } while(0)
 
 /** ConnMan interfaces */
 #define CONNMAN_SERVICE				"net.connman"

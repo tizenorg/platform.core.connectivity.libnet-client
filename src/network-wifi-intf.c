@@ -73,31 +73,32 @@ static net_wifi_state_t __net_get_wifi_service_state(char *profile_name)
 	}
 
 	for (i = 0;i < profile_count;i++) {
-		switch (profile_info->ProfileState) {
+		switch (profile_info[i].ProfileState) {
 		case NET_STATE_TYPE_ASSOCIATION :
 		case NET_STATE_TYPE_CONFIGURATION :
 			wifi_state = WIFI_CONNECTING;
-			g_strlcpy(profile_name, profile_info->ProfileName,
-					sizeof(profile_info->ProfileName));
+			g_strlcpy(profile_name, profile_info[i].ProfileName,
+					sizeof(profile_info[i].ProfileName));
 			break;
 		case NET_STATE_TYPE_READY :
 		case NET_STATE_TYPE_ONLINE :
 			wifi_state = WIFI_CONNECTED;
-			g_strlcpy(profile_name, profile_info->ProfileName,
-					sizeof(profile_info->ProfileName));
+			g_strlcpy(profile_name, profile_info[i].ProfileName,
+					sizeof(profile_info[i].ProfileName));
 			break;
 		case NET_STATE_TYPE_UNKNOWN :
 		case NET_STATE_TYPE_IDLE :
 		case NET_STATE_TYPE_FAILURE :
 		case NET_STATE_TYPE_DISCONNECT :
 			break;
-		}
-		profile_info++;
+		}		
 	}
 
 	if (wifi_state == WIFI_CONNECTED &&
 	    request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE)
 		wifi_state = WIFI_DISCONNECTING;
+
+	NET_MEMFREE(profile_info);
 
 	__NETWORK_FUNC_EXIT__;
 	return wifi_state;
