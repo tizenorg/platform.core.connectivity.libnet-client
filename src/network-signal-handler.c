@@ -590,8 +590,10 @@ int _net_deregister_signal(void)
 				gdbus_conn_subscribe_id_netconfig);
 
 	Error = _net_dbus_close_gdbus_call();
-	if (Error != NET_ERR_NONE)
+	if (Error != NET_ERR_NONE) {
+		__NETWORK_FUNC_EXIT__;
 		return Error;
+	}
 
 	NETWORK_LOG(NETWORK_LOW, "Successfully remove signals\n");
 
@@ -607,12 +609,16 @@ int _net_register_signal(void)
 	net_err_t Error = NET_ERR_NONE;
 
 	Error = _net_dbus_create_gdbus_call();
-	if (Error != NET_ERR_NONE)
+	if (Error != NET_ERR_NONE) {
+		__NETWORK_FUNC_EXIT__;
 		return Error;
+	}
 
 	connection = _net_dbus_get_gdbus_conn();
-	if (connection == NULL)
+	if (connection == NULL) {
+		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_UNKNOWN;
+	}
 
 	/* Create connman service connection */
 	gdbus_conn_subscribe_id_connman_svc = g_dbus_connection_signal_subscribe(

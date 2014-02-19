@@ -224,7 +224,8 @@ EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
 	NetworkInfo.ClientEventCb = event_cb;
 	NetworkInfo.user_data = user_data;
 
-	NETWORK_LOG(NETWORK_HIGH, "Client Register Successfully\n");
+	NETWORK_LOG(NETWORK_HIGH, "Client register successfully(%d)\n",
+			NetworkInfo.ref_count);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -232,12 +233,15 @@ EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
 
 EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t client_type, void *user_data)
 {
+	__NETWORK_FUNC_ENTER__;
+
 	net_err_t Error = NET_ERR_NONE;
 
 	if (event_cb == NULL ||
 			(client_type != NET_DEVICE_DEFAULT &&
 			 client_type != NET_DEVICE_WIFI)) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid EventCb parameter\n");
+		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
@@ -245,12 +249,14 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 	case NET_DEVICE_DEFAULT:
 		if (NetworkInfo.ClientEventCb_conn != NULL) {
 			NETWORK_LOG(NETWORK_ERROR, "Connection CAPI Already registered\n");
+			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_APP_ALREADY_REGISTERED;
 		}
 		break;
 	case NET_DEVICE_WIFI:
 		if (NetworkInfo.ClientEventCb_wifi != NULL) {
 			NETWORK_LOG(NETWORK_ERROR, "Wi-Fi CAPI Already registered\n");
+			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_APP_ALREADY_REGISTERED;
 		}
 	default:
@@ -262,6 +268,7 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 		if (Error != NET_ERR_NONE && Error != NET_ERR_APP_ALREADY_REGISTERED) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to register DBus signal [%s]\n",
 					_net_print_error(Error));
+			__NETWORK_FUNC_EXIT__;
 			return Error;
 		}
 
@@ -283,8 +290,10 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 		break;
 	}
 
-	NETWORK_LOG(NETWORK_HIGH, "Client Register Successfully\n");
+	NETWORK_LOG(NETWORK_HIGH, "Client register successfully(%d)\n",
+			NetworkInfo.ref_count);
 
+	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
 }
 
@@ -316,7 +325,9 @@ EXPORT_API int net_deregister_client(void)
 
 	NetworkInfo.ClientEventCb = NULL;
 	NetworkInfo.user_data = NULL;
-	NETWORK_LOG(NETWORK_HIGH, "Client De-Register Successfully\n");
+
+	NETWORK_LOG(NETWORK_HIGH, "Client de-register successfully(%d)\n",
+			NetworkInfo.ref_count);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -324,8 +335,11 @@ EXPORT_API int net_deregister_client(void)
 
 EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 {
+	__NETWORK_FUNC_ENTER__;
+
 	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
@@ -333,6 +347,7 @@ EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 	case NET_DEVICE_DEFAULT:
 		if (NetworkInfo.ClientEventCb_conn == NULL) {
 			NETWORK_LOG(NETWORK_ERROR, "Connection CAPI was not registered\n");
+			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_APP_NOT_REGISTERED;
 		}
 		NetworkInfo.ClientEventCb_conn = NULL;
@@ -341,6 +356,7 @@ EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 	case NET_DEVICE_WIFI:
 		if (NetworkInfo.ClientEventCb_wifi == NULL) {
 			NETWORK_LOG(NETWORK_ERROR, "Wi-Fi CAPI was not registered\n");
+			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_APP_NOT_REGISTERED;
 		}
 		NetworkInfo.ClientEventCb_wifi = NULL;
@@ -348,6 +364,7 @@ EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 		break;
 	default:
 		NETWORK_LOG(NETWORK_ERROR, "Invalid client_type parameter\n");
+		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
@@ -356,7 +373,10 @@ EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 		_net_clear_request_table();
 	}
 
-	NETWORK_LOG(NETWORK_HIGH, "Client De-Register Successfully\n");
+	NETWORK_LOG(NETWORK_HIGH, "Client de-register successfully(%d)\n",
+			NetworkInfo.ref_count);
+
+	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
 }
 

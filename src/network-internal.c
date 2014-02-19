@@ -239,7 +239,7 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 	gchar *tech_prefix;
 	gchar *path = NULL;
 	gchar *key = NULL;
-	gboolean data;
+	gboolean data = FALSE;
 
 	if (g_str_equal(tech_state->technology, "wifi") == TRUE)
 		tech_prefix = CONNMAN_WIFI_TECHNOLOGY_PREFIX;
@@ -504,8 +504,6 @@ int _net_dbus_create_gdbus_call(void)
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_ALREADY_REGISTERED;
 	}
-
-	g_type_init();
 
 	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (!addr) {
