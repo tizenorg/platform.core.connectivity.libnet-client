@@ -232,8 +232,6 @@ int _net_is_valid_service_type(net_service_type_t service_type);
 int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_info);
 int _net_check_profile_name(const char* ProfileName);
 int _net_get_profile_list(net_device_t device_type, net_profile_info_t** profile_info, int* profile_count);
-int _net_mutex_init(void);
-void _net_mutex_destroy(void);
 void _net_client_callback(net_event_info_t *event_data);
 int _net_get_service_profile(net_service_type_t service_type, net_profile_name_t *profile_name);
 int _net_get_default_profile_info(net_profile_info_t *profile_info);

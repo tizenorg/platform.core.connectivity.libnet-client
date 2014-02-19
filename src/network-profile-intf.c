@@ -23,10 +23,6 @@
 #include "network-dbus-request.h"
 
 /*****************************************************************************
- * 	Macros and Typedefs
- *****************************************************************************/
-
-/*****************************************************************************
  * 	Local Functions Declaration
  *****************************************************************************/
 static int __net_extract_wifi_info(GVariantIter *array, net_profile_info_t* ProfInfo);
@@ -58,18 +54,10 @@ static int __net_set_default_cellular_service_profile_sync(const char* ProfileNa
 static int __net_set_default_cellular_service_profile_async(const char* ProfileName);
 
 /*****************************************************************************
- * 	Global Functions
+ * Extern Variables
  *****************************************************************************/
-
-/*****************************************************************************
- * 	Extern Variables
- *****************************************************************************/
-extern network_info_t NetworkInfo;
-extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
-
-/*****************************************************************************
- * 	Global Variables
- *****************************************************************************/
+extern __thread network_info_t NetworkInfo;
+extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
  * 	Local Functions Definition
@@ -2020,10 +2008,10 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 EXPORT_API int net_add_profile(net_service_type_t network_type, net_profile_info_t *prof_info)
 {
 	net_err_t Error = NET_ERR_NONE;
-	
+
 	__NETWORK_FUNC_ENTER__;
-	
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2044,7 +2032,7 @@ EXPORT_API int net_add_profile(net_service_type_t network_type, net_profile_info
 		return Error;
 	}
 
-	__NETWORK_FUNC_EXIT__;	
+	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
@@ -2056,8 +2044,8 @@ EXPORT_API int net_delete_profile(const char* profile_name)
 	net_profile_name_t pdp_prof_name;
 	net_profile_name_t wifi_prof_name;
 	net_profile_info_t prof_info;
-	
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2126,10 +2114,10 @@ EXPORT_API int net_delete_profile(const char* profile_name)
 EXPORT_API int net_get_profile_info(const char *profile_name, net_profile_info_t *prof_info)
 {
 	__NETWORK_FUNC_ENTER__;
-	
+
 	net_err_t Error = NET_ERR_NONE;
-	
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2160,7 +2148,7 @@ EXPORT_API int net_modify_profile(const char* profile_name, net_profile_info_t* 
 	net_err_t Error = NET_ERR_NONE;
 	net_profile_info_t exProfInfo;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2215,12 +2203,12 @@ EXPORT_API int net_get_profile_list(net_device_t device_type, net_profile_info_t
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
-	
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
-	}	
+	}
 
 	if (device_type != NET_DEVICE_CELLULAR &&
 	    device_type != NET_DEVICE_WIFI &&
@@ -2231,32 +2219,32 @@ EXPORT_API int net_get_profile_list(net_device_t device_type, net_profile_info_t
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_NOT_SUPPORTED;
 	}
-	
+
 	Error = _net_get_profile_list(device_type, &profile_info, &profile_count);
 
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR,
 				"Failed to get service(profile) list. Error [%s]\n",
 				_net_print_error(Error));
-		
+
 		NET_MEMFREE(profile_info);
-		
+
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	} else {
 		*count = profile_count;
 		*profile_list = profile_info;
 	}
-	
-	__NETWORK_FUNC_EXIT__;	
-	return NET_ERR_NONE;	
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
 }
 
 EXPORT_API int net_set_default_cellular_service_profile(const char *profile_name)
 {
 	net_err_t Error = NET_ERR_NONE;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -2284,8 +2272,8 @@ EXPORT_API int net_set_default_cellular_service_profile_async(const char *profil
 {
 	net_err_t Error = NET_ERR_NONE;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application was not registered\n");
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!!! Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
@@ -2296,7 +2284,7 @@ EXPORT_API int net_set_default_cellular_service_profile_async(const char *profil
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if(request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT].flag == TRUE) {
+	if (request_table[NETWORK_REQUEST_TYPE_SET_DEFAULT].flag == TRUE) {
 		NETWORK_LOG(NETWORK_ERROR, "Error!! Request already in progress\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_IN_PROGRESS;

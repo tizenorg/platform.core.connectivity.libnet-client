@@ -17,7 +17,6 @@
  *
  */
 
-#include <vconf.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
@@ -32,8 +31,8 @@
 /*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
-extern network_info_t NetworkInfo;
-extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
+extern __thread network_info_t NetworkInfo;
+extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 static int __net_error_string_to_enum(const char* error)
 {

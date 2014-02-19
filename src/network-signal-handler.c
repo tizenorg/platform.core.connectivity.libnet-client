@@ -17,20 +17,19 @@
  *
  */
 
-#include <vconf.h>
-
 #include "network-internal.h"
 #include "network-dbus-request.h"
 #include "network-signal-handler.h"
 
-extern network_info_t NetworkInfo;
-extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
+extern __thread network_info_t NetworkInfo;
+extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
-static net_state_type_t service_state_table[NET_DEVICE_MAX] = {NET_STATE_TYPE_UNKNOWN,};
-static int net_service_error = NET_ERR_NONE;
-static guint gdbus_conn_subscribe_id_connman_svc = 0;
-static guint gdbus_conn_subscribe_id_supplicant = 0;
-static guint gdbus_conn_subscribe_id_netconfig = 0;
+static __thread net_state_type_t service_state_table[NET_DEVICE_MAX] =
+						{ NET_STATE_TYPE_UNKNOWN, };
+static __thread int net_service_error = NET_ERR_NONE;
+static __thread guint gdbus_conn_subscribe_id_connman_svc = 0;
+static __thread guint gdbus_conn_subscribe_id_supplicant = 0;
+static __thread guint gdbus_conn_subscribe_id_netconfig = 0;
 
 static int __net_handle_wifi_power_rsp(gboolean value)
 {

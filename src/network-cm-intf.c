@@ -23,12 +23,12 @@
 /*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
-extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
+extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
  * 	Global Variables
  *****************************************************************************/
-network_info_t NetworkInfo = {0, };
+__thread network_info_t NetworkInfo = { 0, };
 
 static int __net_get_default_profile(void *param, net_profile_info_t *active_profile_info)
 {
@@ -36,7 +36,7 @@ static int __net_get_default_profile(void *param, net_profile_info_t *active_pro
 
 	net_err_t Error = NET_ERR_NONE;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -201,23 +201,16 @@ EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
 	}
 
 	if (NetworkInfo.ClientEventCb != NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Application Already registered\n");
+		NETWORK_LOG(NETWORK_ERROR, "Application already registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_ALREADY_REGISTERED;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
-		if (_net_mutex_init() != NET_ERR_NONE) {
-			__NETWORK_FUNC_EXIT__;
-			return NET_ERR_UNKNOWN;
-		}
-
+	if (NetworkInfo.ref_count < 1) {
 		Error = _net_register_signal();
 		if (Error != NET_ERR_NONE && Error != NET_ERR_APP_ALREADY_REGISTERED) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to register DBus signal [%s]\n",
 					_net_print_error(Error));
-			_net_mutex_destroy();
-
 			__NETWORK_FUNC_EXIT__;
 			return Error;
 		}
@@ -226,7 +219,7 @@ EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
 		_net_init_service_state_table();
 	}
 
-	g_atomic_int_inc(&NetworkInfo.ref_count);
+	__sync_fetch_and_add(&NetworkInfo.ref_count, 1);
 
 	NetworkInfo.ClientEventCb = event_cb;
 	NetworkInfo.user_data = user_data;
@@ -264,15 +257,11 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 		break;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
-		if (_net_mutex_init() != NET_ERR_NONE)
-			return NET_ERR_UNKNOWN;
-
+	if (NetworkInfo.ref_count < 1) {
 		Error = _net_register_signal();
 		if (Error != NET_ERR_NONE && Error != NET_ERR_APP_ALREADY_REGISTERED) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to register DBus signal [%s]\n",
 					_net_print_error(Error));
-			_net_mutex_destroy();
 			return Error;
 		}
 
@@ -280,7 +269,7 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 		_net_init_service_state_table();
 	}
 
-	g_atomic_int_inc(&NetworkInfo.ref_count);
+	__sync_fetch_and_add(&NetworkInfo.ref_count, 1);
 
 	switch (client_type) {
 	case NET_DEVICE_DEFAULT:
@@ -302,7 +291,7 @@ EXPORT_API int net_register_client_ext(net_event_cb_t event_cb, net_device_t cli
 /**
  * @fn  EXPORT_API int net_deregister_client(void)
  *
- * This function deregisters with network client 
+ * This function deregisters with network client
  * This is Sync API.
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
@@ -313,16 +302,15 @@ EXPORT_API int net_deregister_client(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0 ||
-	    NetworkInfo.ClientEventCb == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "Application was not registered\n");
+	if (NetworkInfo.ref_count < 1 ||
+			NetworkInfo.ClientEventCb == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
-	if (g_atomic_int_dec_and_test(&NetworkInfo.ref_count)) {
+	if (__sync_sub_and_fetch(&NetworkInfo.ref_count, 1) < 1) {
 		_net_deregister_signal();
-		_net_mutex_destroy();
 		_net_clear_request_table();
 	}
 
@@ -336,8 +324,8 @@ EXPORT_API int net_deregister_client(void)
 
 EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 {
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Application was not registered\n");
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
@@ -363,9 +351,8 @@ EXPORT_API int net_deregister_client_ext(net_device_t client_type)
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_dec_and_test(&NetworkInfo.ref_count)) {
+	if (__sync_sub_and_fetch(&NetworkInfo.ref_count, 1) < 1) {
 		_net_deregister_signal();
-		_net_mutex_destroy();
 		_net_clear_request_table();
 	}
 
@@ -616,8 +603,8 @@ EXPORT_API int net_is_connected(void)
 	net_err_t Error = NET_ERR_NONE;
 
 	__NETWORK_FUNC_ENTER__;
-	
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -659,7 +646,7 @@ EXPORT_API int net_get_network_status(net_device_t device_type, net_cm_network_s
 
 	__NETWORK_FUNC_ENTER__;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -682,7 +669,7 @@ EXPORT_API int net_get_technology_properties(net_device_t tech_type, net_tech_in
 
 	__NETWORK_FUNC_ENTER__;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -704,7 +691,7 @@ EXPORT_API int net_get_statistics(net_device_t device_type, net_statistics_type_
 	net_err_t Error = NET_ERR_NONE;
 
 	if ((Error = _net_dbus_get_statistics(device_type, statistics_type, size)) != NET_ERR_NONE )
-		NETWORK_LOG(NETWORK_ERROR, "Failed to get statistics. error: [%s]\n",
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get statistics. error: %s\n",
 				_net_print_error(Error));
 
 	return Error;
@@ -715,7 +702,7 @@ EXPORT_API int net_set_statistics(net_device_t device_type, net_statistics_type_
 	net_err_t Error = NET_ERR_NONE;
 
 	if ((Error = _net_dbus_set_statistics(device_type, statistics_type)) != NET_ERR_NONE )
-		NETWORK_LOG(NETWORK_ERROR, "Failed to set statistics. error: [%s]\n",
+		NETWORK_LOG(NETWORK_ERROR, "Failed to set statistics. error: %s\n",
 				_net_print_error(Error));
 
 	return Error;
@@ -791,7 +778,7 @@ EXPORT_API int net_open_connection_with_profile(const char *profile_name)
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -857,7 +844,7 @@ EXPORT_API int net_open_connection_with_preference(net_service_type_t service_ty
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -927,7 +914,7 @@ EXPORT_API int net_open_connection_with_preference_ext(net_service_type_t servic
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -1002,7 +989,7 @@ EXPORT_API int net_close_connection(const char *profile_name)
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;

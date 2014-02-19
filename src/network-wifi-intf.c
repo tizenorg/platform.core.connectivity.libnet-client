@@ -24,27 +24,10 @@
 #include "network-signal-handler.h"
 
 /*****************************************************************************
- * 	Macros and Typedefs
- *****************************************************************************/
-
-/*****************************************************************************
- * 	Local Functions Declaration
- *****************************************************************************/
-static net_wifi_state_t __net_get_wifi_service_state();
-
-/*****************************************************************************
- * 	Global Functions
- *****************************************************************************/
-
-/*****************************************************************************
  * 	Extern Variables
  *****************************************************************************/
-extern network_info_t NetworkInfo;
-extern network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
-
-/*****************************************************************************
- * 	Global Variables
- *****************************************************************************/
+extern __thread network_info_t NetworkInfo;
+extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
  * 	Local Functions Definition
@@ -145,7 +128,7 @@ EXPORT_API int net_specific_scan_wifi(const char *ssid)
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -197,7 +180,7 @@ EXPORT_API int net_open_connection_with_wifi_info(const net_wifi_connection_info
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -247,7 +230,7 @@ EXPORT_API int net_wifi_power_on(void)
 	net_err_t Error = NET_ERR_NONE;
 	int hotspot_state = 0;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -305,7 +288,7 @@ EXPORT_API int net_wifi_power_off(void)
 
 	net_err_t Error = NET_ERR_NONE;
 
-	if(g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -360,7 +343,7 @@ EXPORT_API int net_scan_wifi(void)
 
 	net_err_t Error = NET_ERR_NONE;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -421,7 +404,7 @@ EXPORT_API int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -493,7 +476,7 @@ EXPORT_API int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_n
 
 	net_wifi_state_t wifi_state;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
@@ -529,9 +512,8 @@ EXPORT_API int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t
 
 	net_err_t Error = NET_ERR_NONE;
 
-	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+	if (NetworkInfo.ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
-
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
 	}

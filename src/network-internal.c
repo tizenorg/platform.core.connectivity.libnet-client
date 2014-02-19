@@ -22,11 +22,6 @@
 #include "network-internal.h"
 #include "network-dbus-request.h"
 
-struct networkinfo_mutex_data {
-	pthread_mutex_t callback_mutex;
-	pthread_mutex_t wifi_state_mutex;
-};
-
 struct gdbus_connection_data {
 	GDBusConnection *connection;
 	int conn_ref_count;
@@ -37,16 +32,14 @@ struct gdbus_connection_data {
 /*****************************************************************************
  * 	Extern Global Variables
  *****************************************************************************/
-extern network_info_t NetworkInfo;
+extern __thread network_info_t NetworkInfo;
 
 /*****************************************************************************
  * 	Global Variables
  *****************************************************************************/
-network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = {{0,},};
+__thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = { { 0, }, };
 
-static struct networkinfo_mutex_data networkinfo_mutex =
-							{ { { 0, }, }, { { 0, }, } };
-static struct gdbus_connection_data gdbus_conn = { NULL, };
+static __thread struct gdbus_connection_data gdbus_conn = { NULL, 0, NULL, NULL };
 
 static char *__convert_eap_type_to_string(gchar eap_type)
 {
@@ -416,40 +409,8 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 	return Error;
 }
 
-int _net_mutex_init(void)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	if (pthread_mutex_init(&networkinfo_mutex.callback_mutex, NULL) != 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Mutex for callback initialization failed!\n");
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	if (pthread_mutex_init(&networkinfo_mutex.wifi_state_mutex, NULL) != 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Mutex for wifi state initialization failed!\n");
-		pthread_mutex_destroy(&networkinfo_mutex.callback_mutex);
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
-	}
-
-	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
-}
-
-void _net_mutex_destroy(void)
-{
-	__NETWORK_FUNC_ENTER__;
-
-	pthread_mutex_destroy(&networkinfo_mutex.callback_mutex);
-	pthread_mutex_destroy(&networkinfo_mutex.wifi_state_mutex);
-
-	__NETWORK_FUNC_EXIT__;
-}
-
 void _net_client_callback(net_event_info_t *event_data)
 {
-	pthread_mutex_lock(&networkinfo_mutex.callback_mutex);
 	__NETWORK_FUNC_ENTER__;
 
 	if (NetworkInfo.ClientEventCb != NULL)
@@ -462,12 +423,10 @@ void _net_client_callback(net_event_info_t *event_data)
 		NetworkInfo.ClientEventCb_wifi(event_data, NetworkInfo.user_data_wifi);
 
 	__NETWORK_FUNC_EXIT__;
-	pthread_mutex_unlock(&networkinfo_mutex.callback_mutex);
 }
 
 net_wifi_state_t _net_get_wifi_state(void)
 {
-	pthread_mutex_lock(&networkinfo_mutex.wifi_state_mutex);
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
@@ -491,7 +450,6 @@ net_wifi_state_t _net_get_wifi_state(void)
 
 state_done:
 	__NETWORK_FUNC_EXIT__;
-	pthread_mutex_unlock(&networkinfo_mutex.wifi_state_mutex);
 	return wifi_state;
 }
 
@@ -509,7 +467,7 @@ void _net_clear_request_table(void)
 
 gboolean _net_dbus_is_pending_call_used(void)
 {
-	if (g_atomic_int_get(&gdbus_conn.conn_ref_count) > 0)
+	if (gdbus_conn.conn_ref_count > 0)
 		return TRUE;
 
 	return FALSE;
@@ -518,16 +476,18 @@ gboolean _net_dbus_is_pending_call_used(void)
 void _net_dbus_pending_call_ref(void)
 {
 	g_object_ref(gdbus_conn.connection);
-	g_atomic_int_inc(&gdbus_conn.conn_ref_count);
+
+	__sync_fetch_and_add(&gdbus_conn.conn_ref_count, 1);
 }
 
 void _net_dbus_pending_call_unref(void)
 {
-	if (g_atomic_int_get(&gdbus_conn.conn_ref_count) < 1)
+	if (gdbus_conn.conn_ref_count < 1)
 		return;
 
 	g_object_unref(gdbus_conn.connection);
-	if (g_atomic_int_dec_and_test(&gdbus_conn.conn_ref_count) == TRUE &&
+
+	if (__sync_sub_and_fetch(&gdbus_conn.conn_ref_count, 1) < 1 &&
 			gdbus_conn.handle_libnetwork != NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL\n");
 
@@ -582,8 +542,6 @@ int _net_dbus_create_gdbus_call(void)
 
 int _net_dbus_close_gdbus_call(void)
 {
-	int refcount = 0;
-
 	g_cancellable_cancel(gdbus_conn.cancellable);
 	g_object_unref(gdbus_conn.cancellable);
 	gdbus_conn.cancellable = NULL;
@@ -593,15 +551,15 @@ int _net_dbus_close_gdbus_call(void)
 		return NET_ERR_UNKNOWN;
 	}
 
-	refcount = g_atomic_int_get(&gdbus_conn.conn_ref_count);
-	if (refcount < 1) {
+	if (gdbus_conn.conn_ref_count < 1) {
 		NETWORK_LOG(NETWORK_ERROR, "There is no pending call\n");
 
 		g_object_unref(gdbus_conn.connection);
 		gdbus_conn.connection = NULL;
 	} else {
 		NETWORK_LOG(NETWORK_ERROR,
-				"There are %d pending calls, waiting to be cleared\n", refcount);
+				"There are %d pending calls, waiting to be cleared\n",
+				gdbus_conn.conn_ref_count);
 
 		if (gdbus_conn.handle_libnetwork != NULL)
 			NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL\n");
