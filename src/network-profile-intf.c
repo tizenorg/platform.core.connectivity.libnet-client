@@ -48,7 +48,7 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 		net_profile_info_t* ProfInfo, net_profile_info_t* exProfInfo);
 static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName);
 static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
-		wlan_security_mode_type_t sec_mode);
+		wlan_security_mode_type_t sec_mode, gboolean passpoint);
 static int __net_telephony_add_profile(net_profile_info_t *ProfInfo, net_service_type_t network_type);
 static int __net_set_default_cellular_service_profile_sync(const char* ProfileName);
 static int __net_set_default_cellular_service_profile_async(const char* ProfileName);
@@ -1620,7 +1620,7 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 }
 
 static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
-		wlan_security_mode_type_t sec_mode)
+		wlan_security_mode_type_t sec_mode, gboolean passpoint)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -1629,7 +1629,21 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 	char param0[NET_PROFILE_NAME_LEN_MAX + 8] = "";
 	GVariant *params = NULL;
 
-	if (WLAN_SEC_MODE_IEEE8021X != sec_mode) {
+	if (passpoint == TRUE && WLAN_SEC_MODE_IEEE8021X == sec_mode) {
+		message = _net_invoke_dbus_method(CONNMAN_SERVICE,
+				WifiProfName->ProfileName,
+				CONNMAN_SERVICE_INTERFACE, "Remove", NULL,
+				&Error);
+		g_variant_unref(message);
+
+		g_snprintf(param0, NET_PROFILE_NAME_LEN_MAX + 8, "string:%s",
+				WifiProfName->ProfileName);
+		params = g_variant_new("(s)", param0);
+
+		message = _net_invoke_dbus_method(NETCONFIG_SERVICE,
+				NETCONFIG_WIFI_PATH, NETCONFIG_WIFI_INTERFACE,
+				"DeleteConfig", params, &Error);
+	} else if (passpoint == TRUE || WLAN_SEC_MODE_IEEE8021X != sec_mode) {
 		message = _net_invoke_dbus_method(CONNMAN_SERVICE,
 				WifiProfName->ProfileName,
 				CONNMAN_SERVICE_INTERFACE, "Remove", NULL,
@@ -2080,7 +2094,8 @@ EXPORT_API int net_delete_profile(const char* profile_name)
 
 	if (prof_info.profile_type == NET_DEVICE_WIFI) {
 		Error = __net_wifi_delete_profile(&wifi_prof_name,
-				prof_info.ProfileInfo.Wlan.security_info.sec_mode);
+				prof_info.ProfileInfo.Wlan.security_info.sec_mode,
+				prof_info.ProfileInfo.Wlan.passpoint);
 		if (Error != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR,
 					"Failed to delete service(profile). Error [%s]\n",
