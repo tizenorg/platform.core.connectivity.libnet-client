@@ -168,6 +168,80 @@ EXPORT_API int net_specific_scan_wifi(const char *ssid)
 	return Error;
 }
 
+EXPORT_API int net_wifi_get_passpoint(int *enabled)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (NetworkInfo.wifi_state == WIFI_OFF) {
+		if ((NetworkInfo.wifi_state = _net_get_wifi_state()) == WIFI_OFF) {
+			NETWORK_LOG(NETWORK_ERROR, "Wi-Fi is powered off!\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_INVALID_OPERATION;
+		}
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "pending call in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_OPERATION;
+	}
+
+	Error = _net_dbus_get_passpoint(enabled);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"_net_dbus_get_passpoint() failed. Error [%s]\n",
+				_net_print_error(Error));
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+EXPORT_API int net_wifi_set_passpoint(int enable)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (NetworkInfo.wifi_state == WIFI_OFF) {
+		if ((NetworkInfo.wifi_state = _net_get_wifi_state()) == WIFI_OFF) {
+			NETWORK_LOG(NETWORK_ERROR, "Wi-Fi is powered off!\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_INVALID_OPERATION;
+		}
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "pending call in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_OPERATION;
+	}
+
+	Error = _net_dbus_set_passpoint(enable);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR,
+				"_net_dbus_set_passpoint() failed. Error [%s]\n",
+				_net_print_error(Error));
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 EXPORT_API int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_info)
 {
 	__NETWORK_FUNC_ENTER__;

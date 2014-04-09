@@ -385,6 +385,31 @@ static void __net_specific_scan_wifi_reply(GObject *source_object, GAsyncResult 
 	__NETWORK_FUNC_EXIT__;
 }
 
+static void __net_set_passpoint_reply(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GDBusConnection *conn = NULL;
+	GError *error = NULL;
+	net_err_t Error = NET_ERR_NONE;
+
+	conn = G_DBUS_CONNECTION (source_object);
+	g_dbus_connection_call_finish(conn, res, &error);
+	if (error != NULL) {
+		Error = __net_netconfig_error_string_to_enum(error->message);
+		g_error_free(error);
+	}
+
+	if (Error != NET_ERR_NONE)
+		NETWORK_LOG(NETWORK_ERROR, "set passpoint failed. Error [%d]\n", Error);
+	else
+		NETWORK_LOG(NETWORK_LOW, "set passpoint succeed\n");
+
+	_net_dbus_pending_call_unref();
+
+	__NETWORK_FUNC_EXIT__;
+}
+
 static void __net_set_default_reply(GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -1992,3 +2017,92 @@ int _net_dbus_specific_scan_request(const char *ssid)
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
 }
+
+int _net_dbus_get_passpoint(int *enabled)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GDBusConnection *connection;
+	GError *error = NULL;
+	GVariant *reply = NULL;
+	net_err_t Error = NET_ERR_NONE;
+
+	connection = _net_dbus_get_gdbus_conn();
+	if (connection == NULL)
+		return NET_ERR_APP_NOT_REGISTERED;
+
+	reply = g_dbus_connection_call_sync(connection,
+										NETCONFIG_SERVICE,
+										NETCONFIG_WIFI_PATH,
+										NETCONFIG_WIFI_INTERFACE,
+										"GetPasspoint",
+										NULL,
+										NULL,
+										G_DBUS_CALL_FLAGS_NONE,
+										DBUS_REPLY_TIMEOUT,
+										_net_dbus_get_gdbus_cancellable(),
+										&error);
+	if (reply == NULL) {
+		if (error != NULL) {
+			NETWORK_LOG(NETWORK_ERROR,
+						"g_dbus_connection_call_sync() failed."
+						"error [%d: %s]\n", error->code, error->message);
+			Error = __net_error_string_to_enum(error->message);
+			g_error_free(error);
+		} else {
+			NETWORK_LOG(NETWORK_ERROR,
+					"g_dbus_connection_call_sync() failed.\n");
+			Error = NET_ERR_UNKNOWN;
+		}
+
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	/** Check Reply */
+	int result = 0;
+	g_variant_get(reply, "(i)", &result);
+	*enabled = result;
+
+	NETWORK_LOG(NETWORK_HIGH, "Get passpoint result: %d\n", result);
+
+	g_variant_unref(reply);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
+int _net_dbus_set_passpoint(int enable)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GDBusConnection *connection;
+	GVariant *params;
+
+	connection = _net_dbus_get_gdbus_conn();
+	if (connection == NULL)
+		return NET_ERR_APP_NOT_REGISTERED;
+
+	params = g_variant_new("(i)", enable);
+
+	g_dbus_connection_call(connection,
+							NETCONFIG_SERVICE,
+							NETCONFIG_WIFI_PATH,
+							NETCONFIG_WIFI_INTERFACE,
+							"SetPasspoint",
+							params,
+							NULL,
+							G_DBUS_CALL_FLAGS_NONE,
+							6 * DBUS_REPLY_TIMEOUT,
+							_net_dbus_get_gdbus_cancellable(),
+							(GAsyncReadyCallback) __net_set_passpoint_reply,
+							NULL);
+
+	NETWORK_LOG(NETWORK_HIGH, "Successfully configured\n");
+
+	_net_dbus_pending_call_ref();
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+

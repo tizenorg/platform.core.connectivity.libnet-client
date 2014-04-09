@@ -916,6 +916,8 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("o	- Remove route\n");
 		debug_print("p	- Reqeust specific scan\n");
 		debug_print("q	- Get technology state\n");
+		debug_print("r	- Set passpoint on/off\n");
+		debug_print("s	- Get passpoint state\n");
 		debug_print("z 	- Exit \n");
 
 		debug_print("ENTER 	- Show options menu.......\n");
@@ -1660,6 +1662,46 @@ static gboolean network_main_gthread(gpointer data)
 		gettimeofday(&timevar, NULL);
 		finish_time = Convert_time2double(timevar);
 		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+	}
+		break;
+
+	case 'r': {
+		int enable;
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		debug_print( "Enter passpoint on/off(0:off, 1:on) : \n");
+		scanf("%d", &enable);
+
+		if (net_wifi_set_passpoint(enable) != NET_ERR_NONE) {
+			debug_print("Error!! net_wifi_set_passpoint() failed.\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+
+		debug_print("net_wifi_set_passpoint() success\n");
+	}
+		break;
+
+	case 's': {
+		int enabled;
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		if (net_wifi_get_passpoint(&enabled) != NET_ERR_NONE) {
+			debug_print("Error!! net_wifi_get_passpoint() failed.\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+
+		debug_print("net_wifi_get_passpoint() success\n");
+		debug_print("current passpoint sate(0:off, 1:on) = [%d]\n", enabled);
 	}
 		break;
 

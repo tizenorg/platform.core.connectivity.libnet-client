@@ -115,6 +115,8 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 gboolean __net_dbus_abort_open_request(const char *profile_name);
 int _net_dbus_specific_scan_request(const char *ssid);
 int _net_dbus_set_default(const char* profile_name);
+int _net_dbus_get_passpoint(int *enabled);
+int _net_dbus_set_passpoint(int enable);
 
 #ifdef __cplusplus
 }

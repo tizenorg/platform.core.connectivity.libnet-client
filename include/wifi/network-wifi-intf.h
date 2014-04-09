@@ -184,6 +184,38 @@ int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t scan_mode)
 
 int net_specific_scan_wifi(const char *ssid);
 
+/**
+ * @fn   int net_wifi_get_passpoint(int *enable)
+ *
+ * This function requests current passpoint on/off state to NetConfig daemon,
+ *
+ * \par Sync (or) Sync:
+ * This is Synchronous API.
+ *
+ * @param[in]	none
+ * @param[out]	enabled	passpoint on(1)/off(0)
+ *
+ * @return      NET_ERR_NONE on success, negative values for errors
+ */
+
+int net_wifi_get_passpoint(int *enable);
+
+/**
+ * @fn   int net_wifi_set_passpoint(int enable)
+ *
+ * This function sends passpoint on/off request to NetConfig daemon,
+ *
+ * \par Sync (or) Async:
+ * This is Asynchronous API.
+ *
+ * @param[in]    enable	passpoint on(1)/off(0)
+ * @param[out]   none
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+
+int net_wifi_set_passpoint(int enable);
+
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Asynchronous Function Declaration
  *****************************************************************************/
