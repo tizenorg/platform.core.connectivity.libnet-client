@@ -330,6 +330,8 @@ typedef struct
 	wlan_connection_mode_type_t wlan_mode;
 	/** Security mode and authentication info */
 	wlan_security_info_t security_info;
+	/** Passpoint AP or not */
+	gboolean passpoint;
 
 	/** network information */
 	net_dev_info_t net_info;

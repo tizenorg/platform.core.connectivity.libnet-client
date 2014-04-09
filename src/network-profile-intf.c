@@ -1070,6 +1070,15 @@ static int __net_extract_wifi_info(GVariantIter *array, net_profile_info_t* Prof
 			else if (g_strcmp0(value, "mixed") == 0)
 				Wlan->security_info.enc_mode = WLAN_ENC_MODE_TKIP_AES_MIXED;
 
+		} else if (g_strcmp0(key, "Passpoint") == 0) {
+			gboolean passpoint;
+
+			passpoint = g_variant_get_boolean(var);
+			if (passpoint)
+				Wlan->passpoint = TRUE;
+			else
+				Wlan->passpoint = FALSE;
+
 		} else if (g_strcmp0(key, "Strength") == 0) {
 			Wlan->Strength = g_variant_get_byte(var);
 		} else if (g_strcmp0(key, "Name") == 0) {
