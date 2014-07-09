@@ -1,13 +1,13 @@
 Name:       libnet-client
 Summary:    Network Client library (Shared library)
 Version:    0.1.77_55
-Release:    1
+Release:    0
 Group:      System/Network
 License:    Flora License
 Source0:    %{name}-%{version}.tar.gz
-Source1001: 	libnet-client.manifest
+Source1001: libnet-client.manifest
 URL:        https://review.tizen.org/git/?p=framework/connectivity/libnet-client.git;a=summary
-Requires(post): /sbin/ldconfig
+Requires(post):   /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  cmake
 BuildRequires:  pkgconfig(dlog)
@@ -32,13 +32,10 @@ Network Client library (Development)
 %setup -q
 cp %{SOURCE1001} .
 
-
 %build
-%autogen.sh
-%configure
-
-make %{?_smp_mflags}
-
+mkdir -p m4
+%reconfigure
+%__make %{?_smp_mflags}
 
 %install
 %make_install
