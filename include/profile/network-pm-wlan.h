@@ -21,6 +21,7 @@
 #define __NETWORK_PM_WLAN_H__
 
 #include "network-pm-config.h"
+#include <glib.h>
 
 #ifdef __cplusplus
 extern "C"
