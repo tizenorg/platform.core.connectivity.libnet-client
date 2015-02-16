@@ -101,15 +101,15 @@ typedef enum
 typedef struct
 {
 	/** Specifies a protocol type */
-	net_pdp_type_t  ProtocolType;
+	net_pdp_type_t	ProtocolType;
 	/** Specifies a service type(Internet, MMS, WAP, etc...) */
 	net_service_type_t ServiceType;
 	/** Network Access Point Name */
-	char            Apn[NET_PDP_APN_LEN_MAX+1];
+	char			Apn[NET_PDP_APN_LEN_MAX+1];
 	/** Authentication info of the PDP profile */
-	net_auth_info_t	AuthInfo;
+	net_auth_info_t AuthInfo;
 	/** Browser Home URL or MMS server URL */
-	char            HomeURL[NET_HOME_URL_LEN_MAX+1];
+	char			HomeURL[NET_HOME_URL_LEN_MAX+1];
 	/** Sim Info Mcc */
 	char Mcc[NET_SIM_INFO_LEN+1];
 	/** Sim Info Mnc */
@@ -127,9 +127,13 @@ typedef struct
 	char Editable;
 	char DefaultConn;
 
+	/** Modem object path for PS cellular profile */
+	char	PSModemPath[NET_PROFILE_NAME_LEN_MAX + 1];
+
 	/** network information */
 	net_dev_info_t net_info;
 } net_pdp_profile_info_t;
+
 
 /**
  * Profile data structures: Ethernet Interface
@@ -229,6 +233,51 @@ typedef struct
 int net_add_profile(net_service_type_t network_type, net_profile_info_t *prof_info);
 
 /*****************************************************************************************/
+
+/* net_reset_profile API function prototype
+ * int net_reset_profile(int type, int sim_id);
+ */
+
+/**
+ * \brief 	Reset to default Profile.
+ *              (0 : Return to Default , 1: Delete profile)
+ *
+ * \par Sync (or) Async:
+ * This is a Asynchronous API.
+ *
+ * \par Important Notes:
+ *
+ * \warning
+ *  None
+ *
+ * \param[in]   type        Reset style
+ *
+ * \par Async Response Message:
+ *        None.
+ *
+ * \return Return Type (int) \n
+ * - NET_ERR_NONE  - indicating that the operation has completed successfully.
+ * - NET_ERR_INVALID_PARAM - Invalid parameter
+ * - NET_ERR_UNKNOWN - Any other error
+ * - NET_ERR_IN_PROGRESS - Already in progress
+ * - NET_ERR_APP_NOT_REGISTERED - Client is invalid may be unregistered
+ *
+ * \par Prospective Clients:
+ * Network Connection Setting Applet, WLAN Setting UI Applet.
+ *
+ * \par Example of how this function would be called:
+ *
+ * int result;\n
+ *
+ * result = net_delete_profile(profile_name);
+ *
+ * if (result == NET_ERR_NONE)
+ *
+******************************************************************************************/
+int net_reset_profile(int type, int sim_id);
+
+/*****************************************************************************************/
+
 /* net_delete_profile API function prototype
  * int net_delete_profile(const char* profile_name);
  */
@@ -416,6 +465,22 @@ int net_set_default_cellular_service_profile(const char *profile_name);
  *
 ******************************************************************************************/
 int net_set_default_cellular_service_profile_async(const char *profile_name);
+
+/*****************************************************************************************/
+/**
+ * This function gets the modem object path which provides the given subscriber id.
+ *
+ * \par Sync (or) Async:
+ * This is a Synchronous API.
+ *
+ * \param[in]	sim_id      Subscriber identity.
+ * \param[out]	modem_path  Multi-subscribers' object path. After use this, it should be free()
+ *
+ * \par Prospective Clients:
+ * External Apps.
+ *
+******************************************************************************************/
+int net_get_cellular_modem_object_path(char **modem_path, int sim_id);
 
 /**
  * \}

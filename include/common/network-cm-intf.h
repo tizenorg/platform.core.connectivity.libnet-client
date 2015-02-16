@@ -111,6 +111,15 @@ typedef enum
 
 	/** Set default cellular profile Response Event */
 	NET_EVENT_CELLULAR_SET_DEFAULT_RSP,
+
+	/** Reset default cellular profile Response Event */
+	NET_EVENT_CELLULAR_RESET_DEFAULT_RSP,
+
+	/** Wi-Fi interface Scanning Indication Event*/
+	NET_EVENT_WIFI_SCANNING_IND,
+
+	/** Wi-Fi interface Scan Indication Event(WPS scan) */
+	NET_EVENT_WPS_SCAN_IND,
 } net_event_t;
 
 /**

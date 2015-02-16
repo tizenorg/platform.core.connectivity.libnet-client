@@ -29,6 +29,44 @@
 extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
+static int __net_check_get_privilege()
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "CheckGetPrivilege", NULL, &Error);
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to check get privilege");
+		return Error;
+	}
+
+	g_variant_unref(message);
+
+	return Error;
+}
+
+static int __net_check_profile_privilege()
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "CheckProfilePrivilege", NULL, &Error);
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to check profile privilege");
+		return Error;
+	}
+
+	g_variant_unref(message);
+
+	return Error;
+}
+
 /*****************************************************************************
  * 	Local Functions Definition
  *****************************************************************************/
@@ -612,4 +650,34 @@ EXPORT_API int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
+}
+
+EXPORT_API int net_check_get_privilege()
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	Error = __net_check_get_privilege();
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to check get privilege. Error [%s]",
+		_net_print_error(Error));
+
+		return Error;
+	}
+
+	return Error;
+}
+
+EXPORT_API int net_check_profile_privilege()
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	Error = __net_check_profile_privilege();
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to check profile privilege. Error [%s]",
+		_net_print_error(Error));
+
+		return Error;
+	}
+
+	return Error;
 }

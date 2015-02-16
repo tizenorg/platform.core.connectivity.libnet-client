@@ -326,6 +326,38 @@ int net_wifi_power_off(void);
 int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t *wps_info);
 
 /**
+ * @fn   int net_check_get_privilege()
+ *
+ * This function checks get privilege (dummy function).
+ *
+ * \par Sync (or) Async:
+ * This is an Synchronous API.
+ *
+ * @param[out]   none
+ *
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+
+int net_check_get_privilege();
+
+/**
+ * @fn   int net_check_profile_privilege()
+ *
+ * This function checks get privilege (dummy function).
+ *
+ * \par Sync (or) Async:
+ * This is an Synchronous API.
+ *
+ * @param[out]   none
+ *
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+
+int net_check_profile_privilege();
+
+/**
  * \}
  */
 

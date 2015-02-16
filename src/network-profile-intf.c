@@ -286,6 +286,37 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 	return Error;
 }
 
+static int __net_telephony_get_modem_object_path(GSList **ModemPathList)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *result;
+	GVariantIter *iter_modem = NULL;
+	GVariantIter *modem_properties = NULL;
+	const char *modem_path;
+
+	result = _net_invoke_dbus_method(TELEPHONY_SERVICE, TELEPHONY_MASTER_PATH,
+			TELEPHONY_MASTER_INTERFACE, "GetModems", NULL, &Error);
+	if (result == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get modem path list");
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	g_variant_get(result, "(a{sa{ss}})", &iter_modem);
+	while (g_variant_iter_loop(iter_modem, "{sa{ss}}", &modem_path, &modem_properties)) {
+		*ModemPathList = g_slist_append(*ModemPathList, g_strdup(modem_path));
+		NETWORK_LOG(NETWORK_LOW, "modem object path: %s",	modem_path);
+	}
+
+	g_variant_iter_free(iter_modem);
+	g_variant_unref(result);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 static int __net_telephony_get_profile_list(net_profile_name_t** ProfileName, int* ProfileCount)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -2025,6 +2056,94 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 	return Error;
 }
 
+static int __net_telephony_reset_profile(int type, int sim_id)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+#if defined TIZEN_WEARABLE
+	Error = _net_dbus_reset_pdp_profile(type, NULL);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_HIGH, "_net_dbus_reset_pdp_profile() failed");
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+#else
+	char subscriber_id[3];
+	GSList *ModemPathList = NULL;
+	const char *path = NULL;
+	GSList *list = NULL;
+
+	Error = __net_telephony_get_modem_object_path(&ModemPathList);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get modems path list");
+		g_slist_free_full(ModemPathList, g_free);
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	g_snprintf(subscriber_id, sizeof(subscriber_id), "%d", sim_id);
+
+	for (list = ModemPathList; list != NULL; list = list->next) {
+		path = (const char *)list->data;
+
+		if (g_str_has_suffix(path, subscriber_id) == TRUE) {
+		Error = _net_dbus_reset_pdp_profile(type, path);
+		if (Error != NET_ERR_NONE) {
+			NETWORK_LOG(NETWORK_HIGH, "_net_dbus_reset_pdp_profile() failed");
+				break;
+			}
+		}
+	}
+
+	g_slist_free_full(ModemPathList, g_free);
+#endif
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
+EXPORT_API int net_reset_profile(int type, int sim_id)
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	__NETWORK_FUNC_ENTER__;
+
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_RESET_DEFAULT].flag == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!! Request already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	if (_net_dbus_is_pending_call_used() == TRUE) {
+		NETWORK_LOG(NETWORK_ERROR, "Error!! pending call already in progress\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_IN_PROGRESS;
+	}
+
+	request_table[NETWORK_REQUEST_TYPE_RESET_DEFAULT].flag = TRUE;
+
+	Error = __net_telephony_reset_profile(type, sim_id);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR,
+			"Failed to reset service(profile). Error [%s]\n",
+			_net_print_error(Error));
+		memset(&request_table[NETWORK_REQUEST_TYPE_RESET_DEFAULT],
+					0, sizeof(network_request_table_t));
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Sync API Definition
  *****************************************************************************/
@@ -2262,6 +2381,51 @@ EXPORT_API int net_get_profile_list(net_device_t device_type, net_profile_info_t
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
+}
+
+EXPORT_API int net_get_cellular_modem_object_path(char **modem_path, int sim_id)
+{
+	net_err_t Error = NET_ERR_NONE;
+	const char *path = NULL;
+	char subscriber_id[3];
+	GSList *ModemPathList = NULL, *list = NULL;
+
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (sim_id < 0 || modem_path == NULL)
+		return NET_ERR_INVALID_PARAM;
+
+	Error = __net_telephony_get_modem_object_path(&ModemPathList);
+	if (Error != NET_ERR_NONE)
+		goto done;
+
+	*modem_path = NULL;
+	g_snprintf(subscriber_id, sizeof(subscriber_id), "%d", sim_id);
+	for (list = ModemPathList; list != NULL; list = list->next) {
+		path = (const char *)list->data;
+
+		NETWORK_LOG(NETWORK_LOW, "path: %s", path);
+		if (g_str_has_suffix(path, subscriber_id) == TRUE) {
+			*modem_path = g_strdup(path);
+			break;
+		}
+	}
+
+	if (*modem_path == NULL)
+		Error = NET_ERR_MODEM_INTERFACE_NOT_AVAIALABLE;
+	else
+		NETWORK_LOG(NETWORK_LOW, "Subscriber %d: %s", sim_id, *modem_path);
+
+done:
+	if (ModemPathList)
+		g_slist_free_full(ModemPathList, g_free);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
 }
 
 EXPORT_API int net_set_default_cellular_service_profile(const char *profile_name)

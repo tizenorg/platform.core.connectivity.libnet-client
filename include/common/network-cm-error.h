@@ -147,6 +147,9 @@ typedef enum {
 	/** WiFi driver on/off failed */
 	NET_ERR_WIFI_DRIVER_FAILURE = -699,
 	NET_ERR_WIFI_DRIVER_LOAD_INPROGRESS = -698,
+
+	/** Modem/SIM related */
+	NET_ERR_MODEM_INTERFACE_NOT_AVAIALABLE = -599,
 } net_err_t;
 
 /*

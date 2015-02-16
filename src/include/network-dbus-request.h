@@ -103,14 +103,16 @@ int _net_dbus_get_technology_state(network_tech_state_info_t* tech_state);
 GVariant *_net_invoke_dbus_method(const char* dest, const char* path,
 		char* interface_name, char* method,
 		GVariant *params, int* dbus_error);
-int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
-		char* interface_name, char* method,
+int _net_invoke_dbus_method_nonblock(const char *dest, const char *path,
+		const char *interface_name, const char *method,
+		GVariant *params,
 		GAsyncReadyCallback notify_func);
 int _net_dbus_load_wifi_driver(void);
 int _net_dbus_remove_wifi_driver(void);
 int _net_dbus_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size);
 int _net_dbus_set_statistics(net_device_t device_type, net_statistics_type_e statistics_type);
 int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info);
+int _net_dbus_reset_pdp_profile(int type, const char * modem_path);
 int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *profile_name);
 gboolean __net_dbus_abort_open_request(const char *profile_name);
 int _net_dbus_specific_scan_request(const char *ssid);

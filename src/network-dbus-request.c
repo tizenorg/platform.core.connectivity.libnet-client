@@ -34,56 +34,59 @@
 extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
-static int __net_error_string_to_enum(const char* error)
+static int __net_error_string_to_enum(const char *error)
 {
-	NETWORK_LOG(NETWORK_HIGH, "Passed error value [%s]\n", error);
+	NETWORK_LOG(NETWORK_ERROR, "Passed error value [%s]", error);
 
-	if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NoReply"))
+	if (NULL != strstr(error, "NoReply"))
 		return NET_ERR_TIME_OUT;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".Failed"))
+	else if (NULL != strstr(error, "Failed"))
 		return NET_ERR_UNKNOWN;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".UnknownMethod"))
+	else if (NULL != strstr(error, "UnknownMethod"))
 		return NET_ERR_UNKNOWN_METHOD;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".InvalidArguments"))
+	else if (NULL != strstr(error, "InvalidArguments"))
 		return NET_ERR_INVALID_PARAM;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".PermissionDenied"))
+	else if (NULL != strstr(error, "AccessDenied"))
 		return NET_ERR_ACCESS_DENIED;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".PassphraseRequired"))
-		return NET_ERR_CONNECTION_INVALID_KEY;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotRegistered"))
+	else if (NULL != strstr(error, "PermissionDenied"))
+		return NET_ERR_ACCESS_DENIED;
+	else if (NULL != strstr(error, "PassphraseRequired"))
 		return NET_ERR_INVALID_OPERATION;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotUnique"))
+	else if (NULL != strstr(error, "NotRegistered"))
 		return NET_ERR_INVALID_OPERATION;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotSupported"))
+	else if (NULL != strstr(error, "NotUnique"))
+		return NET_ERR_INVALID_OPERATION;
+	else if (NULL != strstr(error, "NotSupported"))
 		return NET_ERR_NOT_SUPPORTED;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotImplemented"))
+	else if (NULL != strstr(error, "NotImplemented"))
 		return NET_ERR_NOT_SUPPORTED;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotFound"))
+	else if (NULL != strstr(error, "NotFound"))
 		return NET_ERR_NOT_SUPPORTED;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NoCarrier"))
+	else if (NULL != strstr(error, "NoCarrier"))
 		return NET_ERR_NOT_SUPPORTED;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".InProgress"))
+	else if (NULL != strstr(error, "InProgress"))
 		return NET_ERR_IN_PROGRESS;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".AlreadyExists"))
+	else if (NULL != strstr(error, "AlreadyExists"))
 		return NET_ERR_INVALID_OPERATION;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".AlreadyEnabled"))
+	else if (NULL != strstr(error, "AlreadyEnabled"))
 		return NET_ERR_INVALID_OPERATION;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".AlreadyDisabled"))
+	else if (NULL != strstr(error, "AlreadyDisabled"))
 		return NET_ERR_INVALID_OPERATION;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".AlreadyConnected"))
+	else if (NULL != strstr(error, "AlreadyConnected"))
 		return NET_ERR_ACTIVE_CONNECTION_EXISTS;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".NotConnected"))
+	else if (NULL != strstr(error, "NotConnected"))
 		return NET_ERR_NO_ACTIVE_CONNECTIONS;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".OperationAborted"))
+	else if (NULL != strstr(error, "OperationAborted"))
 		return NET_ERR_OPERATION_ABORTED;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".OperationTimeout"))
+	else if (NULL != strstr(error, "OperationTimeout"))
 		return NET_ERR_TIME_OUT;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".InvalidService"))
+	else if (NULL != strstr(error, "InvalidService"))
 		return NET_ERR_NO_SERVICE;
-	else if (NULL != strstr(error, CONNMAN_ERROR_INTERFACE ".InvalidProperty"))
+	else if (NULL != strstr(error, "InvalidProperty"))
 		return NET_ERR_INVALID_OPERATION;
 	return NET_ERR_UNKNOWN;
 }
+
 
 static int __net_netconfig_error_string_to_enum(const char* error)
 {
@@ -326,6 +329,61 @@ static void __net_wifi_power_reply(GObject *source_object, GAsyncResult *res, gp
 
 	if (callback_flag)
 		_net_client_callback(&event_data);
+
+	__NETWORK_FUNC_EXIT__;
+}
+
+static void __net_reset_cellular_reply(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	int rv;
+	net_event_info_t event_data = { 0, };
+	GDBusConnection *conn = NULL;
+	GVariant *dbus_result;
+	GError *error = NULL;
+	net_err_t Error = NET_ERR_NONE;
+
+	NETWORK_LOG(NETWORK_LOW, "__net_reset_cellular_reply() called");
+
+	conn = G_DBUS_CONNECTION (source_object);
+	dbus_result = g_dbus_connection_call_finish(conn, res, &error);
+	if (error != NULL) {
+		Error = __net_netconfig_error_string_to_enum(error->message);
+		g_error_free(error);
+
+		NETWORK_LOG(NETWORK_ERROR, "Error code: [%d]", Error);
+	}
+
+	if (request_table[NETWORK_REQUEST_TYPE_RESET_DEFAULT].flag == TRUE) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_RESET_DEFAULT],
+						0, sizeof(network_request_table_t));
+		event_data.Event = NET_EVENT_CELLULAR_RESET_DEFAULT_RSP;
+
+		if (Error == NET_ERR_NONE) {
+			g_variant_get(dbus_result, "(b)", &rv);
+
+			NETWORK_LOG(NETWORK_LOW, "Reply: %s", rv ? "TRUE" : "FALSE");
+
+			if (rv)
+				event_data.Error = NET_ERR_NONE;
+			else
+				event_data.Error = NET_ERR_UNKNOWN;
+		} else
+			event_data.Error = Error;
+
+		NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CELLULAR_RESET_DEFAULT_RSP Error = %s",
+				_net_print_error(event_data.Error));
+	} else {
+		_net_dbus_pending_call_unref();
+
+		__NETWORK_FUNC_EXIT__;
+		return;
+	}
+
+	_net_dbus_pending_call_unref();
+
+	_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
@@ -612,6 +670,7 @@ GVariant *_net_invoke_dbus_method(const char* dest, const char* path,
 			NETWORK_LOG(NETWORK_ERROR,
 						"g_dbus_connection_call_sync() failed."
 						"error [%d: %s]\n", error->code, error->message);
+			*dbus_error = __net_error_string_to_enum(error->message);
 			g_error_free(error);
 		} else {
 			NETWORK_LOG(NETWORK_ERROR,
@@ -628,8 +687,8 @@ GVariant *_net_invoke_dbus_method(const char* dest, const char* path,
 	return reply;
 }
 
-int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
-		char* interface_name, char* method,
+int _net_invoke_dbus_method_nonblock(const char *dest, const char *path,
+		const char *interface_name, const char *method, GVariant *params,
 		GAsyncReadyCallback notify_func)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -638,25 +697,22 @@ int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
 
 	connection = _net_dbus_get_gdbus_conn();
 	if (connection == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "GDBusconnection is NULL\n");
+		NETWORK_LOG(NETWORK_ERROR, "GDBusconnection is NULL");
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
-	NETWORK_LOG(NETWORK_HIGH, "[DBUS Async] %s.%s, %s\n",
-			interface_name, method, path);
-
 	g_dbus_connection_call(connection,
-				dest,
-				path,
-				interface_name,
-				method,
-				NULL,
-				NULL,
-				G_DBUS_CALL_FLAGS_NONE,
-				DBUS_REPLY_TIMEOUT,
-				_net_dbus_get_gdbus_cancellable(),
-				(GAsyncReadyCallback) notify_func,
-				NULL);
+							dest,
+							path,
+							interface_name,
+							method,
+							params,
+							NULL,
+							G_DBUS_CALL_FLAGS_NONE,
+							DBUS_REPLY_TIMEOUT,
+							_net_dbus_get_gdbus_cancellable(),
+							(GAsyncReadyCallback) notify_func,
+							NULL);
 
 	if (notify_func != NULL)
 		_net_dbus_pending_call_ref();
@@ -665,6 +721,7 @@ int _net_invoke_dbus_method_nonblock(const char* dest, const char* path,
 	return NET_ERR_NONE;
 }
 
+
 int _net_dbus_open_connection(const char* profile_name)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -672,7 +729,7 @@ int _net_dbus_open_connection(const char* profile_name)
 	net_err_t Error = NET_ERR_NONE;
 
 	Error = _net_invoke_dbus_method_nonblock(CONNMAN_SERVICE, profile_name,
-			CONNMAN_SERVICE_INTERFACE, "Connect", __net_open_connection_reply);
+			CONNMAN_SERVICE_INTERFACE, "Connect", NULL, __net_open_connection_reply);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -685,7 +742,7 @@ int _net_dbus_close_connection(const char* profile_name)
 	net_err_t Error = NET_ERR_NONE;
 
 	Error = _net_invoke_dbus_method_nonblock(CONNMAN_SERVICE, profile_name,
-			CONNMAN_SERVICE_INTERFACE, "Disconnect", __net_close_connection_reply);
+			CONNMAN_SERVICE_INTERFACE, "Disconnect", NULL, __net_close_connection_reply);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -699,7 +756,7 @@ int _net_dbus_scan_request(void)
 
 	Error = _net_invoke_dbus_method_nonblock(CONNMAN_SERVICE,
 			CONNMAN_WIFI_TECHNOLOGY_PREFIX,
-			CONNMAN_TECHNOLOGY_INTERFACE, "Scan", NULL);
+			CONNMAN_TECHNOLOGY_INTERFACE, "Scan", NULL, NULL);
 
 	if (Error == NET_ERR_IN_PROGRESS)
 		Error = NET_ERR_NONE;
@@ -716,7 +773,7 @@ int _net_dbus_set_default(const char* profile_name)
 
 	Error = _net_invoke_dbus_method_nonblock(TELEPHONY_SERVICE,
 			profile_name, TELEPHONY_PROFILE_INTERFACE,
-			"SetDefaultConnection", __net_set_default_reply);
+			"SetDefaultConnection", NULL, __net_set_default_reply);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1737,6 +1794,36 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 	return Error;
 }
 
+int _net_dbus_reset_pdp_profile(int type, const char * modem_path)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	GVariant *params = NULL;
+
+	params = g_variant_new("(i)", type);
+
+	if (modem_path) {
+	Error = _net_invoke_dbus_method_nonblock(TELEPHONY_SERVICE,
+										modem_path,
+										TELEPHONY_MODEM_INTERFACE,
+										"ResetProfile",
+										params,
+										__net_reset_cellular_reply);
+	} else {
+		Error = _net_invoke_dbus_method_nonblock(TELEPHONY_SERVICE,
+											TELEPHONY_MASTER_PATH,
+											TELEPHONY_MODEM_INTERFACE,
+											"ResetProfile",
+											params,
+											__net_reset_cellular_reply);
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+
+}
 
 int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *profile_name)
 {
@@ -1920,7 +2007,7 @@ int _net_dbus_load_wifi_driver(void)
 	net_err_t Error = NET_ERR_NONE;
 
 	Error = _net_invoke_dbus_method_nonblock(NETCONFIG_SERVICE, NETCONFIG_WIFI_PATH,
-			NETCONFIG_WIFI_INTERFACE, "LoadDriver", __net_wifi_power_reply);
+			NETCONFIG_WIFI_INTERFACE, "LoadDriver", NULL, __net_wifi_power_reply);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1933,7 +2020,7 @@ int _net_dbus_remove_wifi_driver(void)
 	net_err_t Error = NET_ERR_NONE;
 
 	Error = _net_invoke_dbus_method_nonblock(NETCONFIG_SERVICE, NETCONFIG_WIFI_PATH,
-			NETCONFIG_WIFI_INTERFACE, "RemoveDriver", __net_wifi_power_reply);
+			NETCONFIG_WIFI_INTERFACE, "RemoveDriver", NULL, __net_wifi_power_reply);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
