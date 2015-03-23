@@ -283,10 +283,12 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 
 				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Connected);
 			} else if (g_strcmp0(key, "Tethering") == 0) {
+				data = g_variant_get_boolean(value);
 				if (data)
 					tech_state->Tethering = TRUE;
 				else
 					tech_state->Tethering = FALSE;
+				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Tethering);
 			}
 		}
 	}
