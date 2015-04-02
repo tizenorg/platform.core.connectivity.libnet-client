@@ -648,6 +648,7 @@ GVariant *_net_invoke_dbus_method(const char* dest, const char* path,
 	connection = _net_dbus_get_gdbus_conn();
 	if (connection == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "GDBusconnection is NULL\n");
+		*dbus_error = NET_ERR_APP_NOT_REGISTERED;
 		return reply;
 	}
 
