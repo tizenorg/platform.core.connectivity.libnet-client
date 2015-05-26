@@ -1360,6 +1360,7 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 	GVariant *params = NULL;
 	GVariantBuilder *builder;
 	GDBusConnection *connection;
+	net_dev_info_t *profile_net_info  = NULL;
 
 	connection = _net_dbus_get_gdbus_conn();
 	if (connection == NULL)
@@ -1371,17 +1372,29 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 		return NET_ERR_INVALID_PARAM;
 	}
 
+	if (prof_info->profile_type == NET_DEVICE_WIFI)
+		profile_net_info = &(prof_info->ProfileInfo.Wlan.net_info);
+	else if (prof_info->profile_type == NET_DEVICE_ETHERNET)
+		profile_net_info = &(prof_info->ProfileInfo.Ethernet.net_info);
+	else {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Profile Type\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+
 	g_strlcpy(ip_buffer,
-			inet_ntoa(prof_info->ProfileInfo.Wlan.net_info.IpAddr.Data.Ipv4),
+			inet_ntoa(profile_net_info->IpAddr.Data.Ipv4),
 			NETPM_IPV4_STR_LEN_MAX + 1);
 
 	g_strlcpy(netmask_buffer,
-			inet_ntoa(prof_info->ProfileInfo.Wlan.net_info.SubnetMask.Data.Ipv4),
+			inet_ntoa(profile_net_info->SubnetMask.Data.Ipv4),
 			NETPM_IPV4_STR_LEN_MAX + 1);
 
 	g_strlcpy(gateway_buffer,
-			inet_ntoa(prof_info->ProfileInfo.Wlan.net_info.GatewayAddr.Data.Ipv4),
+			inet_ntoa(profile_net_info->GatewayAddr.Data.Ipv4),
 			NETPM_IPV4_STR_LEN_MAX + 1);
+
 
 	NETWORK_LOG(NETWORK_HIGH, "ipaddress: %s, netmask: %s, gateway: %s\n",
 			ipaddress, netmask, gateway);
@@ -1391,17 +1404,16 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 
 	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
 
-	if (prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC ||
-	    prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_AUTO_IP) {
+	if (profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC ||
+	    profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_AUTO_IP) {
 
 		g_variant_builder_add(builder, "{sv}", prop_method, g_variant_new_string(dhcp_method));
 
-	} else if (prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_OFF) {
+	} else if (profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_OFF) {
 
 		g_variant_builder_add(builder, "{sv}", prop_method, g_variant_new_string(off_method));
 
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s\n", prop_method, off_method);
-	} else if (prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_STATIC) {
+	} else if (profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_STATIC) {
 
 		g_variant_builder_add(builder, "{sv}", prop_method, g_variant_new_string(manual_method));
 
@@ -1416,14 +1428,12 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 		if (strlen(gateway) >= NETPM_IPV4_STR_LEN_MIN) {
 			g_variant_builder_add(builder, "{sv}", prop_gateway, g_variant_new_string(gateway));
 		}
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s %s %s %s %s %s %s\n",
-				prop_method, manual_method, prop_address, ipaddress,
-				prop_netmask, netmask, prop_gateway, gateway);
 	} else {
-		NETWORK_LOG(NETWORK_ERROR, "Invalid argument\n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid argument");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
+
 
 	params = g_variant_new("(sv)", prop_ipv4_configuration, g_variant_builder_end(builder));
 	g_variant_builder_unref(builder);

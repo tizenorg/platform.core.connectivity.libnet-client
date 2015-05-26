@@ -52,6 +52,8 @@ static int __net_wifi_delete_profile(net_profile_name_t* WifiProfName,
 static int __net_telephony_add_profile(net_profile_info_t *ProfInfo, net_service_type_t network_type);
 static int __net_set_default_cellular_service_profile_sync(const char* ProfileName);
 static int __net_set_default_cellular_service_profile_async(const char* ProfileName);
+static int __net_modify_ethernet_profile(const char* ProfileName,
+		net_profile_info_t* ProfInfo, net_profile_info_t* exProfInfo);
 
 /*****************************************************************************
  * Extern Variables
@@ -1756,6 +1758,138 @@ static int __net_telephony_modify_profile(const char *ProfileName,
 	return Error;
 }
 
+static int __net_modify_ethernet_profile(const char* ProfileName,
+		net_profile_info_t* ProfInfo, net_profile_info_t* exProfInfo)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	int i = 0;
+	char profilePath[NET_PROFILE_NAME_LEN_MAX+1] = "";
+
+	net_dev_info_t *net_info = &(ProfInfo->ProfileInfo.Ethernet.net_info);
+	net_dev_info_t *ex_net_info = &(exProfInfo->ProfileInfo.Ethernet.net_info);
+
+	g_strlcpy(profilePath, ProfileName, NET_PROFILE_NAME_LEN_MAX+1);
+
+	/* Compare and Set 'Proxy' */
+	NETWORK_LOG(NETWORK_HIGH, "Proxy old:%d %s, new:%d %s\n",
+			ex_net_info->ProxyMethod,
+			ex_net_info->ProxyAddr,
+			net_info->ProxyMethod,
+			net_info->ProxyAddr);
+
+	if ((ex_net_info->ProxyMethod != net_info->ProxyMethod) ||
+		(g_strcmp0(ex_net_info->ProxyAddr, net_info->ProxyAddr) != 0)) {
+
+		Error = _net_dbus_set_proxy(ProfInfo, profilePath);
+
+		if (Error != NET_ERR_NONE) {
+			__NETWORK_FUNC_EXIT__;
+			return Error;
+		}
+	}
+
+	/* Compare and Set 'IPv4 addresses' */
+	char ip_buffer[NETPM_IPV4_STR_LEN_MAX+1] = "";
+	char netmask_buffer[NETPM_IPV4_STR_LEN_MAX+1] = "";
+	char gateway_buffer[NETPM_IPV4_STR_LEN_MAX+1] = "";
+	g_strlcpy(ip_buffer,
+			inet_ntoa(ex_net_info->IpAddr.Data.Ipv4),
+			NETPM_IPV4_STR_LEN_MAX + 1);
+
+	g_strlcpy(netmask_buffer,
+			inet_ntoa(ex_net_info->SubnetMask.Data.Ipv4),
+			NETPM_IPV4_STR_LEN_MAX + 1);
+
+	g_strlcpy(gateway_buffer,
+			inet_ntoa(ex_net_info->GatewayAddr.Data.Ipv4),
+			NETPM_IPV4_STR_LEN_MAX + 1);
+
+	NETWORK_LOG(NETWORK_HIGH, "IPv4 info old: type %d, IP: %s, netmask:"
+			" %s, gateway: %s\n", ex_net_info->IpConfigType,
+			ip_buffer,
+			netmask_buffer,
+			gateway_buffer);
+
+	g_strlcpy(ip_buffer,
+			inet_ntoa(net_info->IpAddr.Data.Ipv4),
+			NETPM_IPV4_STR_LEN_MAX + 1);
+
+	g_strlcpy(netmask_buffer,
+			inet_ntoa(net_info->SubnetMask.Data.Ipv4),
+			NETPM_IPV4_STR_LEN_MAX + 1);
+
+	g_strlcpy(gateway_buffer,
+			inet_ntoa(net_info->GatewayAddr.Data.Ipv4),
+			NETPM_IPV4_STR_LEN_MAX + 1);
+
+	NETWORK_LOG(NETWORK_HIGH, "IPv4 info new: type %d, IP: %s, netmask:"
+			" %s, gateway: %s\n", net_info->IpConfigType,
+			ip_buffer,
+			netmask_buffer,
+			gateway_buffer);
+
+	if ((ex_net_info->IpConfigType != net_info->IpConfigType) ||
+		(net_info->IpConfigType == NET_IP_CONFIG_TYPE_STATIC &&
+		 (net_info->IpAddr.Data.Ipv4.s_addr
+					!= ex_net_info->IpAddr.Data.Ipv4.s_addr ||
+		  net_info->SubnetMask.Data.Ipv4.s_addr
+					!= ex_net_info->SubnetMask.Data.Ipv4.s_addr ||
+		  net_info->GatewayAddr.Data.Ipv4.s_addr
+					!= ex_net_info->GatewayAddr.Data.Ipv4.s_addr))) {
+		Error = _net_dbus_set_profile_ipv4(ProfInfo, profilePath);
+
+		if (Error != NET_ERR_NONE) {
+			NETWORK_LOG(NETWORK_ERROR, "Failed to set IPv4\n");
+
+			__NETWORK_FUNC_EXIT__;
+			return Error;
+		}
+	}
+	/* Compare and Set 'DNS addresses' */
+	for (i = 0; i < net_info->DnsCount; i++) {
+		if (i >= NET_DNS_ADDR_MAX) {
+			net_info->DnsCount = NET_DNS_ADDR_MAX;
+			break;
+		}
+
+		if(net_info->DnsAddr[i].Type == NET_ADDR_IPV4) {
+			char old_dns[NETPM_IPV4_STR_LEN_MAX+1] = "";
+			char new_dns[NETPM_IPV4_STR_LEN_MAX+1] = "";
+			g_strlcpy(old_dns,
+				inet_ntoa(ex_net_info->DnsAddr[i].Data.Ipv4),
+				NETPM_IPV4_STR_LEN_MAX+1);
+			g_strlcpy(new_dns,
+				inet_ntoa(net_info->DnsAddr[i].Data.Ipv4),
+				NETPM_IPV4_STR_LEN_MAX+1);
+
+			NETWORK_LOG(NETWORK_HIGH, "IPv4 DNS Addr order: %d, old:"
+				"%s, new: %s\n", i, old_dns, new_dns);
+
+			if (net_info->DnsAddr[i].Data.Ipv4.s_addr !=
+				ex_net_info->DnsAddr[i].Data.Ipv4.s_addr)
+				break;
+		}
+
+	}
+
+	if (i < net_info->DnsCount) {
+		Error = _net_dbus_set_profile_dns(ProfInfo, profilePath);
+
+		if (Error != NET_ERR_NONE) {
+			NETWORK_LOG(NETWORK_ERROR, "Failed to set DNS\n");
+
+			__NETWORK_FUNC_EXIT__;
+			return Error;
+		}
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
+
 static int __net_telephony_delete_profile(net_profile_name_t* PdpProfName)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -2306,10 +2440,10 @@ EXPORT_API int net_modify_profile(const char* profile_name, net_profile_info_t* 
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-
 	if (prof_info == NULL ||
 	    (exProfInfo.profile_type != NET_DEVICE_WIFI &&
-	     exProfInfo.profile_type != NET_DEVICE_CELLULAR)) {
+	     exProfInfo.profile_type != NET_DEVICE_CELLULAR &&
+	     exProfInfo.profile_type != NET_DEVICE_ETHERNET)) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid Parameter\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
@@ -2319,6 +2453,8 @@ EXPORT_API int net_modify_profile(const char* profile_name, net_profile_info_t* 
 		Error = __net_modify_wlan_profile_info(profile_name, prof_info, &exProfInfo);
 	else if (exProfInfo.profile_type == NET_DEVICE_CELLULAR)
 		Error = __net_telephony_modify_profile(profile_name, prof_info, &exProfInfo);
+	else if (exProfInfo.profile_type == NET_DEVICE_ETHERNET)
+		Error = __net_modify_ethernet_profile(profile_name, prof_info, &exProfInfo);
 
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR,
