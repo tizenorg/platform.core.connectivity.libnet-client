@@ -1073,6 +1073,37 @@ int _net_dbus_get_state(char* state)
 	return Error;
 }
 
+int _net_dbus_get_ethernet_cable_state(int *state)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+
+	if(state == NULL) {
+		NETWORK_LOG(NETWORK_ERROR,"Invalid Parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "EthernetCableState", NULL, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get Ethernet Module State\n");
+		return Error;
+	}
+
+	g_variant_get(message, "(i)", state);
+
+	NETWORK_LOG(NETWORK_LOW, "Ethernet Cable State [%d]\n", *state);
+
+	g_variant_unref(message);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 static void __net_create_config_reply(GObject *source_object,
 		GAsyncResult *res, gpointer user_data)
 {

@@ -120,6 +120,12 @@ typedef enum
 
 	/** Wi-Fi interface Scan Indication Event(WPS scan) */
 	NET_EVENT_WPS_SCAN_IND,
+
+	/** Ethernet Cable Attached Event */
+	NET_EVENT_ETHERNET_CABLE_ATTACHED,
+
+	/** Ethernet Cable Detached Event */
+	NET_EVENT_ETHERNET_CABLE_DETACHED,
 } net_event_t;
 
 /**
@@ -999,6 +1005,44 @@ int net_add_route(const char *ip_addr, const char *interface);
  *
  ******************************************************************************************/
 int net_remove_route(const char *ip_addr, const char *interface);
+
+/*****************************************************************************************/
+/* net_get_ethernet_cable_state API function prototype
+ * int net_get_ethernet_cable_state(int *state);
+ */
+
+/**
+ * \brief  This API returns the ethernet cable status, 1 = Attached, 0 = Deatached.
+ *
+ * \param[out] state - Specifies the State of ethernet cable
+ *
+ * \par Sync (or) Async:
+ * This is a Synchronous API.
+ *
+ * \par Important Notes:
+ *  None
+ *
+ * \par Notes :
+ *  None
+ *
+ * \warning
+ *  None
+ *
+ *
+ * \par Async Response Message:
+ *  None
+ *
+ * \return Return Type (int) \n
+ * - NET_ERR_NONE - indicating that the status of ethernet plug in/out retrieved successfully.\n
+ * - NET_ERR_INVALID_PARAM - indicating that API parameter value is invalid.\n
+ * - NET_ERR_INVALID_OPERATION - indicating that the API failed to retrieve the status of ethernet plug.\n
+ *
+ * \par Prospective Clients:
+ * External Apps.
+ *
+ *
+******************************************************************************************/
+int net_get_ethernet_cable_state(int *state);
 
 /**
  * \brief 	This API is only for Connection CAPI. Don't use this.

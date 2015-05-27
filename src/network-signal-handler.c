@@ -28,7 +28,10 @@ static __thread net_state_type_t service_state_table[NET_DEVICE_MAX] =
 						{ NET_STATE_TYPE_UNKNOWN, };
 static __thread int net_service_error = NET_ERR_NONE;
 static __thread guint gdbus_conn_subscribe_id_connman_svc = 0;
+static __thread guint gdbus_conn_subscribe_id_connman_state = 0;
+static __thread guint gdbus_conn_subscribe_id_connman_error = 0;
 static __thread guint gdbus_conn_subscribe_id_supplicant = 0;
+static __thread guint gdbus_conn_subscribe_id_netconfig_wifi = 0;
 static __thread guint gdbus_conn_subscribe_id_netconfig = 0;
 
 static int __net_handle_wifi_power_rsp(gboolean value)
@@ -520,6 +523,39 @@ static int __net_handle_scan_done(GVariant *param)
 	return NET_ERR_NONE;
 }
 
+static int __net_handle_ethernet_cable_state_rsp(GVariant *param)
+{
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	const char *key = NULL;
+	const gchar *sig_value = NULL;
+
+	g_variant_get(param, "(a{sv})", &iter);
+
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "key") == 0) {
+			sig_value = g_variant_get_string(value, NULL);
+			NETWORK_LOG(NETWORK_LOW, "Check Ethernet Monitor Result: %s",
+						sig_value);
+		}
+	}
+	g_variant_iter_free(iter);
+
+	net_event_info_t event_data;
+	if(g_strcmp0(sig_value, "ATTACHED") == 0) {
+			event_data.Event = NET_EVENT_ETHERNET_CABLE_ATTACHED;
+			event_data.Error = NET_ERR_NONE;
+	} else {
+			event_data.Event = NET_EVENT_ETHERNET_CABLE_DETACHED;
+			event_data.Error = NET_ERR_NONE;
+	}
+	event_data.Datalength = 0;
+	event_data.Data = NULL;
+
+	_net_client_callback(&event_data);
+	return NET_ERR_NONE;
+}
+
 static void __net_connman_service_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
 		const gchar *sig, GVariant *param, gpointer user_data)
@@ -565,6 +601,14 @@ static void __net_netconfig_signal_filter(GDBusConnection *conn,
 		__net_handle_wifi_specific_scan_rsp(param);
 }
 
+static void __net_netconfig_network_signal_filter(GDBusConnection *conn,
+		const gchar *name, const gchar *path, const gchar *interface,
+		const gchar *sig, GVariant *param, gpointer user_data)
+{
+	if (g_strcmp0(sig, NETCONFIG_SIGNAL_ETHERNET_CABLE_STATE) == 0)
+		__net_handle_ethernet_cable_state_rsp(param);
+}
+
 /*****************************************************************************
  * 	Global Functions
  *****************************************************************************/
@@ -587,6 +631,8 @@ int _net_deregister_signal(void)
 	g_dbus_connection_signal_unsubscribe(connection,
 				gdbus_conn_subscribe_id_supplicant);
 	g_dbus_connection_signal_unsubscribe(connection,
+				gdbus_conn_subscribe_id_netconfig_wifi);
+	g_dbus_connection_signal_unsubscribe(connection,
 				gdbus_conn_subscribe_id_netconfig);
 
 	Error = _net_dbus_close_gdbus_call();
@@ -596,6 +642,45 @@ int _net_deregister_signal(void)
 	}
 
 	NETWORK_LOG(NETWORK_LOW, "Successfully remove signals\n");
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+int _net_subscribe_signal_wifi(void)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GDBusConnection *connection;
+	net_err_t Error = NET_ERR_NONE;
+
+	connection = _net_dbus_get_gdbus_conn();
+	if (connection == NULL) {
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	/* Create net-config service connection */
+	gdbus_conn_subscribe_id_netconfig_wifi = g_dbus_connection_signal_subscribe(
+						connection,
+						NETCONFIG_SERVICE,
+						NETCONFIG_WIFI_INTERFACE,
+						NULL,
+						NETCONFIG_WIFI_PATH,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__net_netconfig_signal_filter,
+						NULL,
+						NULL);
+
+	if (gdbus_conn_subscribe_id_supplicant == 0 ||
+		gdbus_conn_subscribe_id_netconfig_wifi == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed register signals "
+				"supplicant(%d), netconfig_wifi(%d)",
+				gdbus_conn_subscribe_id_supplicant,
+				gdbus_conn_subscribe_id_netconfig_wifi);
+		Error = NET_ERR_NOT_SUPPORTED;
+	}
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -659,7 +744,30 @@ int _net_register_signal(void)
 						NULL,
 						NULL);
 
-	NETWORK_LOG(NETWORK_LOW, "Successfully register signals\n");
+	/* Create net-config service connection for network */
+	gdbus_conn_subscribe_id_netconfig = g_dbus_connection_signal_subscribe(
+						connection,
+						NETCONFIG_SERVICE,
+						NETCONFIG_NETWORK_INTERFACE,
+						NULL,
+						NETCONFIG_NETWORK_PATH,
+						NULL,
+						G_DBUS_SIGNAL_FLAGS_NONE,
+						__net_netconfig_network_signal_filter,
+						NULL,
+						NULL);
+
+	if (gdbus_conn_subscribe_id_connman_state == 0 ||
+		gdbus_conn_subscribe_id_connman_error == 0 ||
+		gdbus_conn_subscribe_id_netconfig == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed register signals "
+				"connman_state(%d), connman_error(%d), netconfig(%d)",
+				gdbus_conn_subscribe_id_connman_state,
+				gdbus_conn_subscribe_id_connman_error,
+				gdbus_conn_subscribe_id_netconfig);
+		Error = NET_ERR_NOT_SUPPORTED;
+	}
+
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

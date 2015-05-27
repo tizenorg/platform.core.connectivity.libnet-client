@@ -88,6 +88,7 @@ typedef struct {
 int _net_dbus_scan_request(void);
 int _net_dbus_set_bgscan_mode(net_wifi_background_scan_mode_t mode);
 int _net_dbus_get_state(char* state);
+int _net_dbus_get_ethernet_cable_state(int *state);
 int _net_dbus_set_agent_passphrase(const char *passphrase);
 int _net_dbus_set_agent_wps_pbc(void);
 int _net_dbus_set_agent_wps_pin(const char *wps_pin);

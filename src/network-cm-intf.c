@@ -771,6 +771,30 @@ EXPORT_API int net_remove_route(const char *ip_addr, const char *interface)
 	return Error;
 }
 
+/**
+ * @fn   EXPORT_API int net_get_ethernet_module(int *state)
+ *
+ * This function is to get ethernet plug in/out state.
+ * This is Sync API.
+ *
+ * @return       0 - on success, negative values for errors
+ * @param[in]    int *state - state of ethernet cable
+ * @param[out]   none
+ */
+EXPORT_API int net_get_ethernet_cable_state(int *state)
+{
+	__NETWORK_FUNC_ENTER__;
+	net_err_t Error = NET_ERR_NONE;
+
+	Error = _net_dbus_get_ethernet_cable_state(state);
+
+	if (Error != NET_ERR_NONE)
+		NETWORK_LOG(NETWORK_ERROR, "_net_dbus_get_ethernet_cable_state failed\n");
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Async Function Definition
  *****************************************************************************/

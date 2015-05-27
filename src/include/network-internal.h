@@ -112,6 +112,7 @@ extern "C" {
 #define NETCONFIG_SIGNAL_POWERON_COMPLETED	"PowerOnCompleted"
 #define NETCONFIG_SIGNAL_POWEROFF_COMPLETED	"PowerOffCompleted"
 #define NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE	"SpecificScanCompleted"
+#define NETCONFIG_SIGNAL_ETHERNET_CABLE_STATE	"EthernetCableState"
 
 #ifdef VITA_FEATURE
 #include <dlog.h>
