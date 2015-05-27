@@ -18,6 +18,7 @@
  */
 
 #include <ctype.h>
+#include <arpa/inet.h>
 
 #include "network-internal.h"
 #include "network-dbus-request.h"
@@ -130,6 +131,15 @@ static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_inf
 	net_info->BDefGateway = FALSE;
 	net_info->GatewayAddr.Type = NET_ADDR_IPV4;
 	net_info->GatewayAddr.Data.Ipv4.s_addr = 0;
+
+	net_info->IpConfigType6 = 0;
+	net_info->IpAddr6.Type = NET_ADDR_IPV6;
+	inet_pton(AF_INET6, "::", &net_info->IpAddr6.Data.Ipv6);
+	net_info->PrefixLen6 = 0;
+	net_info->BDefGateway6 = FALSE;
+	net_info->GatewayAddr6.Type = NET_ADDR_IPV6;
+	inet_pton(AF_INET6, "::", &net_info->GatewayAddr6.Data.Ipv6);
+	
 	net_info->ProxyMethod = NET_PROXY_TYPE_UNKNOWN;
 
 	__NETWORK_FUNC_EXIT__;
@@ -878,6 +888,70 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			}
 			g_variant_iter_free(iter);
 		}
+	} else if (g_strcmp0(key, "IPv6") == 0) {
+		g_variant_get(variant, "a{sv}", &iter);
+		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
+			if (g_strcmp0(subKey, "Method") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				if (g_strcmp0(value, "manual") == 0)
+					net_info->IpConfigType6 = NET_IP_CONFIG_TYPE_STATIC;
+				else if (g_strcmp0(value, "off") == 0)
+					net_info->IpConfigType6 = NET_IP_CONFIG_TYPE_OFF;
+				else if (g_strcmp0(value, "auto") == 0)
+					net_info->IpConfigType6 = NET_IP_CONFIG_TYPE_AUTO_IP;
+	
+			} else if (g_strcmp0(subKey, "Address") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				inet_pton(AF_INET6, value, &net_info->IpAddr6.Data.Ipv6);
+			} else if (g_strcmp0(subKey, "PrefixLength") == 0) {
+				net_info->PrefixLen6 = g_variant_get_byte(var);
+			} else if (g_strcmp0(subKey, "Gateway") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				inet_pton(AF_INET6, value, &net_info->GatewayAddr6.Data.Ipv6);
+				net_info->BDefGateway6 = TRUE;
+			} else if (g_strcmp0(subKey, "Privacy") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				if (value != NULL)
+					g_strlcpy(net_info->Privacy6, value, NETPM_IPV6_MAX_PRIVACY_LEN);
+			}
+		}
+		g_variant_iter_free(iter);
+	} else if (g_strcmp0(key, "IPv6.Configuration") == 0) {
+		g_variant_get(variant, "a{sv}", &iter);
+		while (g_variant_iter_loop(iter, "{sv}", &subKey, &var)) {
+			if (g_strcmp0(subKey, "Method") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				if (g_strcmp0(value, "manual") == 0)
+					net_info->IpConfigType6 = NET_IP_CONFIG_TYPE_STATIC;
+				else if (g_strcmp0(value, "off") == 0)
+					net_info->IpConfigType6 = NET_IP_CONFIG_TYPE_OFF;
+				else if (g_strcmp0(value, "auto") == 0)
+					net_info->IpConfigType6 = NET_IP_CONFIG_TYPE_AUTO_IP;
+	
+			} else if (g_strcmp0(subKey, "Address") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				inet_pton(AF_INET6, value, &net_info->IpAddr6.Data.Ipv6);
+			} else if (g_strcmp0(subKey, "PrefixLength") == 0) {
+				net_info->PrefixLen6 = g_variant_get_byte(var);
+			} else if (g_strcmp0(subKey, "Gateway") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				inet_pton(AF_INET6, value, &net_info->GatewayAddr6.Data.Ipv6);
+				net_info->BDefGateway6 = TRUE;
+			} else if (g_strcmp0(subKey, "Privacy") == 0) {
+				value = g_variant_get_string(var, NULL);
+	
+				if (value != NULL)
+					g_strlcpy(net_info->Privacy6, value, NETPM_IPV6_MAX_PRIVACY_LEN);
+			}
+		}
+		g_variant_iter_free(iter);
 	} else if(g_strcmp0(key, "Nameservers") == 0) {
 		int dnsCount = 0;
 
@@ -1618,6 +1692,23 @@ static int __net_modify_wlan_profile_info(const char* ProfileName,
 
 		if (Error != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to set IPv4\n");
+
+			__NETWORK_FUNC_EXIT__;
+			return Error;
+		}
+	}
+
+	/* Compare and Set 'IPv6 addresses' */
+	if ((ex_net_info->IpConfigType6 != net_info->IpConfigType6) ||
+	    (net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_STATIC &&
+	     (net_info->IpAddr6.Data.Ipv6.s6_addr != ex_net_info->IpAddr6.Data.Ipv6.s6_addr ||
+	      net_info->PrefixLen6 != ex_net_info->PrefixLen6 ||
+	      net_info->GatewayAddr6.Data.Ipv6.s6_addr != ex_net_info->GatewayAddr6.Data.Ipv6.s6_addr))) {
+
+		Error = _net_dbus_set_profile_ipv6(ProfInfo, profilePath);
+
+		if (Error != NET_ERR_NONE) {
+			NETWORK_LOG(NETWORK_ERROR,  "Error!!! Can't set IPv6\n");
 
 			__NETWORK_FUNC_EXIT__;
 			return Error;

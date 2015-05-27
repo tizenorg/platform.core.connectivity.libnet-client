@@ -63,26 +63,24 @@ static int __net_get_default_profile(void *param, net_profile_info_t *active_pro
 	return NET_ERR_NONE;
 }
 
-static int __net_add_route(const char *ip_addr, const char *interface)
+static int __net_add_route(const char *ip_addr, const char *interface, int address_family)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
 	GVariant *message = NULL;
-	char dest_ip[30];
-	char netmask[30];
-	char if_name[40];
+	char dest_ip[INET6_ADDRSTRLEN] = { '\0' };
+	char netmask[INET_ADDRSTRLEN] = { '\0' };
+	char if_name[40] = { '\0' };
 	GVariant *params = NULL;
-#if 0
-	g_snprintf(dest_ip, 30, "string:%s", ip_addr);
-	g_snprintf(netmask, 30, "string:255.255.255.255");
-	g_snprintf(if_name, 40, "string:%s", interface);
-#endif
-	g_snprintf(dest_ip, 30, "%s", ip_addr);
-	g_snprintf(netmask, 30, "255.255.255.255");
-	g_snprintf(if_name, 40, "%s", interface);
 
-	params = g_variant_new("(sss)", dest_ip, netmask, if_name);
+	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
+	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
+
+	if(address_family == AF_INET) {
+		g_snprintf(netmask, INET_ADDRSTRLEN, "255.255.255.255");
+		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, NULL, address_family);
+	}
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
 			NETCONFIG_NETWORK_INTERFACE, "AddRoute", params, &Error);
@@ -110,25 +108,111 @@ done:
 	return Error;
 }
 
-static int __net_remove_route(const char *ip_addr, const char *interface)
+static int __net_remove_route(const char *ip_addr, const char *interface, int address_family)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
 	GVariant *message = NULL;
-	char dest_ip[30];
-	char netmask[30];
-	char if_name[40];
+	char dest_ip[INET6_ADDRSTRLEN] = { '\0' };
+	char netmask[INET_ADDRSTRLEN] = { '\0' };
+	char if_name[40] = { '\0' };
 	GVariant *params = NULL;
-#if 0
-	g_snprintf(dest_ip, 30, "string:%s", ip_addr);
-	g_snprintf(netmask, 30, "string:255.255.255.255");
-	g_snprintf(if_name, 40, "string:%s", interface);
-#endif
-	g_snprintf(dest_ip, 30, "%s", ip_addr);
-	g_snprintf(netmask, 30, "255.255.255.255");
-	g_snprintf(if_name, 40, "%s", interface);
-	params = g_variant_new("(sss)", dest_ip, netmask, if_name);
+
+	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
+	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
+
+	if(address_family == AF_INET) {
+		g_snprintf(netmask, INET_ADDRSTRLEN, "255.255.255.255");
+		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, NULL, address_family);
+	}
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "RemoveRoute", params, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to remove route\n");
+		goto done;
+	}
+
+	/** Check Reply */
+	gboolean remove_result = FALSE;
+
+	g_variant_get(message, "(b)", &remove_result);
+	NETWORK_LOG(NETWORK_HIGH, "Remove route, result : %d\n", remove_result);
+
+	if (remove_result)
+		Error = NET_ERR_NONE;
+	else
+		Error = NET_ERR_UNKNOWN;
+
+	g_variant_unref(message);
+
+done:
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+static int __net_add_route_ipv6(const char *ip_addr, const char *interface, int address_family, const char *gateway)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+	char dest_ip[INET6_ADDRSTRLEN] = { '\0' };
+	char netmask[INET_ADDRSTRLEN] = { '\0' };
+	char if_name[40] = { '\0' };
+	GVariant *params = NULL;
+
+	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
+	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
+
+	if(address_family == AF_INET6) {
+		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, gateway, address_family);
+	}
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "AddRoute", params, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to add route\n");
+		goto done;
+	}
+
+	/** Check Reply */
+	gboolean add_result = FALSE;
+
+	g_variant_get(message, "(b)", &add_result);
+	NETWORK_LOG(NETWORK_HIGH, "Add route, result : %d\n", add_result);
+
+	if (add_result)
+		Error = NET_ERR_NONE;
+	else
+		Error = NET_ERR_UNKNOWN;
+
+	g_variant_unref(message);
+
+done:
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+static int __net_remove_route_ipv6(const char *ip_addr, const char *interface, int address_family, const char *gateway)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+	char dest_ip[INET6_ADDRSTRLEN] = { '\0' };
+	char netmask[INET_ADDRSTRLEN] = { '\0' };
+	char if_name[40] = { '\0' };
+	GVariant *params = NULL;
+
+	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
+	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
+
+	if(address_family == AF_INET6)
+		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, gateway, address_family);
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
 			NETCONFIG_NETWORK_INTERFACE, "RemoveRoute", params, &Error);
@@ -185,7 +269,7 @@ static int __net_get_netinfo(net_profile_info_t *active_profile_info, net_dev_in
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    net_event_cb_t event_cb - Pointer to callback function
- *		 void* user_data - Pointer to user data 
+ *		 void* user_data - Pointer to user data
  * @param[out]   none 
  */
 EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
@@ -436,6 +520,40 @@ EXPORT_API int net_get_active_ipaddress(net_addr_t *ip_address)
 }
 
 /**
+ * @fn  EXPORT_API int net_get_active_ipaddress6(net_addr_t *ip_address)
+ *
+ * This API returns a specific information of active(default) network profile.
+ * This is Sync API.
+ *
+ * @return       int - NET_ERR_NONE on success, negative values for errors
+ * @param[in]    none
+ * @param[out] 	 ip_address6 	Ip address of active(default) network profile.
+ */
+EXPORT_API int net_get_active_ipaddress6(net_addr_t *ip_address6)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	net_profile_info_t active_profile_info;
+	net_dev_info_t *net_info = NULL;
+
+	Error = __net_get_default_profile((void*)ip_address6,
+			&active_profile_info);
+	if (Error != NET_ERR_NONE) {
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	Error = __net_get_netinfo(&active_profile_info, &net_info);
+
+	if (net_info != NULL)
+		memcpy(ip_address6, &net_info->IpAddr6, sizeof(net_addr_t));
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+/**
  * @fn  EXPORT_API int net_get_active_netmask(net_addr_t *netmask)
  *
  * This API returns a specific information of active(default) network profile.
@@ -469,6 +587,42 @@ EXPORT_API int net_get_active_netmask(net_addr_t *netmask)
 }
 
 /**
+ * @fn  EXPORT_API int net_get_active_prefixlen6(int *prefixlen6)
+ *
+ * This API returns a specific information of active(default) network profile.
+ * This is Sync API.
+ *
+ * @return		int	- NET_ERR_NONE on success, negative values for
+ * errors
+ * @param[in]	none
+ * @param[out]	prefixlen6	Prefix Length of IPv6 address of active(default)
+ * network profile.
+ */
+EXPORT_API int net_get_active_prefixlen6(int *prefixlen6)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	net_profile_info_t active_profile_info;
+	net_dev_info_t *net_info = NULL;
+
+	Error = __net_get_default_profile((void*)prefixlen6,
+			&active_profile_info);
+	if (Error != NET_ERR_NONE) {
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	Error = __net_get_netinfo(&active_profile_info, &net_info);
+
+	if (net_info != NULL)
+		*prefixlen6 = net_info->PrefixLen6;
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+/**
  * @fn  EXPORT_API int net_get_active_gateway(net_addr_t *gateway)
  *
  * This API returns a specific information of active(default) network profile.
@@ -496,6 +650,39 @@ EXPORT_API int net_get_active_gateway(net_addr_t *gateway)
 
 	if (net_info != NULL)
 		memcpy(gateway, &net_info->GatewayAddr, sizeof(net_addr_t));
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+/**
+ * @fn  EXPORT_API int net_get_active_gateway6(net_addr_t *gateway6)
+ *
+ * This API returns a specific information of active(default) network profile.
+ * This is Sync API.
+ *
+ * @return       int - NET_ERR_NONE on success, negative values for errors
+ * @param[in]    none
+ * @param[out] 	 gateway6 	Gateway IPv6 address of active(default) network profile.
+ */
+EXPORT_API int net_get_active_gateway6(net_addr_t *gateway6)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	net_profile_info_t active_profile_info;
+	net_dev_info_t *net_info = NULL;
+
+	Error = __net_get_default_profile((void*)gateway6, &active_profile_info);
+	if (Error != NET_ERR_NONE) {
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	Error = __net_get_netinfo(&active_profile_info, &net_info);
+
+	if (net_info != NULL)
+		memcpy(gateway6, &net_info->GatewayAddr6, sizeof(net_addr_t));
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -652,11 +839,11 @@ EXPORT_API int net_is_connected(void)
 /**
  * @fn   EXPORT_API int net_get_network_status(net_service_type_t network_type, net_cm_network_status_t* pNetworkStatus)
  *
- * This function requests wifi/pdp network status 
+ * This function requests wifi/pdp network status
  * This is Sync API.
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
- * @param[in]    net_service_type_t network_type - Network type (wlan/pdp/default), of whose status to be checked. 
+ * @param[in]    net_service_type_t network_type - Network type (wlan/pdp/default), of whose status to be checked.
  * @param[out]   net_cm_network_status_t* pNetworkStatus - Status of the requested network.
  */
 
@@ -728,19 +915,19 @@ EXPORT_API int net_set_statistics(net_device_t device_type, net_statistics_type_
 	return Error;
 }
 
-EXPORT_API int net_add_route(const char *ip_addr, const char *interface)
+EXPORT_API int net_add_route(const char *ip_addr, const char *interface, int address_family)
 {
 	net_err_t Error = NET_ERR_NONE;
 
 	if (ip_addr == NULL || strlen(ip_addr) < 7 || interface == NULL || strlen(interface) == 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	Error = __net_add_route(ip_addr, interface);
+	Error = __net_add_route(ip_addr, interface, address_family);
 	if (Error != NET_ERR_NONE) {
-		NETWORK_LOG(NETWORK_ERROR, "Failed to add route. Error [%s]\n",
+		NETWORK_LOG(NETWORK_ERROR, "Failed to add route. Error [%s]",
 				_net_print_error(Error));
 
 		return Error;
@@ -749,7 +936,7 @@ EXPORT_API int net_add_route(const char *ip_addr, const char *interface)
 	return Error;
 }
 
-EXPORT_API int net_remove_route(const char *ip_addr, const char *interface)
+EXPORT_API int net_remove_route(const char *ip_addr, const char *interface, int address_family)
 {
 	net_err_t Error = NET_ERR_NONE;
 
@@ -760,7 +947,50 @@ EXPORT_API int net_remove_route(const char *ip_addr, const char *interface)
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	Error = __net_remove_route(ip_addr, interface);
+	Error = __net_remove_route(ip_addr, interface, address_family);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to remove route. Error [%s]\n",
+				_net_print_error(Error));
+
+		return Error;
+	}
+
+	return Error;
+}
+
+EXPORT_API int net_add_route_ipv6(const char *ip_addr, const char *interface, int address_family, const char *gateway)
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	if (ip_addr == NULL || strlen(ip_addr) < 3 || interface == NULL || gateway == NULL || strlen(interface) == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	Error = __net_add_route_ipv6(ip_addr, interface, address_family, gateway);
+	if (Error != NET_ERR_NONE) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to add route. Error [%s]",
+				_net_print_error(Error));
+
+		return Error;
+	}
+
+	return Error;
+}
+
+EXPORT_API int net_remove_route_ipv6(const char *ip_addr, const char *interface, int address_family, const char *gateway)
+{
+	net_err_t Error = NET_ERR_NONE;
+
+	if (ip_addr == NULL || strlen(ip_addr) < 3 || interface == NULL || gateway == NULL || strlen(interface) == 0 ) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
+
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	Error = __net_remove_route_ipv6(ip_addr, interface, address_family, gateway);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to remove route. Error [%s]\n",
 				_net_print_error(Error));

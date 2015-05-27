@@ -55,11 +55,17 @@ extern "C"
 /** Minimum length of IPv4 string type e.g., "0.0.0.0". This length does not include NULL in the last byte. */
 #define NETPM_IPV4_STR_LEN_MIN 7
 
+/** Maximum length of IPv6 string type e.g., "fe80:0000:0000:0000:a000:27ff:fe7a:65ea". This length does not include NULL in the last byte. */
+#define NETPM_IPV6_STR_LEN_MAX 39
+
+/** Minimum length of IPv6 string type e.g., "::". This length does not include NULL in the last byte. */
+#define NETPM_IPV6_STR_LEN_MIN 2
+
 /** This is for MCC + MNC string */
 #define NET_SIM_INFO_LEN 10
 
 /** Maximum length of username in PDP profile. (used in authentication parameters) [3GPP Defined variable] */
-#define NET_PDP_AUTH_USERNAME_LEN_MAX 32 
+#define NET_PDP_AUTH_USERNAME_LEN_MAX 32
 
 /** Maximum length of password in PDP profile (used in authentication parameters) [3GPP Defined variable] */
 #define NET_PDP_AUTH_PASSWORD_LEN_MAX 32
@@ -79,6 +85,11 @@ extern "C"
 /** Maximum length of MAC address  */
 #define	NET_MAX_MAC_ADDR_LEN 32
 
+/** Maximum length of IPv6 Privacy  ["enabled", "disabled", "preferred"]*/
+#define	NETPM_IPV6_MAX_PRIVACY_LEN 9
+
+/** Maximum length of IPv6 Prefix */
+#define	NETPM_IPV6_MAX_PREFIX_LEN 128
 /*==================================================================================================
                                              ENUMS
 ==================================================================================================*/
@@ -152,7 +163,7 @@ typedef enum
 typedef enum
 {
 	/** Not defined */
-	NET_PROXY_TYPE_UNKNOWN	= 0x00, 
+	NET_PROXY_TYPE_UNKNOWN	= 0x00,
 	/** Direct connection */
 	NET_PROXY_TYPE_DIRECT = 0x01,
 	/** Auto configuration(Use PAC file)
@@ -305,10 +316,14 @@ typedef struct
 	/** Device Name of the connection link */
 	char		DevName[NET_MAX_DEVICE_NAME_LEN+1];
 
-	/** Dns Server Address of the connection link */
+	/** IPv4 Dns Server Address of the connection link */
 	net_addr_t	DnsAddr[NET_DNS_ADDR_MAX];
-	/** No of DNS Address for the connection link */
+	/** IPv6 Dns Server Address of the connection link */
+	net_addr_t	DnsAddr6[NET_DNS_ADDR_MAX];
+	/** No of IPv4 DNS Address for the connection link */
 	int		DnsCount;
+	/** No of IPv6 DNS Address for the connection link */
+	int		DnsCount6;
 
 	/** Net IP configuration Type */
 	net_ip_config_type_t IpConfigType;
@@ -331,6 +346,23 @@ typedef struct
 
 	/** MAC address */
 	char			MacAddr[NET_MAX_MAC_ADDR_LEN+1];
+
+	/** Net IP configuration Type */
+	net_ip_config_type_t IpConfigType6;
+
+	/** IP Address for the connection link */
+	net_addr_t	IpAddr6;
+
+	/** Prefix Length for the connection link */
+	int PrefixLen6;
+
+	/** Whether gateway address present or not */
+	char		BDefGateway6;
+	/** Gateway address */
+	net_addr_t	GatewayAddr6;
+
+	/** Privacy of the connection link */
+	char		Privacy6[NETPM_IPV6_MAX_PRIVACY_LEN+1];
 } net_dev_info_t;
 
 /**

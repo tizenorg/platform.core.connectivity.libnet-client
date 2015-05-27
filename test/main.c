@@ -60,7 +60,7 @@ static void __print_profile_list(int num_of_profile,
 		net_profile_info_t* profile_table, profile_print_type_t print_type);
 static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_type_t print_type);
 static void __network_print_ipaddress(net_addr_t* ip_address);
-
+static void __network_print_ipaddress6(net_addr_t* ip_address6);
 static void __network_evt_cb (net_event_info_t*  event_cb, void* user_data);
 
 static int __network_get_user_string(char *buf, int buf_size)
@@ -91,6 +91,14 @@ static void __network_print_ipaddress(net_addr_t* ip_address)
 			ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
 }
 
+static void __network_print_ipaddress6(net_addr_t* ip_address6)
+{
+	char ipaddr6[INET6_ADDRSTRLEN];
+
+	inet_ntop(AF_INET6, &ip_address6->Data.Ipv6, ipaddr6, INET6_ADDRSTRLEN);
+	debug_print("Profile IPv6 Address = [%s]\n", ipaddr6);
+}
+
 static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_type_t print_type)
 {
 	net_pdp_profile_info_t *pdp_info = &ProfInfo->ProfileInfo.Pdp;
@@ -103,26 +111,62 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 	unsigned char *netmaskaddr;
 	unsigned char *gwaddr;
 	net_dev_info_t *net_info;
+	char ipaddr6[INET6_ADDRSTRLEN];
+	char gwaddr6[INET6_ADDRSTRLEN];
+	int prefixlen;
+	char *privacy;
 
 	if (ProfInfo->profile_type == NET_DEVICE_WIFI) {
 		ipaddr = (unsigned char *)&wlan_info->net_info.IpAddr.Data.Ipv4.s_addr;
 		netmaskaddr = (unsigned char *)&wlan_info->net_info.SubnetMask.Data.Ipv4.s_addr;
 		gwaddr = (unsigned char *)&wlan_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
+
+		inet_ntop(AF_INET6, &wlan_info->net_info.IpAddr6.Data.Ipv6,
+				ipaddr6, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, &wlan_info->net_info.GatewayAddr6.Data.Ipv6,
+				gwaddr6, INET6_ADDRSTRLEN);
+		prefixlen = wlan_info->net_info.PrefixLen6;
+		privacy = wlan_info->net_info.Privacy6;
+		
 		net_info = &(wlan_info->net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_CELLULAR) {
 		ipaddr = (unsigned char *)&pdp_info->net_info.IpAddr.Data.Ipv4.s_addr;
 		netmaskaddr = (unsigned char *)&pdp_info->net_info.SubnetMask.Data.Ipv4.s_addr;
 		gwaddr = (unsigned char *)&pdp_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
+		
+		inet_ntop(AF_INET6, &pdp_info->net_info.IpAddr6.Data.Ipv6,
+				ipaddr6, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, &pdp_info->net_info.GatewayAddr6.Data.Ipv6,
+				gwaddr6, INET6_ADDRSTRLEN);
+		prefixlen = pdp_info->net_info.PrefixLen6;
+		privacy = pdp_info->net_info.Privacy6;
+		
 		net_info = &(pdp_info->net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_ETHERNET) {
 		ipaddr = (unsigned char *)&eth_info->net_info.IpAddr.Data.Ipv4.s_addr;
 		netmaskaddr = (unsigned char *)&eth_info->net_info.SubnetMask.Data.Ipv4.s_addr;
 		gwaddr = (unsigned char *)&eth_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
+
+		inet_ntop(AF_INET6, &eth_info->net_info.IpAddr6.Data.Ipv6,
+				ipaddr6, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, &eth_info->net_info.GatewayAddr6.Data.Ipv6,
+				gwaddr6, INET6_ADDRSTRLEN);
+		prefixlen = eth_info->net_info.PrefixLen6;
+		privacy = eth_info->net_info.Privacy6;
+		
 		net_info = &(eth_info->net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_BLUETOOTH) {
 		ipaddr = (unsigned char *)&bt_info->net_info.IpAddr.Data.Ipv4.s_addr;
 		netmaskaddr = (unsigned char *)&bt_info->net_info.SubnetMask.Data.Ipv4.s_addr;
 		gwaddr = (unsigned char *)&bt_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
+
+		inet_ntop(AF_INET6, &bt_info->net_info.IpAddr6.Data.Ipv6,
+				ipaddr6, INET6_ADDRSTRLEN);
+		inet_ntop(AF_INET6, &bt_info->net_info.GatewayAddr6.Data.Ipv6,
+				gwaddr6, INET6_ADDRSTRLEN);
+		prefixlen = bt_info->net_info.PrefixLen6;
+		privacy = bt_info->net_info.Privacy6;
+
 		net_info = &(bt_info->net_info);
 	} else {
 		debug_print("Invalid profile type\n");
@@ -145,7 +189,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 		debug_print("Profile State = [online]\n");
 	else if (ProfInfo->ProfileState == NET_STATE_TYPE_DISCONNECT)
 		debug_print("Profile State = [disconnect]\n");
-	else 
+	else
 		debug_print("Profile State = [unknown]\n");
 
 	if (ProfInfo->profile_type == NET_DEVICE_WIFI) {
@@ -267,6 +311,24 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 				netmaskaddr[0], netmaskaddr[1], netmaskaddr[2], netmaskaddr[3]);
 		debug_print("Profile Gateway = [%d.%d.%d.%d]\n",
 				gwaddr[0], gwaddr[1], gwaddr[2], gwaddr[3]);
+		
+		if (net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_STATIC)
+			debug_print("Profile IPv6 Method = "
+					"[NET_IP_CONFIG_TYPE_STATIC]\n");
+		else if (net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_OFF)
+			debug_print("Profile IPv6 Method = "
+					"[NET_IP_CONFIG_TYPE_OFF]\n");
+		else if (net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_AUTO_IP)
+			debug_print("Profile IPv6 Method = "
+					"[NET_IP_CONFIG_TYPE_AUTO_IP]\n");
+		else
+			debug_print("Profile IPv6 Method = [UNKNOWN]\n");
+
+		debug_print("Profile IPv6 Address = [%s]\n", ipaddr6);
+		debug_print("Profile IPv6 Prefix Length = [%d]\n", prefixlen);
+		debug_print("Profile IPv6 GateWay = [%s]\n", gwaddr6);
+		debug_print("Profile IPv6 Privacy = [%s]\n", privacy);
+
 
 		if (net_info->ProxyMethod == NET_PROXY_TYPE_DIRECT)
 			debug_print("Proxy Method = [direct]\n");
@@ -541,6 +603,18 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 
 }
 
+static gboolean __network_check_address_type(int address_family, const char *address)
+{
+	unsigned char buf[sizeof(struct in6_addr)] = {0, };
+	int err = 0;
+
+	err = inet_pton(address_family, address, buf);
+	if(err > 0)
+		return TRUE;
+
+	return FALSE;
+}
+
 int __network_modify_profile_info(net_profile_info_t *profile_info)
 {
 	net_dev_info_t *net_info2 = &profile_info->ProfileInfo.Wlan.net_info;
@@ -669,6 +743,65 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 				net_info2->DnsCount = ei+1;
 			}
+		}
+		debug_print("\nInput IPv6 Address Type auto/manual/off "
+				"('s' for skip) :\n");
+
+		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
+			debug_print("Fail to get input string\n");
+			return FALSE;
+		}
+
+		if (input_str[0] != 's') {
+			if (strcmp(input_str, "auto") == 0) {
+				net_info2->IpConfigType6 =
+					NET_IP_CONFIG_TYPE_AUTO_IP;
+			} else if (strcmp(input_str, "off") == 0) {
+				net_info2->IpConfigType6 = NET_IP_CONFIG_TYPE_OFF;
+			} else if (strcmp(input_str, "manual") == 0) {
+				net_info2->IpConfigType6 =
+					NET_IP_CONFIG_TYPE_STATIC;
+			}
+			debug_print("\nInput IPV6 Address ('s' for skip) :\n");
+
+			if (__network_get_user_string(input_str, FORMAT_SIZE) ==
+					FALSE) {
+				debug_print("Fail to get input string\n");
+				return FALSE;
+			}
+
+			if (input_str[0] != 's' &&
+				strlen(input_str) >= NETPM_IPV6_STR_LEN_MIN)
+				if (inet_pton(AF_INET6, input_str,
+					&net_info2->IpAddr6.Data.Ipv6) != 1)
+					inet_pton(AF_INET6, "::",
+						&net_info2->IpAddr6.Data.Ipv6);
+
+			debug_print("\nInput Prefix Length ('s' for skip) :\n");
+
+			if (__network_get_user_string(input_str, FORMAT_SIZE) ==
+					FALSE) {
+				debug_print("Fail to get input string\n");
+				return FALSE;
+			}
+
+			if (input_str[0] != 's')
+				net_info2->PrefixLen6 = atoi(input_str);
+
+			debug_print("\nInput IPv6 Gateway ('s' for skip) :\n");
+
+			if (__network_get_user_string(input_str, FORMAT_SIZE) ==
+					FALSE) {
+				debug_print("Fail to get input string\n");
+				return FALSE;
+			}
+
+			if (input_str[0] != 's' &&
+				strlen(input_str) >= NETPM_IPV6_STR_LEN_MIN)
+				if (inet_pton(AF_INET6, input_str,
+					&net_info2->GatewayAddr6.Data.Ipv6) != 1)
+					inet_pton(AF_INET6, "::",
+						&net_info2->GatewayAddr6.Data.Ipv6);
 		}
 	} else if (profile_info->profile_type == NET_DEVICE_CELLULAR) {
 		debug_print("\nInput Apn(current:%s) - ('s' for skip) :\n", pdp_info->Apn);
@@ -918,6 +1051,8 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("q	- Get technology state\n");
 		debug_print("r	- Set passpoint on/off\n");
 		debug_print("s	- Get passpoint state\n");
+		debug_print("t	- Add IPv6 route\n");
+		debug_print("u	- Remove IPv6 route\n");
 		debug_print("z 	- Exit \n");
 
 		debug_print("ENTER 	- Show options menu.......\n");
@@ -1169,12 +1304,14 @@ static gboolean network_main_gthread(gpointer data)
 
 	case 'c':
 		debug_print("Enter info Type(1:Full, 2:ip, 3:netmask, 4:gateway,"
-					   " 5:DNS, 6:ESSID, 7:Proxy):\n");
+				" 5:DNS, 6:ESSID, 7:Proxy):\n");
 		scanf("%d", &input_int);
 
 		memset(&profile_info, 0, sizeof(net_profile_info_t));
 
 		net_addr_t ip_address;
+		net_addr_t ip_address6;
+		int prefixlen6 = -1;
 		net_essid_t essid;
 		net_proxy_t proxy;
 
@@ -1193,18 +1330,33 @@ static gboolean network_main_gthread(gpointer data)
 				debug_print("net_get_active_ipaddress() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
+
+			if (net_get_active_ipaddress6(&ip_address6) != NET_ERR_NONE)
+				debug_print("Error!!! net_get_active_ipaddress6() failed\n");
+			else
+				__network_print_ipaddress6(&ip_address6);
 			break;
 		case 3:
 			if (net_get_active_netmask(&ip_address) != NET_ERR_NONE)
 				debug_print("net_get_active_netmask() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
+
+			if (net_get_active_prefixlen6(&prefixlen6) != NET_ERR_NONE)
+				debug_print("Error!!! net_get_active_prefixlen6() failed\n");
+			else
+				debug_print("Profile IPv6 Prefix Length = [%d]\n", prefixlen6);
 			break;
 		case 4:
 			if (net_get_active_gateway(&ip_address) != NET_ERR_NONE)
 				debug_print("net_get_active_gateway() failed\n");
 			else
 				__network_print_ipaddress(&ip_address);
+
+			if (net_get_active_gateway6(&ip_address6) != NET_ERR_NONE)
+				debug_print("Error!!! net_get_active_gateway6() failed\n");
+			else
+				__network_print_ipaddress6(&ip_address6);
 			break;
 		case 5:
 			if (net_get_active_dns(&ip_address) != NET_ERR_NONE)
@@ -1542,23 +1694,31 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'n': {
-		char ip_addr[30];
+		char ip_addr[40];
 		char if_name[40];
+		int address_family;
 
-		debug_print( "Enter IP : \n");
-
-		if (__network_get_user_string(ip_addr, 30) == FALSE)
+		debug_print("Enter IP : \n");
+		if (__network_get_user_string(ip_addr, 40) == FALSE)
 			break;
 
-		debug_print( "Enter Interface name : \n");
+		if(__network_check_address_type(AF_INET, ip_addr))
+			address_family = AF_INET;
+		else if(__network_check_address_type(AF_INET6, ip_addr))
+			address_family = AF_INET6;
+		else
+			debug_print("Invalid IP address\n");
 
+		debug_print("Enter Interface name : \n");
 		if (__network_get_user_string(if_name, 40) == FALSE)
 			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_add_route(ip_addr, if_name) != NET_ERR_NONE) {
+		g_strstrip(ip_addr);
+		g_strstrip(if_name);
+		if (net_add_route(ip_addr, if_name, address_family) != NET_ERR_NONE) {
 			debug_print("net_add_route() failed.\n");
 			break;
 		}
@@ -1572,23 +1732,31 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'o': {
-		char ip_addr[30];
+		char ip_addr[40];
 		char if_name[40];
+		int address_family;
 
-		debug_print( "Enter IP : \n");
-
-		if (__network_get_user_string(ip_addr, 30) == FALSE)
+		debug_print("Enter IP : \n");
+		if (__network_get_user_string(ip_addr, 40) == FALSE)
 			break;
 
-		debug_print( "Enter Interface name : \n");
+		if(__network_check_address_type(AF_INET, ip_addr))
+			address_family = AF_INET;
+		else if(__network_check_address_type(AF_INET6, ip_addr))
+			address_family = AF_INET6;
+		else
+			debug_print("Invalid IP address\n");
 
+		debug_print("Enter Interface name : \n");
 		if (__network_get_user_string(if_name, 40) == FALSE)
 			break;
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_remove_route(ip_addr, if_name) != NET_ERR_NONE) {
+		g_strstrip(ip_addr);
+		g_strstrip(if_name);
+		if (net_remove_route(ip_addr, if_name, address_family) != NET_ERR_NONE) {
 			debug_print("net_remove_route() failed.\n");
 			break;
 		}
@@ -1702,6 +1870,82 @@ static gboolean network_main_gthread(gpointer data)
 
 		debug_print("net_wifi_get_passpoint() success\n");
 		debug_print("current passpoint sate(0:off, 1:on) = [%d]\n", enabled);
+	}
+		break;
+
+	case 't': {
+		char ip_addr[40] = {0};
+		char if_name[40] = {0};
+		char gateway[40] = {0};
+		int address_family;
+
+		debug_print("Enter IPV6 : \n");
+		if (__network_get_user_string(ip_addr, 40) == FALSE)
+			break;
+
+		address_family = AF_INET6;
+
+		debug_print("Enter Gateway : \n");
+		if (__network_get_user_string(gateway, 40) == FALSE)
+			break;
+
+		debug_print("Enter Interface name : \n");
+		if (__network_get_user_string(if_name, 40) == FALSE)
+			break;
+
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		g_strstrip(ip_addr);
+		g_strstrip(if_name);
+		if (net_add_route_ipv6(ip_addr, if_name, address_family, gateway) != NET_ERR_NONE) {
+			debug_print("net_add_route() failed.\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+
+		debug_print("net_add_route() success\n");
+	}
+		break;
+
+	case 'u': {
+		char ip_addr[40] = {0};
+		char if_name[40] = {0};
+		char gateway[40] = {0};
+		int address_family;
+
+		debug_print("Enter IPv6 : \n");
+		if (__network_get_user_string(ip_addr, 40) == FALSE)
+			break;
+
+		address_family = AF_INET6;
+
+		debug_print("Enter Gateway : \n");
+		if (__network_get_user_string(gateway, 40) == FALSE)
+			break;
+
+		debug_print("Enter Interface name : \n");
+		if (__network_get_user_string(if_name, 40) == FALSE)
+			break;
+
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		g_strstrip(ip_addr);
+		g_strstrip(if_name);
+		if (net_remove_route_ipv6(ip_addr, if_name, address_family, gateway) != NET_ERR_NONE) {
+			debug_print("net_remove_route() failed.\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+
+		debug_print("net_remove_route() success\n");
 	}
 		break;
 

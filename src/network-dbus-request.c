@@ -1502,6 +1502,150 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 	return NET_ERR_NONE;
 }
 
+int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	const char *manual_method = "manual";
+	const char *auto_method = "auto";
+	const char *off_method = "off";
+
+	const char *prop_ipv6_configuration = "IPv6.Configuration";
+	const char *prop_method = "Method";
+	const char *prop_address = "Address";
+	const char *prop_gateway = "Gateway";
+	const char *prop_prefixlen = "PrefixLength";
+
+	char ipaddr6[INET6_ADDRSTRLEN];
+	char gwaddr6[INET6_ADDRSTRLEN];
+	char prefixlen[INET6_ADDRSTRLEN];
+
+	char *ip6_ptr = ipaddr6;
+	char *gw6_ptr = gwaddr6;
+	char *prlen_ptr = prefixlen;
+
+	GError *error = NULL;
+	GVariant *reply = NULL;
+	GVariant *params = NULL;
+	GVariantBuilder *builder;
+	GDBusConnection *connection;
+	net_dev_info_t *profile_net_info  = NULL;
+
+	connection = _net_dbus_get_gdbus_conn();
+	if (connection == NULL)
+		return NET_ERR_APP_NOT_REGISTERED;
+
+	if ((prof_info == NULL) || (profile_name == NULL) || (strlen(profile_name) == 0)) {
+		NETWORK_LOG(NETWORK_ERROR,  "Error!!! Invalid argument\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	if(prof_info->profile_type == NET_DEVICE_WIFI)
+		profile_net_info = &(prof_info->ProfileInfo.Wlan.net_info);
+	else if(prof_info->profile_type == NET_DEVICE_ETHERNET)
+		profile_net_info = &(prof_info->ProfileInfo.Ethernet.net_info);
+	else {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Profile Type\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	inet_ntop(AF_INET6, &profile_net_info->IpAddr6.Data.Ipv6, ipaddr6,
+			INET6_ADDRSTRLEN);
+	inet_ntop(AF_INET6, &profile_net_info->GatewayAddr6.Data.Ipv6, gwaddr6,
+			INET6_ADDRSTRLEN);
+	g_snprintf(prefixlen, INET6_ADDRSTRLEN, "%d",
+			profile_net_info->PrefixLen6);
+
+	NETWORK_LOG(NETWORK_HIGH, "ipaddress : %s, prefix_len : %s, gateway :"
+			" %s\n", ip6_ptr, prlen_ptr, gw6_ptr);
+
+	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+
+	if (profile_net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_DYNAMIC ||
+		profile_net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_AUTO_IP) {
+
+		g_variant_builder_add(builder, "{sv}", prop_method,
+				g_variant_new_string(auto_method));
+
+	} else if (profile_net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_OFF) {
+
+		g_variant_builder_add(builder, "{sv}", prop_method,
+				g_variant_new_string(off_method));
+
+		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s\n",
+				prop_method, off_method);
+	} else if (profile_net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_STATIC) {
+
+		g_variant_builder_add(builder, "{sv}", prop_method,
+				g_variant_new_string(manual_method));
+
+		if (strlen(ipaddr6) >= NETPM_IPV6_STR_LEN_MIN) {
+			g_variant_builder_add(builder, "{sv}", prop_address,
+					g_variant_new_string(ip6_ptr));
+		}
+
+		if (profile_net_info->PrefixLen6 <= NETPM_IPV6_MAX_PREFIX_LEN) {
+			g_variant_builder_add(builder, "{sv}", prop_prefixlen,
+					g_variant_new_string(prlen_ptr));
+		}
+
+		if (strlen(gwaddr6) >= NETPM_IPV6_STR_LEN_MIN) {
+			g_variant_builder_add(builder, "{sv}", prop_gateway,
+					g_variant_new_string(gw6_ptr));
+		}
+		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s %s %s %s %s"
+				" %s %s\n", prop_method, manual_method,
+				prop_address, ipaddr6, prop_prefixlen,
+				prefixlen, prop_gateway, gwaddr6);
+	} else {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid argument\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	params = g_variant_new("(sv)", prop_ipv6_configuration,
+			g_variant_builder_end(builder));
+	g_variant_builder_unref(builder);
+
+	reply = g_dbus_connection_call_sync(connection,
+					CONNMAN_SERVICE,
+					profile_name,
+					CONNMAN_SERVICE_INTERFACE,
+					"SetProperty",
+					params,
+					NULL,
+					G_DBUS_CALL_FLAGS_NONE,
+					DBUS_REPLY_TIMEOUT,
+					_net_dbus_get_gdbus_cancellable(),
+					&error);
+	if (reply == NULL) {
+		if (error != NULL) {
+			NETWORK_LOG(NETWORK_ERROR,
+						"g_dbus_connection_call_sync()"
+						" failed. error [%d: %s]\n",
+						error->code, error->message);
+			g_error_free(error);
+		} else {
+			NETWORK_LOG(NETWORK_ERROR,
+					"g_dbus_connection_call_sync() failed.\n");
+		}
+
+		if (params)
+			g_variant_unref(params);
+
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_UNKNOWN;
+	}
+
+	NETWORK_LOG(NETWORK_HIGH, "Successfully configured IPv6.Configuration\n");
+	g_variant_unref(reply);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
 int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 {
 	__NETWORK_FUNC_ENTER__;

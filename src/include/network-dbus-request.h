@@ -98,6 +98,7 @@ int _net_dbus_get_network_status(net_device_t device_type, net_cm_network_status
 int _net_dbus_get_tech_status(net_device_t device_type, net_tech_info_t* tech_status);
 int _net_dbus_connect_service(const net_wifi_connect_service_info_t* wifi_connection_info);
 int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name);
+int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name);
 int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name);
 int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name);
 int _net_dbus_get_technology_state(network_tech_state_info_t* tech_state);

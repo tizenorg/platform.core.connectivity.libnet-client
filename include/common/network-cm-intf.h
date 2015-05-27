@@ -58,7 +58,7 @@ typedef enum
 	/** Open Connection Response Event*/
 	NET_EVENT_OPEN_RSP,
 
-	/** Close Connection Response Event*/ 
+	/** Close Connection Response Event*/
 	NET_EVENT_CLOSE_RSP,
 	
 	/** Open connection Indication (auto join) */
@@ -324,7 +324,7 @@ typedef void (*net_event_cb_t)(const net_event_info_t* net_event, void* user_dat
  *  None
  *
  * \param[in] event_cb     Application Callback function pointer to receive ConnMan events
- * \param[in] user_data    user data 
+ * \param[in] user_data    user data
  *
  * \par Async Response Message:
  *        None.
@@ -705,6 +705,78 @@ int net_get_active_netmask(net_addr_t *netmask);
 
 /*****************************************************************************************/
 /**
+ * \brief  This API returns ipv6 address of active(default) network profile.
+ *
+ * \par Sync (or) Async:
+ * These is a Synchronous API.
+ *
+ * \par Important Notes:
+ *  		On success, the information shall be copied to the parameter in each format.
+ *
+ * \param[out] 	ip_address6  ipv6 address of active(default) network profile.
+ *
+ * \par Precondition:
+ *        Application must already be registered with the CM server.
+ *
+ * \return Return Type (int) \n
+ * - NET_ERR_NONE  - indicating that the status of queried network interface is retrieved. \n
+ * - NET_ERR_APP_NOT_REGISTERED - indicating that client is not registered with CM and it cannot use CM services.\n
+ * - NET_ERR_UNKNOWN - indicating that an unknown error has occurred.\n
+ * - NET_ERR_INVALID_PARAM - indicating that API parameter value is invalid.\n
+ * - NET_ERR_NO_SERVICE - indicating that there is no active network.\n
+ *
+ * \par Prospective Clients:
+ * External Apps.
+ *
+ * \par Example Program:
+ *
+ * net_addr_t ip_address6;
+ *
+ * int result = net_get_active_ipaddress6(&ip_address6);
+ *
+ * if(result == NET_ERR_NONE)......
+ *
+******************************************************************************************/
+int net_get_active_ipaddress6(net_addr_t *ip_address6);
+
+/*****************************************************************************************/
+/**
+ * \brief  This API returns Prefix Length of IPv6 address of active(default) network profile.
+ *
+ * \par Sync (or) Async:
+ * These is a Synchronous API.
+ *
+ * \par Important Notes:
+ *  		On success, the information shall be copied to the parameter in each format.
+ *
+ * \param[out] 	prefixlen6  Prefix Length of IPv6 address of active(default) network profile.
+ *
+ * \par Precondition:
+ *        Application must already be registered with the CM server.
+ *
+ * \return Return Type (int) \n
+ * - NET_ERR_NONE  - indicating that the status of queried network interface is retrieved. \n
+ * - NET_ERR_APP_NOT_REGISTERED - indicating that client is not registered with CM and it cannot use CM services.\n
+ * - NET_ERR_UNKNOWN - indicating that an unknown error has occurred.\n
+ * - NET_ERR_INVALID_PARAM - indicating that API parameter value is invalid.\n
+ * - NET_ERR_NO_SERVICE - indicating that there is no active network.\n
+ *
+ * \par Prospective Clients:
+ * External Apps.
+ *
+ * \par Example Program:
+ *
+ * int prefixlen6;
+ *
+ * int result = net_get_active_prefixlen6(&prefixlen6);
+ *
+ * if(result == NET_ERR_NONE)......
+ *
+******************************************************************************************/
+int net_get_active_prefixlen6(int *prefixlen6);
+
+/*****************************************************************************************/
+/**
  * \brief  This API returns gateway address of active(default) network profile.
  *
  * \par Sync (or) Async:
@@ -738,6 +810,45 @@ int net_get_active_netmask(net_addr_t *netmask);
  *
 ******************************************************************************************/
 int net_get_active_gateway(net_addr_t *gateway);
+
+/*****************************************************************************************/
+/**
+ * \brief  This API returns gateway IPv6 address of active(default) network profile.
+ *
+ * \par Sync (or) Async:
+ * These is a Synchronous API.
+ *
+ * \par Important Notes:
+ *  		On success, the information shall be copied to the parameter in
+ *  		each format.
+ *
+ * \param[out] 	gateway6  gateway IPv6 address of active(default) network profile.
+ *
+ * \par Precondition:
+ *        Application must already be registered with the CM server.
+ *
+ * \return Return Type (int) \n
+ * - NET_ERR_NONE  - indicating that the status of queried network interface is
+ *   retrieved. \n
+ * - NET_ERR_APP_NOT_REGISTERED - indicating that client is not registered with
+ *   CM and it cannot use CM services.\n
+ * - NET_ERR_UNKNOWN - indicating that an unknown error has occurred.\n
+ * - NET_ERR_INVALID_PARAM - indicating that API parameter value is invalid.\n
+ * - NET_ERR_NO_SERVICE - indicating that there is no active network.\n
+ *
+ * \par Prospective Clients:
+ * External Apps.
+ *
+ * \par Example Program:
+ *
+ * net_addr_t gateway6;
+ *
+ * int result = net_get_active_gateway6(&gateway6);
+ *
+ * if(result == NET_ERR_NONE)......
+ *
+******************************************************************************************/
+int net_get_active_gateway6(net_addr_t *gateway6);
 
 /*****************************************************************************************/
 /**
@@ -993,18 +1104,42 @@ int net_open_connection_with_preference_ext(net_service_type_t service_type, net
  *
  * \param[in]  ip_addr     ip address to route.
  * \param[in]  interface   interface name.
+ * \param[in]  address_family address family of ip address.
  *
  ******************************************************************************************/
-int net_add_route(const char *ip_addr, const char *interface);
+int net_add_route(const char *ip_addr, const char *interface, int address_family);
 
 /**
  * \brief 	This API is only for Connection CAPI. Don't use this.
  *
  * \param[in]  ip_addr     ip address to route.
  * \param[in]  interface   interface name.
+ * \param[in]  address_family address family of ip address.
  *
  ******************************************************************************************/
-int net_remove_route(const char *ip_addr, const char *interface);
+int net_remove_route(const char *ip_addr, const char *interface, int address_family);
+
+/**
+ * \brief 	This API is only for Connection CAPI. Don't use this.
+ *
+ * \param[in]  ip_addr     ipv6 address to route.
+ * \param[in]  interface   interface name.
+ * \param[in]  address_family address family of ip address.
+ * \param[in]  gateway  gateway address.
+ *
+ ******************************************************************************************/
+int net_add_route_ipv6(const char *ip_addr, const char *interface, int address_family, const char *gateway);
+
+/**
+ * \brief 	This API is only for Connection CAPI. Don't use this.
+ *
+ * \param[in]  ip_addr     ipv6 address to route.
+ * \param[in]  interface   interface name.
+ * \param[in]  address_family address family of ip address.
+ * \param[in]  gateway  gateway address.
+ *
+ ******************************************************************************************/
+int net_remove_route_ipv6(const char *ip_addr, const char *interface, int address_family, const char *gateway);
 
 /*****************************************************************************************/
 /* net_get_ethernet_cable_state API function prototype
