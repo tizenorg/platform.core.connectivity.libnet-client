@@ -1367,7 +1367,7 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 {
 	__NETWORK_FUNC_ENTER__;
 
-	
+
 	const char *manual_method = "manual";
 	const char *dhcp_method = "dhcp";
 	const char *off_method = "off";
@@ -1376,7 +1376,7 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 	const char *prop_method = "Method";
 	const char *prop_address = "Address";
 	const char *prop_gateway = "Gateway";
-	const char *prop_netmask = "Netmask";	
+	const char *prop_netmask = "Netmask";
 
 	char ip_buffer[NETPM_IPV4_STR_LEN_MAX+1] = "";
 	char netmask_buffer[NETPM_IPV4_STR_LEN_MAX+1] = "";
@@ -1654,79 +1654,73 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 	char dns_buffer[NET_DNS_ADDR_MAX][NETPM_IPV4_STR_LEN_MAX+1];
 	char *dns_address[NET_DNS_ADDR_MAX];
 
-	GError *error = NULL;
-	GVariant *reply = NULL;
 	GVariant *params = NULL;
 	GVariantBuilder *builder;
 	int i = 0;
 	GDBusConnection *connection;
+	net_err_t Error = NET_ERR_NONE;
+	net_dev_info_t *profile_net_info  = NULL;
+	GVariant *message = NULL;
 
-	connection = _net_dbus_get_gdbus_conn();
-	if (connection == NULL)
-		return NET_ERR_APP_NOT_REGISTERED;
-
-	if ((prof_info == NULL) || (profile_name == NULL) || (strlen(profile_name) == 0) ||
-	    (prof_info->ProfileInfo.Wlan.net_info.DnsCount > NET_DNS_ADDR_MAX))	{
+	if ((prof_info == NULL) || (profile_name == NULL) || (strlen(profile_name) == 0)) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	for (i = 0; i < prof_info->ProfileInfo.Wlan.net_info.DnsCount; i++) {
+	if(prof_info->profile_type == NET_DEVICE_WIFI)
+		profile_net_info = &(prof_info->ProfileInfo.Wlan.net_info);
+	else if(prof_info->profile_type == NET_DEVICE_ETHERNET)
+		profile_net_info = &(prof_info->ProfileInfo.Ethernet.net_info);
+	else {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Profile Type\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	if(profile_net_info->DnsCount > NET_DNS_ADDR_MAX ) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	for (i = 0; i < profile_net_info->DnsCount; i++) {
 		dns_buffer[i][0] = '\0';
 		dns_address[i] = NULL;
 
-		if (prof_info->ProfileInfo.Wlan.net_info.DnsAddr[i].Data.Ipv4.s_addr != 0)
+		if (profile_net_info->DnsAddr[i].Data.Ipv4.s_addr != 0)
 			g_strlcpy(dns_buffer[i],
-				inet_ntoa(prof_info->ProfileInfo.Wlan.net_info.DnsAddr[i].Data.Ipv4),
-				NETPM_IPV4_STR_LEN_MAX + 1);
+					inet_ntoa(profile_net_info->DnsAddr[i].Data.Ipv4),
+					NETPM_IPV4_STR_LEN_MAX + 1);
 
 		dns_address[i] = dns_buffer[i];
 	}
 
-	if (prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_STATIC ||
-	    prof_info->ProfileInfo.Wlan.net_info.IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC) {
+	if (profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_STATIC ||
+	 	   profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC) {
 
 		builder = g_variant_builder_new(G_VARIANT_TYPE ("as"));
-		for (i = 0; i < prof_info->ProfileInfo.Wlan.net_info.DnsCount; i++) {
+		for (i = 0; i < profile_net_info->DnsCount; i++) {
 			g_variant_builder_add(builder, "s", dns_address[i]);
 		}
 
-		params = g_variant_new("(sv)",prop_nameserver_configuration, g_variant_builder_end(builder));
+		params = g_variant_new("(sv)", prop_nameserver_configuration, g_variant_builder_end(builder));
 		g_variant_builder_unref(builder);
 
-		reply = g_dbus_connection_call_sync(connection,
-						CONNMAN_SERVICE,
-						profile_name,
-						CONNMAN_SERVICE_INTERFACE,
-						"SetProperty",
-						params,
-						NULL,
-						G_DBUS_CALL_FLAGS_NONE,
-						DBUS_REPLY_TIMEOUT,
-						_net_dbus_get_gdbus_cancellable(),
-						&error);
-		if (reply == NULL) {
-			if (error != NULL) {
-				NETWORK_LOG(NETWORK_ERROR,
-					"g_dbus_connection_call_sync() failed."
-					"error [%d: %s]\n", error->code, error->message);
-				g_error_free(error);
-			} else {
-				NETWORK_LOG(NETWORK_ERROR,
-					"g_dbus_connection_call_sync() failed.\n");
-			}
-
+		message = _net_invoke_dbus_method(CONNMAN_SERVICE, profile_name,
+				CONNMAN_SERVICE_INTERFACE, "SetProperty", params,
+				&Error);
+		if(message == NULL) {
+			NETWORK_LOG(NETWORK_ERROR, "Failed to set "
+					"Nameservers.Configuration");
 			__NETWORK_FUNC_EXIT__;
-			return NET_ERR_UNKNOWN;
+			return Error;
 		}
-
 		NETWORK_LOG(NETWORK_HIGH, "Successfully configured Nameservers.Configuration\n");
-		g_variant_unref(reply);
+		g_variant_unref(message);
 	}
-
 	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
+	return Error;
 }
 
 int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
@@ -1745,16 +1739,13 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 	char proxy_buffer[NET_PROXY_LEN_MAX+1] = "";
 	char *proxy_address = proxy_buffer;
 
-	GError *error = NULL;
-	GVariant *reply = NULL;
 	GVariant *params = NULL;
 	GVariantBuilder *builder;
 	GVariantBuilder *builder_sub;
-	GDBusConnection *connection;
 
-	connection = _net_dbus_get_gdbus_conn();
-	if (connection == NULL)
-		return NET_ERR_APP_NOT_REGISTERED;
+	GVariant *message = NULL;
+	net_dev_info_t *profile_net_info  = NULL;
+	net_err_t Error = NET_ERR_NONE;
 
 	if ((prof_info == NULL) || (profile_name == NULL) || (strlen(profile_name) == 0)) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid argument\n");
@@ -1762,15 +1753,27 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 		return NET_ERR_INVALID_PARAM;
 	}
 
+
+	if (prof_info->profile_type == NET_DEVICE_WIFI)
+		profile_net_info = &(prof_info->ProfileInfo.Wlan.net_info);
+	else if (prof_info->profile_type == NET_DEVICE_ETHERNET)
+		profile_net_info = &(prof_info->ProfileInfo.Ethernet.net_info);
+	else {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Profile Type\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
 	g_strlcpy(proxy_buffer,
-			prof_info->ProfileInfo.Wlan.net_info.ProxyAddr, NET_PROXY_LEN_MAX+1);
+			profile_net_info->ProxyAddr, NET_PROXY_LEN_MAX+1);
 
 	NETWORK_LOG(NETWORK_HIGH, "Method : %d, proxy address : %s\n",
 			prof_info->ProfileInfo.Wlan.net_info.ProxyMethod, proxy_address);
 
 	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
 
-	switch (prof_info->ProfileInfo.Wlan.net_info.ProxyMethod) {
+
+	switch (profile_net_info->ProxyMethod) {
 	case NET_PROXY_TYPE_AUTO:
 		g_variant_builder_add(builder, "{sv}", prop_method, g_variant_new_string(auto_method));
 		break;
@@ -1782,12 +1785,12 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 		break;
 	}
 
-	if (prof_info->ProfileInfo.Wlan.net_info.ProxyMethod == NET_PROXY_TYPE_AUTO &&
+	if (profile_net_info->ProxyMethod == NET_PROXY_TYPE_AUTO &&
 			proxy_address[0] != '\0') {
 		g_variant_builder_add(builder, "{sv}", prop_url, g_variant_new_string(proxy_address));
 	}
 
-	if (prof_info->ProfileInfo.Wlan.net_info.ProxyMethod == NET_PROXY_TYPE_MANUAL &&
+	if (profile_net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL &&
 			proxy_address[0] != '\0') {
 		builder_sub = g_variant_builder_new(G_VARIANT_TYPE ("as"));
 		g_variant_builder_add(builder_sub, "s", proxy_address);
@@ -1795,40 +1798,23 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 		g_variant_builder_unref(builder_sub);
 	}
 
+
 	params = g_variant_new("(sv)", prop_proxy_configuration, g_variant_builder_end(builder));
 	g_variant_builder_unref(builder);
 
-	reply = g_dbus_connection_call_sync(connection,
-					CONNMAN_SERVICE,
-					profile_name,
-					CONNMAN_SERVICE_INTERFACE,
-					"SetProperty",
-					params,
-					NULL,
-					G_DBUS_CALL_FLAGS_NONE,
-					DBUS_REPLY_TIMEOUT,
-					_net_dbus_get_gdbus_cancellable(),
-					&error);
-	if (reply == NULL) {
-		if (error != NULL) {
-			NETWORK_LOG(NETWORK_ERROR,
-				"g_dbus_connection_call_sync() failed."
-				"error [%d: %s]\n", error->code, error->message);
-			g_error_free(error);
-		} else {
-			NETWORK_LOG(NETWORK_ERROR,
-				"g_dbus_connection_call_sync() failed.\n");
-		}
-
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, profile_name,
+			CONNMAN_SERVICE_INTERFACE, "SetProperty", params,
+			&Error);
+	if(message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to set Proxy Configuration");
 		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_UNKNOWN;
+		return Error;
 	}
-
 	NETWORK_LOG(NETWORK_HIGH, "Successfully configured Proxy.Configuration\n");
-	g_variant_unref(reply);
+	g_variant_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
-	return NET_ERR_NONE;
+	return Error;
 }
 
 
