@@ -410,9 +410,9 @@ static void __net_specific_scan_wifi_reply(GObject *source_object, GAsyncResult 
 		g_variant_unref(dbus_result);
 
 	if (Error != NET_ERR_NONE)
-		NETWORK_LOG(NETWORK_ERROR, "Find hidden AP failed. Error [%d]\n", Error);
+		NETWORK_LOG(NETWORK_ERROR, "Find specific AP failed[%d]", Error);
 	else
-		NETWORK_LOG(NETWORK_LOW, "Hidden AP found\n");
+		NETWORK_LOG(NETWORK_LOW, "Specific AP found");
 
 	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
 		if (NET_ERR_NONE != Error) {

@@ -117,6 +117,12 @@ typedef struct {
 	wlan_security_info_t security_info;
 } net_wifi_connection_info_t;
 
+struct ssid_scan_bss_info_t {
+	char ssid[NET_WLAN_ESSID_LEN + 1];
+	wlan_security_mode_type_t security;
+	char wps;
+};
+
 /*****************************************************************************
  * 	Typedefs 
  *****************************************************************************/
