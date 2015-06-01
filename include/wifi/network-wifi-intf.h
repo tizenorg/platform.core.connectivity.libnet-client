@@ -115,6 +115,9 @@ typedef struct {
 
 	/** Security mode and authentication info */
 	wlan_security_info_t security_info;
+
+	/** Hidden network */
+	gboolean is_hidden;
 } net_wifi_connection_info_t;
 
 struct ssid_scan_bss_info_t {

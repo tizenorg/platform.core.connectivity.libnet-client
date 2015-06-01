@@ -336,6 +336,9 @@ typedef struct
 
 	/** network information */
 	net_dev_info_t net_info;
+
+	/** Hidden network */
+	gboolean is_hidden;
 } net_wifi_profile_info_t;
 
 /**

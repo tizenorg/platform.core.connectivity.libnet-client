@@ -534,7 +534,8 @@ static int __net_extract_mobile_services(GVariantIter *iter,
 }
 
 static int __net_extract_all_services(GVariantIter *array,
-		const char *service_prefix, int *prof_count, net_profile_info_t **ProfilePtr)
+		net_device_t device_type, const char *service_prefix,
+		int *prof_count, net_profile_info_t **ProfilePtr)
 {
 	int count = 0;
 	net_profile_info_t ProfInfo = {0, };
@@ -574,6 +575,10 @@ static int __net_extract_all_services(GVariantIter *array,
 
 				goto error;
 			}
+
+			if (device_type == NET_DEVICE_WIFI &&
+					g_strrstr(obj + strlen(service_prefix), "hidden") != NULL)
+				ProfInfo.ProfileInfo.Wlan.is_hidden = TRUE;
 
 			ProfInfo.profile_type = local_device_type;
 			g_strlcpy(ProfInfo.ProfileName, obj, NET_PROFILE_NAME_LEN_MAX);
@@ -688,7 +693,8 @@ static int __net_extract_services(GVariantIter *message, net_device_t device_typ
 		break;
 	}
 
-	Error = __net_extract_all_services(message, service_prefix, &prof_cnt, &ProfilePtr);
+	Error = __net_extract_all_services(message, device_type, service_prefix,
+			&prof_cnt, &ProfilePtr);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to extract services from received message\n");
 		*profile_count = 0;

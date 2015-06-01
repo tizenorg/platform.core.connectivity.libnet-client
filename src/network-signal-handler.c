@@ -673,15 +673,6 @@ int _net_subscribe_signal_wifi(void)
 						NULL,
 						NULL);
 
-	if (gdbus_conn_subscribe_id_supplicant == 0 ||
-		gdbus_conn_subscribe_id_netconfig_wifi == 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Failed register signals "
-				"supplicant(%d), netconfig_wifi(%d)",
-				gdbus_conn_subscribe_id_supplicant,
-				gdbus_conn_subscribe_id_netconfig_wifi);
-		Error = NET_ERR_NOT_SUPPORTED;
-	}
-
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -756,18 +747,6 @@ int _net_register_signal(void)
 						__net_netconfig_network_signal_filter,
 						NULL,
 						NULL);
-
-	if (gdbus_conn_subscribe_id_connman_state == 0 ||
-		gdbus_conn_subscribe_id_connman_error == 0 ||
-		gdbus_conn_subscribe_id_netconfig == 0) {
-		NETWORK_LOG(NETWORK_ERROR, "Failed register signals "
-				"connman_state(%d), connman_error(%d), netconfig(%d)",
-				gdbus_conn_subscribe_id_connman_state,
-				gdbus_conn_subscribe_id_connman_error,
-				gdbus_conn_subscribe_id_netconfig);
-		Error = NET_ERR_NOT_SUPPORTED;
-	}
-
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

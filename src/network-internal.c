@@ -318,6 +318,8 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 
 	wifi_connection_info.ssid = g_strdup(wifi_info->essid);
 
+	wifi_connection_info.is_hidden = wifi_info->is_hidden;
+
 	switch (wifi_info->security_info.sec_mode) {
 	case WLAN_SEC_MODE_NONE:
 		wifi_connection_info.security = g_strdup("none");

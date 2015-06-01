@@ -1288,7 +1288,8 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 	int i = 0;
 
 	/* Get group name with prefix 'ssid' in hex */
-	grp_name = __net_make_group_name(wifi_connection_info->ssid,
+	grp_name = __net_make_group_name(wifi_connection_info->is_hidden == TRUE ?
+				NULL : wifi_connection_info->ssid,
 			wifi_connection_info->mode,
 			wifi_connection_info->security);
 	if (NULL == grp_name) {
@@ -1324,8 +1325,27 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 		goto done;
 	}
 
-	g_strlcpy(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName,
-			profile_info[i].ProfileName, NET_PROFILE_NAME_LEN_MAX+1);
+	if (wifi_connection_info->is_hidden == TRUE) {
+		int target = 0;
+		char *target_name = __net_make_group_name(wifi_connection_info->ssid,
+				wifi_connection_info->mode,
+				wifi_connection_info->security);
+
+		for (target = 0; target < profile_count; target++) {
+			if (g_strstr_len(profile_info[target].ProfileName,
+					NET_PROFILE_NAME_LEN_MAX+1, target_name) != NULL) {
+				g_strlcpy(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName,
+						profile_info[target].ProfileName, NET_PROFILE_NAME_LEN_MAX+1);
+
+				break;
+			}
+		}
+
+		g_free(target_name);
+	} else {
+		g_strlcpy(request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].ProfileName,
+				profile_info[i].ProfileName, NET_PROFILE_NAME_LEN_MAX+1);
+	}
 
 	if (g_strcmp0(wifi_connection_info->security, "ieee8021x") == 0) {
 		/* Create the EAP config file */
@@ -1335,6 +1355,11 @@ int _net_dbus_connect_service(const net_wifi_connect_service_info_t *wifi_connec
 
 			goto done;
 		}
+	} else if (wifi_connection_info->is_hidden == TRUE) {
+		Error = _net_dbus_set_agent_fields_and_connect(
+				wifi_connection_info->ssid,
+				wifi_connection_info->passphrase,
+				profile_info[i].ProfileName);
 	} else if (g_strcmp0(wifi_connection_info->security, "none") != 0) {
 		Error = _net_dbus_set_agent_passphrase(wifi_connection_info->passphrase);
 		if (NET_ERR_NONE != Error) {

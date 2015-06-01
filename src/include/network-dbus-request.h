@@ -80,6 +80,7 @@ typedef struct {
 	char *client_cert_file;
 	char *private_key_file;
 	char *private_key_password;
+	gboolean is_hidden;
 } net_wifi_connect_service_info_t;
 
 /*****************************************************************************
