@@ -1236,6 +1236,48 @@ int _net_dbus_set_agent_passphrase(const char *passphrase)
 	return NET_ERR_NONE;
 }
 
+int _net_dbus_set_agent_fields_and_connect(const char *ssid,
+		const char *passphrase, const char *profilename)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	/* If OPEN network, passphrase can be NULL */
+	if (NULL == ssid || strlen(ssid) <= 0 || NULL == profilename) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter");
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	GVariant *params = NULL;
+	GVariantBuilder *builder;
+
+	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+	g_variant_builder_add(builder, "{sv}", NETCONFIG_AGENT_FIELD_SSID,
+			g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, ssid,
+					strlen(ssid), sizeof(guchar)));
+
+	if (passphrase)
+		g_variant_builder_add(builder, "{sv}", NETCONFIG_AGENT_FIELD_PASSPHRASE,
+				g_variant_new_string(passphrase));
+
+	params = g_variant_new("(o@a{sv})",
+			profilename, g_variant_builder_end(builder));
+	g_variant_builder_unref(builder);
+
+	Error = _net_invoke_dbus_method_nonblock(NETCONFIG_SERVICE,
+			NETCONFIG_WIFI_PATH,
+			CONNMAN_AGENT_INTERFACE, "SetField", params,
+			__net_open_connection_reply);
+	if (NET_ERR_NONE != Error) {
+		NETWORK_LOG(NETWORK_ERROR, "Configuration failed(%d)", Error);
+		return Error;
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
 int _net_dbus_set_agent_wps_pbc(void)
 {
 	__NETWORK_FUNC_ENTER__;
