@@ -1944,6 +1944,23 @@ static int __net_modify_ethernet_profile(const char* ProfileName,
 			return Error;
 		}
 	}
+
+	/* Compare and Set 'IPv6 addresses' */
+	if ((ex_net_info->IpConfigType6 != net_info->IpConfigType6) ||
+	    (net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_STATIC &&
+	     (net_info->IpAddr6.Data.Ipv6.s6_addr != ex_net_info->IpAddr6.Data.Ipv6.s6_addr ||
+	      net_info->PrefixLen6 != ex_net_info->PrefixLen6 ||
+	      net_info->GatewayAddr6.Data.Ipv6.s6_addr != ex_net_info->GatewayAddr6.Data.Ipv6.s6_addr))) {
+
+		Error = _net_dbus_set_profile_ipv6(ProfInfo, profilePath);
+
+		if (Error != NET_ERR_NONE) {
+			NETWORK_LOG(NETWORK_ERROR,  "Error!!! Can't set IPv6\n");
+
+			__NETWORK_FUNC_EXIT__;
+			return Error;
+		}
+	}
 	/* Compare and Set 'DNS addresses' */
 	for (i = 0; i < net_info->DnsCount; i++) {
 		if (i >= NET_DNS_ADDR_MAX) {
