@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,12 @@ struct gdbus_connection_data {
 	void *handle_libnetwork;
 };
 
+struct managed_idle_data {
+	GSourceFunc func;
+	gpointer user_data;
+	guint id;
+};
+
 /*****************************************************************************
  * 	Extern Global Variables
  *****************************************************************************/
@@ -40,6 +46,7 @@ extern __thread network_info_t NetworkInfo;
 __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = { { 0, }, };
 
 static __thread struct gdbus_connection_data gdbus_conn = { NULL, 0, NULL, NULL };
+static __thread GSList *managed_idler_list = NULL;
 
 static char *__convert_eap_type_to_string(gchar eap_type)
 {
@@ -239,7 +246,7 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 	gchar *tech_prefix;
 	gchar *path = NULL;
 	gchar *key = NULL;
-	gboolean data = FALSE;
+	gboolean data;
 
 	if (g_str_equal(tech_state->technology, "wifi") == TRUE)
 		tech_prefix = CONNMAN_WIFI_TECHNOLOGY_PREFIX;
@@ -250,7 +257,7 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 	else if (g_str_equal(tech_state->technology, "bluetooth") == TRUE)
 		tech_prefix = CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX;
 	else {
-		NETWORK_LOG(NETWORK_LOW, "Invalid technology type\n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid technology type");
 		Error = NET_ERR_INVALID_PARAM;
 		goto done;
 	}
@@ -261,8 +268,6 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 		if (path == NULL || g_str_equal(path, tech_prefix) != TRUE)
 			continue;
 
-		NETWORK_LOG(NETWORK_LOW, "Path - [%s]", path);
-
 		while (g_variant_iter_loop(var, "{sv}", &key, &value)) {
 			if (g_strcmp0(key, "Powered") == 0) {
 				data = g_variant_get_boolean(value);
@@ -271,8 +276,6 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 					tech_state->Powered = TRUE;
 				else
 					tech_state->Powered = FALSE;
-
-				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Powered);
 			} else if (g_strcmp0(key, "Connected") == 0) {
 				data = g_variant_get_boolean(value);
 
@@ -280,15 +283,8 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 					tech_state->Connected = TRUE;
 				else
 					tech_state->Connected = FALSE;
-
-				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Connected);
 			} else if (g_strcmp0(key, "Tethering") == 0) {
-				data = g_variant_get_boolean(value);
-				if (data)
-					tech_state->Tethering = TRUE;
-				else
-					tech_state->Tethering = FALSE;
-				NETWORK_LOG(NETWORK_ERROR, "key-[%s]-[%d]", key, tech_state->Tethering);
+				/* For further use */
 			}
 		}
 	}
@@ -309,80 +305,80 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 	net_wifi_connect_service_info_t wifi_connection_info;
 	memset(&wifi_connection_info, 0, sizeof(net_wifi_connect_service_info_t));
 
-	wifi_connection_info.type = g_strdup("wifi");
+	wifi_connection_info.type = "wifi";
 
 	if (wifi_info->wlan_mode == NETPM_WLAN_CONNMODE_ADHOC)
-		wifi_connection_info.mode = g_strdup("adhoc");
+		wifi_connection_info.mode = "adhoc";
 	else
-		wifi_connection_info.mode = g_strdup("managed");
+		wifi_connection_info.mode = "managed";
 
-	wifi_connection_info.ssid = g_strdup(wifi_info->essid);
+	wifi_connection_info.ssid = (char *)wifi_info->essid;
 
 	wifi_connection_info.is_hidden = wifi_info->is_hidden;
 
 	switch (wifi_info->security_info.sec_mode) {
 	case WLAN_SEC_MODE_NONE:
-		wifi_connection_info.security = g_strdup("none");
+		wifi_connection_info.security = "none";
 		break;
 
 	case WLAN_SEC_MODE_WEP:
-		wifi_connection_info.security = g_strdup("wep");
+		wifi_connection_info.security = "wep";
 		wifi_connection_info.passphrase =
-				g_strdup(wifi_info->security_info.authentication.wep.wepKey);
+				(char *)wifi_info->security_info.authentication.wep.wepKey;
 		break;
 
-	/** WPA-PSK(equivalent to WPA-NONE in case of Ad-Hoc) */
+		/** WPA-PSK(equivalent to WPA-NONE in case of Ad-Hoc) */
 	case WLAN_SEC_MODE_WPA_PSK:
-		wifi_connection_info.security = g_strdup("psk");
+		wifi_connection_info.security = "psk";
 		wifi_connection_info.passphrase =
-				g_strdup(wifi_info->security_info.authentication.psk.pskKey);
+				(char *)wifi_info->security_info.authentication.psk.pskKey;
 		break;
 
 	/** WPA2-PSK */
 	/** WPA-PSK / WPA2-PSK supported */
 	case WLAN_SEC_MODE_WPA2_PSK:
-		wifi_connection_info.security = g_strdup("rsn");
+		wifi_connection_info.security = "rsn";
 		wifi_connection_info.passphrase =
-				g_strdup(wifi_info->security_info.authentication.psk.pskKey);
+				(char *)wifi_info->security_info.authentication.psk.pskKey;
 		break;
 
 	case WLAN_SEC_MODE_IEEE8021X:
-		wifi_connection_info.security = g_strdup("ieee8021x");
+		wifi_connection_info.security = "ieee8021x";
 
-		wifi_connection_info.eap_type = g_strdup(
+		wifi_connection_info.eap_type =
 				__convert_eap_type_to_string(
-						wifi_info->security_info.authentication.eap.eap_type));
-		wifi_connection_info.eap_auth = g_strdup(
+						wifi_info->security_info.authentication.eap.eap_type);
+		wifi_connection_info.eap_auth =
 				__convert_eap_auth_to_string(
-						wifi_info->security_info.authentication.eap.eap_auth));
+						wifi_info->security_info.authentication.eap.eap_auth);
 
 		if (wifi_info->security_info.authentication.eap.username[0] != '\0')
 			wifi_connection_info.identity =
-					g_strdup(wifi_info->security_info.authentication.eap.username);
+					(char *)wifi_info->security_info.authentication.eap.username;
 
 		if (wifi_info->security_info.authentication.eap.password[0] != '\0')
 			wifi_connection_info.password =
-					g_strdup(wifi_info->security_info.authentication.eap.password);
+					(char *)wifi_info->security_info.authentication.eap.password;
 
 		if (wifi_info->security_info.authentication.eap.ca_cert_filename[0] != '\0')
 			wifi_connection_info.ca_cert_file =
-					g_strdup(wifi_info->security_info.authentication.eap.ca_cert_filename);
+					(char *)wifi_info->security_info.authentication.eap.ca_cert_filename;
 
 		if (wifi_info->security_info.authentication.eap.client_cert_filename[0] != '\0')
 			wifi_connection_info.client_cert_file =
-					g_strdup(wifi_info->security_info.authentication.eap.client_cert_filename);
+					(char *)wifi_info->security_info.authentication.eap.client_cert_filename;
 
 		if (wifi_info->security_info.authentication.eap.private_key_filename[0] != '\0')
 			wifi_connection_info.private_key_file =
-					g_strdup(wifi_info->security_info.authentication.eap.private_key_filename);
+					(char *)wifi_info->security_info.authentication.eap.private_key_filename;
 
 		if (wifi_info->security_info.authentication.eap.private_key_passwd[0] != '\0')
 			wifi_connection_info.private_key_password =
-					g_strdup(wifi_info->security_info.authentication.eap.private_key_passwd);
-
+					(char *)wifi_info->security_info.authentication.eap.private_key_passwd;
 		break;
+
 	default:
-		NETWORK_LOG(NETWORK_ERROR, "Invalid security type\n");
+		NETWORK_LOG(NETWORK_ERROR, "Invalid security type");
 
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
@@ -390,64 +386,226 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 
 	Error = _net_dbus_connect_service(&wifi_connection_info);
 	if (Error != NET_ERR_NONE)
-		NETWORK_LOG(NETWORK_ERROR, "Failed to request connect service. Error [%s]\n",
+		NETWORK_LOG(NETWORK_ERROR, "Failed to request connect service. Error [%s]",
 				_net_print_error(Error));
-	else
-		NETWORK_LOG(NETWORK_HIGH, "Successfully requested to connect service\n");
-
-	g_free(wifi_connection_info.type);
-	g_free(wifi_connection_info.mode);
-	g_free(wifi_connection_info.ssid);
-	g_free(wifi_connection_info.security);
-	g_free(wifi_connection_info.passphrase);
-	g_free(wifi_connection_info.eap_type);
-	g_free(wifi_connection_info.eap_auth);
-	g_free(wifi_connection_info.identity);
-	g_free(wifi_connection_info.password);
-	g_free(wifi_connection_info.ca_cert_file);
-	g_free(wifi_connection_info.client_cert_file);
-	g_free(wifi_connection_info.private_key_file);
-	g_free(wifi_connection_info.private_key_password);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
 
-void _net_client_callback(net_event_info_t *event_data)
+static gboolean __net_client_cb_idle(gpointer data)
 {
-	__NETWORK_FUNC_ENTER__;
+	GSList *bss_info_list = NULL;
+	net_event_info_t *event_data = (net_event_info_t *)data;
+
+	if (event_data->Event == NET_EVENT_SPECIFIC_SCAN_IND ||
+			event_data->Event == NET_EVENT_WPS_SCAN_IND) {
+		bss_info_list = (GSList *)event_data->Data;
+	}
 
 	if (NetworkInfo.ClientEventCb != NULL)
 		NetworkInfo.ClientEventCb(event_data, NetworkInfo.user_data);
 
+	/* BSS list should be released in a delayed manner */
+	if (bss_info_list != NULL)
+		g_slist_free_full(bss_info_list, g_free);
+	else if (event_data->Datalength > 0)
+		g_free(event_data->Data);
+
+	g_free(event_data);
+
+	return FALSE;
+}
+
+static gboolean __net_client_cb_conn_idle(gpointer data)
+{
+	net_event_info_t *event_data = (net_event_info_t *)data;
+
+	if (event_data->Event == NET_EVENT_SPECIFIC_SCAN_IND) {
+		/* ClientEventCb only handles NET_EVENT_SPECIFIC_SCAN_IND */
+		g_free(event_data);
+		return FALSE;
+	}
+
 	if (NetworkInfo.ClientEventCb_conn != NULL)
 		NetworkInfo.ClientEventCb_conn(event_data, NetworkInfo.user_data_conn);
+
+	if (event_data->Datalength > 0)
+		g_free(event_data->Data);
+
+	g_free(event_data);
+
+	return FALSE;
+}
+
+static gboolean __net_client_cb_wifi_idle(gpointer data)
+{
+	net_event_info_t *event_data = (net_event_info_t *)data;
 
 	if (NetworkInfo.ClientEventCb_wifi != NULL)
 		NetworkInfo.ClientEventCb_wifi(event_data, NetworkInfo.user_data_wifi);
 
+	if (event_data->Datalength > 0)
+		g_free(event_data->Data);
+
+	g_free(event_data);
+
+	return FALSE;
+}
+
+void _net_client_callback(net_event_info_t *event_data)
+{
+	guint id;
+
+	__NETWORK_FUNC_ENTER__;
+
+	if (NetworkInfo.ref_count < 1) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered. "
+				"If multi-threaded, thread integrity be broken.");
+		__NETWORK_FUNC_EXIT__;
+		return;
+	}
+
+	if (NetworkInfo.ClientEventCb != NULL) {
+		GSList *bss_info_list = NULL;
+		net_event_info_t *client = g_try_new0(net_event_info_t, 1);
+		if (client == NULL) {
+			__NETWORK_FUNC_EXIT__;
+			return;
+		}
+
+		memcpy(client, event_data, sizeof(net_event_info_t));
+
+		if (event_data->Event == NET_EVENT_SPECIFIC_SCAN_IND ||
+				event_data->Event == NET_EVENT_WPS_SCAN_IND) {
+			/* To enhance performance,
+			 * BSS list should be delivered directly */
+			bss_info_list = (GSList *)event_data->Data;
+		} else if (event_data->Datalength > 0) {
+			client->Data = g_try_malloc0(event_data->Datalength);
+			if (client->Data == NULL) {
+				g_free(client);
+				__NETWORK_FUNC_EXIT__;
+				return;
+			}
+
+			memcpy(client->Data, event_data->Data, event_data->Datalength);
+		} else {
+			client->Datalength = 0;
+			client->Data = NULL;
+		}
+
+		id = _net_client_callback_add(__net_client_cb_idle, (gpointer)client);
+		if (!id) {
+			if (bss_info_list != NULL)
+				g_slist_free_full(bss_info_list, g_free);
+			else if (client->Datalength > 0)
+				g_free(client->Data);
+
+			g_free(client);
+		}
+	}
+
+	if (NetworkInfo.ClientEventCb_conn != NULL &&
+			event_data->Event != NET_EVENT_SPECIFIC_SCAN_IND &&
+			event_data->Event != NET_EVENT_WPS_SCAN_IND) {
+		net_event_info_t *client = g_try_new0(net_event_info_t, 1);
+		if (client == NULL) {
+			__NETWORK_FUNC_EXIT__;
+			return;
+		}
+
+		memcpy(client, event_data, sizeof(net_event_info_t));
+
+		if (event_data->Datalength > 0) {
+			client->Data = g_try_malloc0(event_data->Datalength);
+			if (client->Data == NULL) {
+				g_free(client);
+				__NETWORK_FUNC_EXIT__;
+				return;
+			}
+
+			memcpy(client->Data, event_data->Data, event_data->Datalength);
+		} else {
+			client->Datalength = 0;
+			client->Data = NULL;
+		}
+
+		id = _net_client_callback_add(__net_client_cb_conn_idle, (gpointer)client);
+		if (!id) {
+			if (client->Datalength > 0)
+				g_free(client->Data);
+
+			g_free(client);
+		}
+	}
+
+	if (NetworkInfo.ClientEventCb_wifi != NULL) {
+		net_event_info_t *client = g_try_new0(net_event_info_t, 1);
+		if (client == NULL) {
+			__NETWORK_FUNC_EXIT__;
+			return;
+		}
+
+		memcpy(client, event_data, sizeof(net_event_info_t));
+		if (event_data->Datalength > 0) {
+			if (event_data->Event == NET_EVENT_SPECIFIC_SCAN_IND ||
+				event_data->Event == NET_EVENT_WPS_SCAN_IND) {
+				client->Data = g_try_malloc0(sizeof(GSList));
+				if (client->Data == NULL) {
+					g_free(client);
+					__NETWORK_FUNC_EXIT__;
+					return;
+				}
+
+				memcpy(client->Data, event_data->Data, sizeof(GSList));
+			}
+			else {
+				client->Data = g_try_malloc0(event_data->Datalength);
+				if (client->Data == NULL) {
+					g_free(client);
+					__NETWORK_FUNC_EXIT__;
+					return;
+				}
+
+				memcpy(client->Data, event_data->Data, event_data->Datalength);
+			}
+		} else {
+			client->Datalength = 0;
+			client->Data = NULL;
+		}
+
+		id = _net_client_callback_add(__net_client_cb_wifi_idle, (gpointer)client);
+		if (!id) {
+			if (client->Datalength > 0)
+				g_free(client->Data);
+
+			g_free(client);
+		}
+	}
+
 	__NETWORK_FUNC_EXIT__;
 }
 
-net_wifi_state_t _net_get_wifi_state(void)
+net_wifi_state_t _net_get_wifi_state(net_err_t *net_error)
 {
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	network_tech_state_info_t tech_state = {{0,},};
+	network_tech_state_info_t tech_state = { { 0, }, };
 	net_wifi_state_t wifi_state = WIFI_UNKNOWN;
 
 	g_strlcpy(tech_state.technology, "wifi", NET_TECH_LENGTH_MAX);
 	Error = _net_dbus_get_technology_state(&tech_state);
 	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR,
-			"_net_dbus_get_technology_state() failed. Error [%s]\n",
+			"_net_dbus_get_technology_state() failed. Error [%s]",
 			_net_print_error(Error));
+		*net_error = Error;
 		goto state_done;
 	}
 
-	if (tech_state.Powered == TRUE
-			&& tech_state.Tethering != TRUE)
+	if (tech_state.Powered == TRUE)
 		wifi_state = WIFI_ON;
 	else
 		wifi_state = WIFI_OFF;
@@ -457,13 +615,106 @@ state_done:
 	return wifi_state;
 }
 
+static void __net_client_idle_destroy_cb(gpointer data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	if (!data) {
+		__NETWORK_FUNC_EXIT__;
+		return;
+	}
+
+	managed_idler_list = g_slist_remove(managed_idler_list, data);
+	g_free(data);
+
+	__NETWORK_FUNC_EXIT__;
+}
+
+static gboolean __net_client_idle_cb(gpointer user_data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	struct managed_idle_data *data = (struct managed_idle_data *)user_data;
+
+	if (!data) {
+		__NETWORK_FUNC_EXIT__;
+		return FALSE;
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return data->func(data->user_data);
+}
+
+guint _net_client_callback_add(GSourceFunc func, gpointer user_data)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	guint id;
+	struct managed_idle_data *data;
+
+	if (!func) {
+		__NETWORK_FUNC_EXIT__;
+		return 0;
+	}
+
+	data = g_try_new0(struct managed_idle_data, 1);
+	if (!data) {
+		__NETWORK_FUNC_EXIT__;
+		return 0;
+	}
+
+	data->func = func;
+	data->user_data = user_data;
+
+	id = g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, __net_client_idle_cb, data,
+			__net_client_idle_destroy_cb);
+	if (!id) {
+		g_free(data);
+		__NETWORK_FUNC_EXIT__;
+		return id;
+	}
+
+	data->id = id;
+
+	managed_idler_list = g_slist_append(managed_idler_list, data);
+
+	__NETWORK_FUNC_EXIT__;
+	return id;
+}
+
+void _net_client_callback_cleanup(void)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GSList *cur = managed_idler_list;
+	GSource *src;
+	struct managed_idle_data *data;
+
+	while (cur) {
+		GSList *next = cur->next;
+		data = (struct managed_idle_data *)cur->data;
+
+		src = g_main_context_find_source_by_id(g_main_context_default(), data->id);
+		if (src) {
+			g_source_destroy(src);
+			cur = managed_idler_list;
+		} else
+			cur = next;
+	}
+
+	g_slist_free(managed_idler_list);
+	managed_idler_list = NULL;
+
+	__NETWORK_FUNC_EXIT__;
+}
+
 void _net_clear_request_table(void)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	int i = 0;
+	int i;
 
-	for (i = 0;i < NETWORK_REQUEST_TYPE_MAX;i++)
+	for (i = 0; i < NETWORK_REQUEST_TYPE_MAX; i++)
 		memset(&request_table[i], 0, sizeof(network_request_table_t));
 
 	__NETWORK_FUNC_EXIT__;
@@ -493,7 +744,7 @@ void _net_dbus_pending_call_unref(void)
 
 	if (__sync_sub_and_fetch(&gdbus_conn.conn_ref_count, 1) < 1 &&
 			gdbus_conn.handle_libnetwork != NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL\n");
+		NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL");
 
 		gdbus_conn.connection = NULL;
 	}
@@ -502,30 +753,23 @@ void _net_dbus_pending_call_unref(void)
 int _net_dbus_create_gdbus_call(void)
 {
 	GError *error = NULL;
-	gchar *addr;
 
 	if (gdbus_conn.connection != NULL) {
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_ALREADY_REGISTERED;
 	}
 
-	addr = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-	if (!addr) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Failed to get D-BUS : [%s]\n", error->message);
-		g_error_free(error);
-		return NET_ERR_UNKNOWN;
-	}
+#if !GLIB_CHECK_VERSION(2,36,0)
+	g_type_init();
+#endif
 
-	gdbus_conn.connection = g_dbus_connection_new_for_address_sync(addr,
-			G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
-			G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
-			NULL, NULL, &error);
-	g_free(addr);
+	gdbus_conn.connection = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
 	if (gdbus_conn.connection == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,
-				"Failed to connect to the D-BUS daemon: [%s]\n", error->message);
-		g_error_free(error);
+		if (error != NULL) {
+			NETWORK_LOG(NETWORK_ERROR,
+					"Failed to connect to the D-BUS daemon [%s]", error->message);
+			g_error_free(error);
+		}
 		return NET_ERR_UNKNOWN;
 	}
 
@@ -533,7 +777,7 @@ int _net_dbus_create_gdbus_call(void)
 
 	if (gdbus_conn.handle_libnetwork != NULL) {
 		NETWORK_LOG(NETWORK_ERROR,
-				"A handle of libnetwork is not NULL and should be released\n");
+				"A handle of libnetwork is not NULL and should be released");
 
 		dlclose(gdbus_conn.handle_libnetwork);
 		gdbus_conn.handle_libnetwork = NULL;
@@ -548,23 +792,18 @@ int _net_dbus_close_gdbus_call(void)
 	g_object_unref(gdbus_conn.cancellable);
 	gdbus_conn.cancellable = NULL;
 
-	if (g_dbus_connection_close_sync(gdbus_conn.connection, NULL, NULL) == FALSE) {
-		NETWORK_LOG(NETWORK_HIGH, "Failed to close GDBus\n");
-		return NET_ERR_UNKNOWN;
-	}
-
 	if (gdbus_conn.conn_ref_count < 1) {
-		NETWORK_LOG(NETWORK_ERROR, "There is no pending call\n");
+		NETWORK_LOG(NETWORK_ERROR, "There is no pending call");
 
 		g_object_unref(gdbus_conn.connection);
 		gdbus_conn.connection = NULL;
 	} else {
 		NETWORK_LOG(NETWORK_ERROR,
-				"There are %d pending calls, waiting to be cleared\n",
+				"There are %d pending calls, waiting to be cleared",
 				gdbus_conn.conn_ref_count);
 
 		if (gdbus_conn.handle_libnetwork != NULL)
-			NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL\n");
+			NETWORK_LOG(NETWORK_ERROR, "A handle of libnetwork is not NULL");
 
 		gdbus_conn.handle_libnetwork =
 							dlopen("/usr/lib/libnetwork.so", RTLD_LAZY);

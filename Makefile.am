@@ -1,5 +1,5 @@
-CPPFLAGS = $(DBUS_CFLAGS) $(GLIB_CFLAGS) $(DLOG_CFLAGS) $(VCONF_CFLAGS)
-CPPFLAGS += -Wall
+CPPFLAGS = $(GIO_CFLAGS) $(GLIB_CFLAGS) $(DLOG_CFLAGS) $(VCONF_CFLAGS) $(WAPI_CFLAGS) $(DUALSIM_CFLAGS) $(WEARABLE_CFLAGS) $(TIZEN_TV_CFLAGS)
+CPPFLAGS += -Wall -Werror -fvisibility=hidden
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -31,7 +31,7 @@ libnetwork_la_CFLAGS = \
 libnetwork_la_CFLAGS += $(CPPFLAGS)
 
 libnetwork_la_LIBADD =  \
-			 $(DBUS_LIBS) $(GLIB_LIBS) $(VCONF_LIBS) \
+			 $(GIO_LIBS) $(GLIB_LIBS) $(VCONF_LIBS) \
 			 $(GTHREAD_LIBS) $(DLOG_LIBS) -lpthread -lrt
 
 includelibnetworkdir = $(includedir)/network

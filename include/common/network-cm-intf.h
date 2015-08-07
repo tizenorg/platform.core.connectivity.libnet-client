@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -60,7 +60,7 @@ typedef enum
 
 	/** Close Connection Response Event*/
 	NET_EVENT_CLOSE_RSP,
-	
+
 	/** Open connection Indication (auto join) */
 	NET_EVENT_OPEN_IND,
 
@@ -77,7 +77,7 @@ typedef enum
 	/** Profile modify indication Event\n
 	 *  This is deprecated Event and maintained only for compatibility */
 	NET_EVENT_PROFILE_MODIFY_IND,
-	
+
 	/** Network configuration changed Event\n
 	 *  This is deprecated Event and maintained only for compatibility */
 	NET_EVENT_NET_CONFIGURE_RSP,
@@ -86,14 +86,14 @@ typedef enum
 
 	/** Wi-Fi interface Scan Response Event */
 	NET_EVENT_WIFI_SCAN_RSP,
-	
+
 	/** Wi-Fi interface Scan Indication Event(BG scan) */
 	NET_EVENT_WIFI_SCAN_IND,
 
 	/** Wi-Fi interface MAC changed Event\n
 	 *  This is deprecated Event and maintained only for compatibility */
 	NET_EVENT_WIFI_MAC_ID_IND,
-	
+
 	/** Wi-Fi interface Power On/Off Response Event */
 	NET_EVENT_WIFI_POWER_RSP,
 
@@ -156,10 +156,10 @@ typedef enum
  */
 typedef enum
 {
-	NET_STATISTICS_TYPE_LAST_RECEIVED_DATA = 0,  /**< Last received data */
-	NET_STATISTICS_TYPE_LAST_SENT_DATA = 1,  /**< Last sent data */
-	NET_STATISTICS_TYPE_TOTAL_RECEIVED_DATA = 2,  /**< Total received data */
-	NET_STATISTICS_TYPE_TOTAL_SENT_DATA = 3,  /**< Total sent data */
+	NET_STATISTICS_TYPE_LAST_RECEIVED_DATA = 0,		/**< Last received data */
+	NET_STATISTICS_TYPE_LAST_SENT_DATA = 1,			/**< Last sent data */
+	NET_STATISTICS_TYPE_TOTAL_RECEIVED_DATA = 2,	/**< Total received data */
+	NET_STATISTICS_TYPE_TOTAL_SENT_DATA = 3,		/**< Total sent data */
 } net_statistics_type_e;
 
 /**
@@ -295,6 +295,14 @@ typedef struct
  *   - net_event->Data        : Pointer to net_profile_info_t
  *     - If the connection open successfully, application can get the connected profile information \n
  *       If the connection is failed to establish, net_profile_info_t also contains NULL value
+ *
+ * - NET_EVENT_SPECIFIC_SCAN_IND \n
+ *     Response event for net_specific_scan_wifi() to notify the BSSs which are found.
+ *   - net_event->ProfileName : NULL (not used in this event)
+ *   - net_event->Error       : Its value will be NET_ERR_NONE in case of success and error cause in case of failure
+ *   - net_event->Data        : Pointer to GSList of struct ssid_scan_bss_info_t
+ *   - net_event->Datalength  : The number of BSSs which are found
+ *     - Do not delete and modify Data and Datalength and they are destroyed automatically
  *
  */
 

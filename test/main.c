@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,9 +26,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 
 #include <network-cm-intf.h>
 #include <network-pm-intf.h>
@@ -127,20 +127,20 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 				gwaddr6, INET6_ADDRSTRLEN);
 		prefixlen = wlan_info->net_info.PrefixLen6;
 		privacy = wlan_info->net_info.Privacy6;
-		
+
 		net_info = &(wlan_info->net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_CELLULAR) {
 		ipaddr = (unsigned char *)&pdp_info->net_info.IpAddr.Data.Ipv4.s_addr;
 		netmaskaddr = (unsigned char *)&pdp_info->net_info.SubnetMask.Data.Ipv4.s_addr;
 		gwaddr = (unsigned char *)&pdp_info->net_info.GatewayAddr.Data.Ipv4.s_addr;
-		
+
 		inet_ntop(AF_INET6, &pdp_info->net_info.IpAddr6.Data.Ipv6,
 				ipaddr6, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, &pdp_info->net_info.GatewayAddr6.Data.Ipv6,
 				gwaddr6, INET6_ADDRSTRLEN);
 		prefixlen = pdp_info->net_info.PrefixLen6;
 		privacy = pdp_info->net_info.Privacy6;
-		
+
 		net_info = &(pdp_info->net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_ETHERNET) {
 		ipaddr = (unsigned char *)&eth_info->net_info.IpAddr.Data.Ipv4.s_addr;
@@ -153,7 +153,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 				gwaddr6, INET6_ADDRSTRLEN);
 		prefixlen = eth_info->net_info.PrefixLen6;
 		privacy = eth_info->net_info.Privacy6;
-		
+
 		net_info = &(eth_info->net_info);
 	} else if (ProfInfo->profile_type == NET_DEVICE_BLUETOOTH) {
 		ipaddr = (unsigned char *)&bt_info->net_info.IpAddr.Data.Ipv4.s_addr;
@@ -174,7 +174,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 	}
 
 	debug_print("Profile Name = [%s]\n", ProfInfo->ProfileName);
-	
+
 	if (ProfInfo->ProfileState == NET_STATE_TYPE_IDLE)
 		debug_print("Profile State = [idle]\n");
 	else if (ProfInfo->ProfileState == NET_STATE_TYPE_FAILURE)
@@ -223,7 +223,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 		}
 	} else if (ProfInfo->profile_type == NET_DEVICE_CELLULAR) {
 		debug_print("Profile Type = [cellular]\n");
-		
+
 		if (print_type == PROFILE_PARTIAL_INFO ||
 		    print_type == PROFILE_FULL_INFO) {
 
@@ -282,17 +282,15 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 	}
 
 	if (print_type == PROFILE_FULL_INFO) {
-		unsigned char *dns = NULL;
+		unsigned char *dns = (unsigned char *)&net_info->DnsAddr[di].Data.Ipv4.s_addr;
 
 		debug_print("Profile Favourite = [%d]\n", (int)ProfInfo->Favourite);
 		debug_print("Profile Device Name = [%s]\n", net_info->DevName);
 		debug_print("Profile DNS Count = [%d]\n", net_info->DnsCount);
 
-		for (di = 0;di < net_info->DnsCount;di++) {
-			dns = (unsigned char *)&net_info->DnsAddr[di].Data.Ipv4.s_addr;
+		for (di = 0;di < net_info->DnsCount;di++)
 			debug_print("Profile DNS Address %d = [%d.%d.%d.%d]\n",
 					di+1, dns[0], dns[1], dns[2], dns[3]);
-		}
 
 		if (net_info->IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC)
 			debug_print("Profile IPv4 Method = [NET_IP_CONFIG_TYPE_DYNAMIC]\n");
@@ -311,7 +309,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 				netmaskaddr[0], netmaskaddr[1], netmaskaddr[2], netmaskaddr[3]);
 		debug_print("Profile Gateway = [%d.%d.%d.%d]\n",
 				gwaddr[0], gwaddr[1], gwaddr[2], gwaddr[3]);
-		
+
 		if (net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_STATIC)
 			debug_print("Profile IPv6 Method = "
 					"[NET_IP_CONFIG_TYPE_STATIC]\n");
@@ -328,7 +326,6 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 		debug_print("Profile IPv6 Prefix Length = [%d]\n", prefixlen);
 		debug_print("Profile IPv6 GateWay = [%s]\n", gwaddr6);
 		debug_print("Profile IPv6 Privacy = [%s]\n", privacy);
-
 
 		if (net_info->ProxyMethod == NET_PROXY_TYPE_DIRECT)
 			debug_print("Proxy Method = [direct]\n");
@@ -577,21 +574,38 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 
 	case NET_EVENT_SPECIFIC_SCAN_IND:
 		debug_print("Got Specific scan Ind : %d\n", event_cb->Error);
-		GSList *bss_info_list = event_cb->Data;
+		GSList *bss_info_list = (GSList *)event_cb->Data;
 
 		if (bss_info_list)
-			for (; bss_info_list; bss_info_list = bss_info_list->next){
-				net_wifi_connection_info_t *resp_data = bss_info_list->data;
+			for (; bss_info_list != NULL; bss_info_list = bss_info_list->next) {
+				struct ssid_scan_bss_info_t *resp_data = bss_info_list->data;
 				if (resp_data)
-					debug_print("essid:%s, sec type:%d\n",
-							resp_data->essid,
-							resp_data->security_info.sec_mode);
+					debug_print("essid:%s, security:%d, wps:%d",
+							resp_data->ssid, resp_data->security, resp_data->wps);
 			}
 		else
 			debug_print("No AP\n");
 
 		break;
 
+	case NET_EVENT_WPS_SCAN_IND:
+		debug_print("Got WPS scan Ind : %d\n", event_cb->Error);
+		GSList *wps_bss_info_list = (GSList *)event_cb->Data;
+
+		if (event_cb->Error == NET_ERR_NONE) {
+			if (wps_bss_info_list) {
+				for (; wps_bss_info_list != NULL; wps_bss_info_list = wps_bss_info_list->next) {
+					struct wps_scan_bss_info_t *resp_data = wps_bss_info_list->data;
+					if (resp_data)
+						debug_print("ESSID %s, BSSID %s, RSSI %d, MODE %d\n",
+								resp_data->ssid, resp_data->bssid, resp_data->rssi, resp_data->mode);
+				}
+			} else
+				debug_print("No AP\n");
+		} else {
+			debug_print("Failed WPS scan\n");
+		}
+		break;
 	case NET_EVENT_CELLULAR_SET_DEFAULT_RSP:
 		debug_print("Got Set cellular default profile Rsp : %d\n", event_cb->Error);
 		break;
@@ -621,30 +635,30 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 	wlan_security_info_t *security_info2 =
 			&profile_info->ProfileInfo.Wlan.security_info;
 	net_pdp_profile_info_t *pdp_info = &profile_info->ProfileInfo.Pdp;
-	char input_str[FORMAT_SIZE] = {0,};
+	char input_str[100] = {0,};
 	int ei = 0;
 
 	if (profile_info->profile_type == NET_DEVICE_WIFI) {
-		debug_print("\nInput Passphrase('s' for skip) :\n");
+		debug_print("\nInput Passphrase(Enter for skip) :\n");
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's')
+		input_str[strlen(input_str) - 1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 			g_strlcpy(security_info2->authentication.psk.pskKey,
 					input_str, NETPM_WLAN_MAX_PSK_PASSPHRASE_LEN + 1);
 
 		debug_print("\nInput Proxy Type(1:direct, 2:auto, 3:manual - current:%d)"
-				" - ('s' for skip) :\n", net_info2->ProxyMethod);
+				" - (Enter for skip) :\n", net_info2->ProxyMethod);
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's') {
+		input_str[strlen(input_str) - 1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
 			int proxyType = 0;
 			proxyType = atoi(input_str);
 
@@ -663,84 +677,96 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 							"(Enter for DHCP/WPAD auto-discover) :\n");
 				else
 					debug_print("\nInput manual Proxy address - "
-							"('s' for skip) :\n");
+							"(Enter for skip) :\n");
 
-				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-					debug_print("Fail to get input string\n");
-					return FALSE;
-				}
+				memset(input_str, '\0', 100);
+				read(0, input_str, 100);
 
-				if (input_str[0] != 's')
+				if (input_str[0] != '\0' &&
+				    *input_str != '\n' &&
+				    *input_str != '\r') {
+					input_str[strlen(input_str)-1] = '\0';
 					g_strlcpy(net_info2->ProxyAddr,
 							input_str, NET_PROXY_LEN_MAX + 1);
-				else
+				} else {
 					net_info2->ProxyAddr[0] = '\0';
+				}
 			}
 		}
 
-		debug_print("\nInput IPv4 Address Type dhcp/manual ('s' for skip) :\n");
+		debug_print("\nInput IPv4 Address Type dhcp/manual (Enter for skip) :\n");
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's') {
+		input_str[strlen(input_str) - 1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
 			if (strcmp(input_str, "dhcp") == 0) {
 				net_info2->IpConfigType = NET_IP_CONFIG_TYPE_DYNAMIC;
 			} else if (strcmp(input_str, "manual") == 0) {
 				net_info2->IpConfigType = NET_IP_CONFIG_TYPE_STATIC;
 
-				debug_print("\nInput IP Address ('s' for skip) :\n");
+				debug_print("\nInput IP Address (Enter for skip) :\n");
 
-				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-					debug_print("Fail to get input string\n");
-					return FALSE;
+				memset(input_str, '\0', 100);
+				read(0, input_str, 100);
+
+				input_str[strlen(input_str) - 1] = '\0';
+				net_info2->IpAddr.Data.Ipv4.s_addr = 0;
+
+				if ((input_str[0] != '\0' &&
+				     *input_str != '\n' &&
+				     *input_str != '\r') &&
+				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN) {
+					inet_aton(input_str, &(net_info2->IpAddr.Data.Ipv4));
 				}
 
-				if (input_str[0] != 's' &&
-				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN)
-					if (inet_aton(input_str, &(net_info2->IpAddr.Data.Ipv4)) == 0)
-						net_info2->IpAddr.Data.Ipv4.s_addr = 0;;
+				debug_print("\nInput Netmask (Enter for skip) :\n");
 
-				debug_print("\nInput Netmask ('s' for skip) :\n");
+				memset(input_str, '\0', 100);
+				read(0, input_str, 100);
 
-				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-					debug_print("Fail to get input string\n");
-					return FALSE;
+				input_str[strlen(input_str) - 1] = '\0';
+				net_info2->SubnetMask.Data.Ipv4.s_addr = 0;
+
+				if ((input_str[0] != '\0' &&
+				     *input_str != '\n' &&
+				     *input_str != '\r') &&
+				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN) {
+					inet_aton(input_str, &(net_info2->SubnetMask.Data.Ipv4));
 				}
-
-				if (input_str[0] != 's' &&
-				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN)
-					if (inet_aton(input_str, &(net_info2->SubnetMask.Data.Ipv4)) == 0)
-						net_info2->SubnetMask.Data.Ipv4.s_addr = 0;;
 
 				debug_print("\nInput Gateway (Enter for skip) :\n");
 
-				if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-					debug_print("Fail to get input string\n");
-					return FALSE;
-				}
+				memset(input_str, '\0', 100);
+				read(0, input_str, 100);
 
-				if ((input_str[0] != 's') &&
-				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN)
-					if (inet_aton(input_str, &(net_info2->GatewayAddr.Data.Ipv4)) == 0)
-						net_info2->GatewayAddr.Data.Ipv4.s_addr = 0;
+				input_str[strlen(input_str)-1] = '\0';
+				net_info2->GatewayAddr.Data.Ipv4.s_addr = 0;
+
+				if ((input_str[0] != '\0' &&
+				     *input_str != '\n' &&
+				     *input_str != '\r') &&
+				    strlen(input_str) >= NETPM_IPV4_STR_LEN_MIN) {
+					inet_aton(input_str, &(net_info2->GatewayAddr.Data.Ipv4));
+				}
 			}
 		}
 
 		for (ei = 0;ei < NET_DNS_ADDR_MAX;ei++) {
-			debug_print("\nInput DNS %d Address('s' for skip) :\n", ei);
+			debug_print("\nInput DNS %d Address(Enter for skip) :\n", ei);
 
-			if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-				debug_print("Fail to get input string\n");
-				return FALSE;
-			}
+			memset(input_str, '\0', 100);
+			read(0, input_str, 100);
 
-			if (input_str[0] != 's') {
-				if (inet_aton(input_str, &(net_info2->DnsAddr[ei].Data.Ipv4)) == 0)
-					net_info2->DnsAddr[ei].Data.Ipv4.s_addr = 0;;
+			input_str[strlen(input_str)-1] = '\0';
+			net_info2->DnsAddr[ei].Data.Ipv4.s_addr = 0;
 
+			if (input_str[0] != '\0' &&
+			    *input_str != '\n' &&
+			    *input_str != '\r') {
+				inet_aton(input_str, &(net_info2->DnsAddr[ei].Data.Ipv4));
 				net_info2->DnsCount = ei+1;
 			}
 		}
@@ -804,53 +830,51 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 						&net_info2->GatewayAddr6.Data.Ipv6);
 		}
 	} else if (profile_info->profile_type == NET_DEVICE_CELLULAR) {
-		debug_print("\nInput Apn(current:%s) - ('s' for skip) :\n", pdp_info->Apn);
+		debug_print("\nInput Apn(current:%s) - (Enter for skip) :\n", pdp_info->Apn);
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's')
+		input_str[strlen(input_str)-1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 			g_strlcpy(pdp_info->Apn, input_str, NET_PDP_APN_LEN_MAX+1);
 
-		debug_print("\nInput Proxy(current:%s) - ('s' for skip) :\n",
+		debug_print("\nInput Proxy(current:%s) - (Enter for skip) :\n",
 				pdp_info->net_info.ProxyAddr);
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's')
+		input_str[strlen(input_str)-1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 			g_strlcpy(pdp_info->net_info.ProxyAddr, input_str, NET_PROXY_LEN_MAX+1);
 
-		debug_print("\nInput HomeURL(current:%s) - ('s' for skip) :\n",
+		debug_print("\nInput HomeURL(current:%s) - (Enter for skip) :\n",
 				pdp_info->HomeURL);
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's')
+		input_str[strlen(input_str)-1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 			g_strlcpy(pdp_info->HomeURL, input_str, NET_HOME_URL_LEN_MAX+1);
 
 		debug_print("\nInput AuthType(0:None, 1:PAP, 2:CHAP - current:%d)"
-				" - ('s' for skip) :\n", pdp_info->AuthInfo.AuthType);
+				" - (Enter for skip) :\n", pdp_info->AuthInfo.AuthType);
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's') {
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
 			int typeValue = 0;
 			typeValue = atoi(input_str);
 
-			if(typeValue == NET_PDP_AUTH_PAP)
+			if (typeValue == NET_PDP_AUTH_PAP)
 				pdp_info->AuthInfo.AuthType = NET_PDP_AUTH_PAP;
-			else if(typeValue == NET_PDP_AUTH_CHAP)
+			else if (typeValue == NET_PDP_AUTH_CHAP)
 				pdp_info->AuthInfo.AuthType = NET_PDP_AUTH_CHAP;
 			else
 				pdp_info->AuthInfo.AuthType = NET_PDP_AUTH_NONE;
@@ -858,27 +882,27 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 		if (pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_PAP ||
 		    pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_CHAP) {
-			debug_print("\nInput AuthId(current:%s) - ('s' for skip) :\n",
+			debug_print("\nInput AuthId(current:%s) - (Enter for skip) :\n",
 					pdp_info->AuthInfo.UserName);
 
-			if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-				debug_print("Fail to get input string\n");
-				return FALSE;
-			}
+			memset(input_str, '\0', 100);
+			read(0, input_str, 100);
 
-			if (input_str[0] != 's')
+			input_str[strlen(input_str)-1] = '\0';
+
+			if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 				g_strlcpy(pdp_info->AuthInfo.UserName,
 						input_str, NET_PDP_AUTH_USERNAME_LEN_MAX+1);
 
-			debug_print("\nInput AuthPwd(current:%s) - ('s' for skip) :\n",
+			debug_print("\nInput AuthPwd(current:%s) - (Enter for skip) :\n",
 					pdp_info->AuthInfo.Password);
 
-			if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-				debug_print("Fail to get input string\n");
-				return FALSE;
-			}
+			memset(input_str, '\0', 100);
+			read(0, input_str, 100);
 
-			if (input_str[0] != 's')
+			input_str[strlen(input_str)-1] = '\0';
+
+			if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 				g_strlcpy(pdp_info->AuthInfo.Password,
 						input_str, NET_PDP_AUTH_PASSWORD_LEN_MAX+1);
 		}
@@ -889,64 +913,62 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 int __network_add_profile_info(net_profile_info_t *profile_info)
 {
 	net_pdp_profile_info_t *pdp_info = &profile_info->ProfileInfo.Pdp;
-	char input_str[FORMAT_SIZE] = {0,};
+	char input_str[100] = {0,};
 
-	debug_print("\nInput Keyword(Profile name) - ('s' for skip) :\n");
+	debug_print("\nInput Keyword(Profile name) - (Enter for skip) :\n");
 
-	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-		debug_print("Fail to get input string\n");
-		return FALSE;
-	}
+	memset(input_str, '\0', 100);
+	read(0, input_str, 100);
 
-	if (input_str[0] != 's')
+	input_str[strlen(input_str)-1] = '\0';
+
+	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 		g_strlcpy(pdp_info->Keyword, input_str, NET_PDP_APN_LEN_MAX+1);
 	else
 		pdp_info->Keyword[0] = '\0';
 
-	debug_print("\nInput Apn - ('s' for skip) :\n");
+	debug_print("\nInput Apn - (Enter for skip) :\n");
 
-	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-		debug_print("Fail to get input string\n");
-		return FALSE;
-	}
+	memset(input_str, '\0', 100);
+	read(0, input_str, 100);
 
-	if (input_str[0] != 's')
+	input_str[strlen(input_str)-1] = '\0';
+
+	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 		g_strlcpy(pdp_info->Apn, input_str, NET_PDP_APN_LEN_MAX+1);
 	else
 		pdp_info->Apn[0] = '\0';
 
-	debug_print("\nInput Proxy - ('s' for skip) :\n");
+	debug_print("\nInput Proxy - (Enter for skip) :\n");
 
-	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-		debug_print("Fail to get input string\n");
-		return FALSE;
-	}
+	memset(input_str, '\0', 100);
+	read(0, input_str, 100);
 
-	if (input_str[0] != 's')
+	input_str[strlen(input_str)-1] = '\0';
+
+	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 		g_strlcpy(pdp_info->net_info.ProxyAddr, input_str, NET_PROXY_LEN_MAX+1);
 	else
 		pdp_info->net_info.ProxyAddr[0] = '\0';
 
-	debug_print("\nInput HomeURL - ('s' for skip) :\n");
+	debug_print("\nInput HomeURL - (Enter for skip) :\n");
 
-	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-		debug_print("Fail to get input string\n");
-		return FALSE;
-	}
+	memset(input_str, '\0', 100);
+	read(0, input_str, 100);
 
-	if (input_str[0] != 's')
+	input_str[strlen(input_str)-1] = '\0';
+
+	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 		g_strlcpy(pdp_info->HomeURL, input_str, NET_HOME_URL_LEN_MAX+1);
 	else
 		pdp_info->HomeURL[0] = '\0';
 
-	debug_print("\nInput AuthType(0:NONE 1:PAP 2:CHAP) - ('s' for skip) :\n");
+	debug_print("\nInput AuthType(0:NONE 1:PAP 2:CHAP) - (Enter for skip) :\n");
 
-	if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-		debug_print("Fail to get input string\n");
-		return FALSE;
-	}
+	memset(input_str, '\0', 100);
+	read(0, input_str, 100);
 
-	if (input_str[0] != 's') {
+	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
 		int typeValue = 0;
 		typeValue = atoi(input_str);
 
@@ -962,27 +984,27 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 	if (pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_PAP ||
 	    pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_CHAP) {
-		debug_print("\nInput AuthId - ('s' for skip) :\n");
+		debug_print("\nInput AuthId - (Enter for skip) :\n");
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's')
+		input_str[strlen(input_str)-1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 			g_strlcpy(pdp_info->AuthInfo.UserName,
 					input_str, NET_PDP_AUTH_USERNAME_LEN_MAX+1);
 		else
 			pdp_info->AuthInfo.UserName[0] = '\0';
 
-		debug_print("\nInput AuthPwd - ('s' for skip) :\n");
+		debug_print("\nInput AuthPwd - (Enter for skip) :\n");
 
-		if (__network_get_user_string(input_str, FORMAT_SIZE) == FALSE) {
-			debug_print("Fail to get input string\n");
-			return FALSE;
-		}
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
-		if (input_str[0] != 's')
+		input_str[strlen(input_str)-1] = '\0';
+
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r')
 			g_strlcpy(pdp_info->AuthInfo.Password,
 					input_str, NET_PDP_AUTH_PASSWORD_LEN_MAX+1);
 		else
@@ -994,9 +1016,11 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 static gboolean network_main_gthread(gpointer data)
 {
-	char ProfileName[PROFILE_NAME_LEN] = {0,};
+	char ProfileName[NET_PROFILE_NAME_LEN_MAX+1] = {0,};
 	int input_int = 0;
 	int net_error = 0;
+	char input_str[100] = { 0, };
+
 	net_profile_info_t profile_info;
 
 	fd_set rfds;
@@ -1048,11 +1072,12 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("n	- Add route\n");
 		debug_print("o	- Remove route\n");
 		debug_print("p	- Reqeust specific scan\n");
-		debug_print("q	- Get technology state\n");
-		debug_print("r	- Set passpoint on/off\n");
-		debug_print("s	- Get passpoint state\n");
-		debug_print("t	- Add IPv6 route\n");
-		debug_print("u	- Remove IPv6 route\n");
+		debug_print("q	- Request wps scan\n");
+		debug_print("r	- Get technology state\n");
+		debug_print("s	- Set passpoint on/off\n");
+		debug_print("t	- Get passpoint state\n");
+		debug_print("u	- Add IPv6 route\n");
+		debug_print("v	- Remove IPv6 route\n");
 		debug_print("z 	- Exit \n");
 
 		debug_print("ENTER 	- Show options menu.......\n");
@@ -1063,7 +1088,7 @@ static gboolean network_main_gthread(gpointer data)
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_wifi_power_on() != NET_ERR_NONE) {
+		if (net_wifi_power_on(FALSE) != NET_ERR_NONE) {
 			debug_print("net_wifi_power_on() failed.\n");
 			break;
 		}
@@ -1108,7 +1133,7 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case '3':
-		debug_print("Enter BG Scan Mode(0:default, 1:periodic, 2:exponential):\n");
+		debug_print("Enter BG Scan Mode(0:default, 1:periodic, 2:exponential):");
 		scanf("%d", &input_int);
 
 		gettimeofday(&timevar, NULL);
@@ -1148,7 +1173,7 @@ static gboolean network_main_gthread(gpointer data)
 		if (service_type != NET_SERVICE_UNKNOWN) {
 			net_error = net_open_connection_with_preference(service_type);
 			if (net_error != NET_ERR_NONE) {
-				debug_print("net_open_connection_with_profile() failed.\n");
+				debug_print("net_open_connection_with_profile() failed[%d]\n", net_error);
 				break;
 			}
 		}
@@ -1162,9 +1187,7 @@ static gboolean network_main_gthread(gpointer data)
 
 	case '5':
 		debug_print("Enter Profile Name: \n");
-
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		scanf("%s", ProfileName);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1184,9 +1207,7 @@ static gboolean network_main_gthread(gpointer data)
 
 	case '6':
 		debug_print("Enter Profile Name: \n");
-
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		scanf("%s", ProfileName);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1228,8 +1249,12 @@ static gboolean network_main_gthread(gpointer data)
 		case WIFI_ON:
 			debug_print("wlanstate : WIFI_ON\n");
 			break;
-		case WIFI_CONNECTING:
-			debug_print("wlanstate : WIFI_CONNECTING, profile name : %s\n",
+		case WIFI_ASSOCIATION:
+			debug_print("wlanstate : WIFI_ASSOCIATION, profile name : %s\n",
+					profile_name.ProfileName);
+			break;
+		case WIFI_CONFIGURATION:
+			debug_print("wlanstate : WIFI_CONFIGURATION, profile name : %s\n",
 					profile_name.ProfileName);
 			break;
 		case WIFI_CONNECTED:
@@ -1262,28 +1287,24 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'b':
-		debug_print("Enter network type - 1:wifi, 2:mobile, 3:ethernet 4:bluetooth : \n");
-		scanf("%d", &input_int);
+		debug_print("Enter network type (wifi/cellular/eth/bt): \n");
+		scanf("%s", input_str);
 
 		net_device_t device_type = NET_DEVICE_UNKNOWN;
 		net_cm_network_status_t NetworkStatus;
 
-		switch (input_int) {
-		case 1:
+		if (strcmp(input_str, "wifi") == 0)
 			device_type = NET_DEVICE_WIFI;
-			break;
-		case 2:
+		else if (strcmp(input_str, "cellular") == 0)
 			device_type = NET_DEVICE_CELLULAR;
-			break;
-		case 3:
+		else if (strcmp(input_str, "eth") == 0)
 			device_type = NET_DEVICE_ETHERNET;
-			break;
-		case 4:
+		else if (strcmp(input_str, "bt") == 0)
 			device_type = NET_DEVICE_BLUETOOTH;
-		}
-
-		if (device_type == NET_DEVICE_UNKNOWN)
+		else {
+			debug_print("Invalid string\n");
 			break;
+		}
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1384,8 +1405,9 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'd':
-		debug_print("Input profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth 5:all : \n");
-		scanf("%d", &input_int);
+		debug_print("\nInput profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth (Enter for skip):\n");
+		memset(input_str, 0, 100);
+		read(0, input_str, 100);
 
 		net_device_t deviceType = NET_DEVICE_UNKNOWN;
 		int profListCount = 0;
@@ -1394,39 +1416,28 @@ static gboolean network_main_gthread(gpointer data)
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		switch (input_int) {
-		case 1:
-			deviceType = NET_DEVICE_WIFI;
-			break;
-		case 2:
-			deviceType = NET_DEVICE_CELLULAR;
-			break;
-		case 3:
-			deviceType = NET_DEVICE_ETHERNET;
-			break;
-		case 4:
-			deviceType = NET_DEVICE_BLUETOOTH;
-			break;
-		case 5:
-			deviceType = NET_DEVICE_MAX;
-			break;
-		default:
-			deviceType = NET_DEVICE_UNKNOWN;
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
+			input_str[strlen(input_str)-1] = '\0';
+
+			if (strcmp(input_str, "1") == 0)
+				deviceType = NET_DEVICE_WIFI;
+			else if (strcmp(input_str, "2") == 0)
+				deviceType = NET_DEVICE_CELLULAR;
+			else if (strcmp(input_str, "3") == 0)
+				deviceType = NET_DEVICE_ETHERNET;
+			else if (strcmp(input_str, "4") == 0)
+				deviceType = NET_DEVICE_BLUETOOTH;
+
+			net_error = net_get_profile_list(deviceType,
+					&profList, &profListCount);
+			if (net_error != NET_ERR_NONE) {
+				debug_print("net_get_profile_list() failed[%d]\n", net_error);
+				break;
+			}
+
+			__print_profile_list(profListCount, profList, PROFILE_BASIC_INFO);
+			MAIN_MEMFREE(profList);
 		}
-
-		if (deviceType == NET_DEVICE_UNKNOWN)
-			break;
-
-		net_error = net_get_profile_list(deviceType,
-				&profList, &profListCount);
-
-		if (net_error != NET_ERR_NONE) {
-			debug_print("net_get_profile_list() failed\n");
-			break;
-		}
-
-		__print_profile_list(profListCount, profList, PROFILE_BASIC_INFO);
-		MAIN_MEMFREE(profList);
 
 		gettimeofday(&timevar, NULL);
 		finish_time = Convert_time2double(timevar);
@@ -1435,16 +1446,21 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'e':
-		debug_print("Input profile Name : \n");
+		debug_print("\nInput profile Name((Enter for skip) :\n");
+		memset(ProfileName, 0, NET_PROFILE_NAME_LEN_MAX);
+		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		if (ProfileName[0] == '\0' || *ProfileName == '\n' || *ProfileName == '\r')
+			debug_print("\nCanceled!\n\n");
+
+		ProfileName[strlen(ProfileName)-1] = '\0';
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_get_profile_info(ProfileName, &profile_info) != NET_ERR_NONE) {
-			debug_print("net_get_profile_info() failed\n");
+		net_error = net_get_profile_info(ProfileName, &profile_info);
+		if (net_error != NET_ERR_NONE) {
+			debug_print("net_get_profile_info() failed[%d]\n", net_error);
 			break;
 		}
 
@@ -1457,15 +1473,22 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'f':
-		debug_print("Input profile Name : \n");
+		debug_print("\nInput profile Name(Enter for skip) :\n");
+		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX);
+		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		if (ProfileName[0] != '\0' &&
+		    *ProfileName != '\n' &&
+		    *ProfileName != '\r') {
+			ProfileName[strlen(ProfileName) - 1] = '\0';
 
-		net_error = net_get_profile_info(ProfileName, &profile_info);
-
-		if (net_error != NET_ERR_NONE) {
-			debug_print("net_get_profile_info() failed\n");
+			net_error = net_get_profile_info(ProfileName, &profile_info);
+			if (net_error != NET_ERR_NONE) {
+				debug_print("net_get_profile_info() failed[%d]\n", net_error);
+				break;
+			}
+		} else {
+			debug_print("\nCanceled!\n\n");
 			break;
 		}
 
@@ -1487,13 +1510,18 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'g':
-		debug_print("Input profile Name : \n");
+		debug_print("\nInput profile Name(Enter for skip) :\n");
 
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX);
+		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
+
+		if (ProfileName[0] == '\0' || *ProfileName == '\n' || *ProfileName == '\r')
+			debug_print("\nCanceled!\n\n");
+
+		ProfileName[strlen(ProfileName)-1] = '\0';
 
 		if (net_delete_profile(ProfileName) != NET_ERR_NONE) {
 			debug_print("net_delete_profile() failed\n");
@@ -1507,26 +1535,37 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'h':
-		debug_print("Input Network Type (Internet:1, MMS:2, Prepaid_internet:3, "
-				"Prepaid MMS:4, Tethering:5, Application:6) :\n");
+		debug_print("\nInput Network Type(Internet:1, MMS:2, Prepaid_internet:3, "
+				"Prepaid MMS:4, Tethering:5, Application:6)"
+				" - (Enter for skip) :\n");
 
-		scanf("%d", &input_int);
+		memset(input_str, '\0', 100);
+		read(0, input_str, 100);
 
 		net_service_type_t network_type = NET_SERVICE_INTERNET;
 		memset(&profile_info, 0, sizeof(net_profile_info_t));
 
-		if (input_int > NET_SERVICE_UNKNOWN && input_int <= NET_SERVICE_APPLICATION)
-			network_type = input_int;
-		else
+		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
+			int typeValue = 0;
+			typeValue = atoi(input_str);
+
+			if (typeValue > NET_SERVICE_UNKNOWN &&
+			    typeValue <= NET_SERVICE_APPLICATION)
+				network_type = typeValue;
+			else
+				return TRUE;
+		} else {
 			return TRUE;
+		}
 
 		__network_add_profile_info(&profile_info);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_add_profile(network_type, &profile_info) != NET_ERR_NONE) {
-			debug_print("net_add_profile() failed\n");
+		net_error = net_add_profile(network_type, &profile_info);
+		if (net_error != NET_ERR_NONE) {
+			debug_print("net_add_profile() failed[%d]\n", net_error);
 			break;
 		}
 
@@ -1539,19 +1578,14 @@ static gboolean network_main_gthread(gpointer data)
 	case 'i': {
 		net_wifi_connection_info_t wifi_info = {{0,}, };
 
-		debug_print("Enter essid : \n");
-
-		if (__network_get_user_string(wifi_info.essid, sizeof(wifi_info.essid)) == FALSE)
-			break;
-
-		debug_print("Enter psk key : \n");
-
-		if (__network_get_user_string(wifi_info.security_info.authentication.psk.pskKey,
-				sizeof(wifi_info.security_info.authentication.psk.pskKey)) == FALSE)
-			break;
+		debug_print("Enter essid:\n");
+		scanf("%s", wifi_info.essid);
 
 		wifi_info.wlan_mode = NETPM_WLAN_CONNMODE_INFRA;
 		wifi_info.security_info.sec_mode = WLAN_SEC_MODE_WPA_PSK;
+
+		debug_print("Enter psk key:\n");
+		scanf("%s", wifi_info.security_info.authentication.psk.pskKey);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1559,7 +1593,7 @@ static gboolean network_main_gthread(gpointer data)
 		net_error = net_open_connection_with_wifi_info(&wifi_info);
 
 		if (net_error != NET_ERR_NONE) {
-			debug_print("net_open_connection_with_wifi_info() failed.\n");
+			debug_print("net_open_connection_with_wifi_info() failed[%d]\n", net_error);
 			break;
 		}
 
@@ -1573,10 +1607,8 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'k': {
-		debug_print("Input profile Name : \n");
-
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		debug_print("Enter Profile Name: \n");
+		scanf("%s", ProfileName);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1608,9 +1640,7 @@ static gboolean network_main_gthread(gpointer data)
 		info.security_info.sec_mode = WLAN_SEC_MODE_IEEE8021X;
 
 		debug_print("Enter essid:\n");
-
-		if (__network_get_user_string(info.essid, sizeof(info.essid)) == FALSE)
-			break;
+		scanf("%s", info.essid);
 
 		debug_print("Enter EAP type PEAP 1, TLS 2, TTLS 3, SIM 4, AKA 5:\n");
 		scanf("%d", &eap_type);
@@ -1621,35 +1651,22 @@ static gboolean network_main_gthread(gpointer data)
 		info.security_info.authentication.eap.eap_auth = (wlan_eap_auth_type_t) eap_auth;
 
 		debug_print("Enter user name:\n");
-
-		if (__network_get_user_string(info.security_info.authentication.eap.username,
-				sizeof(info.security_info.authentication.eap.username)) == FALSE)
-			break;
+		scanf("%s", info.security_info.authentication.eap.username);
 
 		debug_print("Enter password:\n");
-
-		if (__network_get_user_string(info.security_info.authentication.eap.password,
-				sizeof(info.security_info.authentication.eap.password)) == FALSE)
+		scanf("%s", info.security_info.authentication.eap.password);
 
 		debug_print("Enter CA Cert filename:\n");
-
-		if (__network_get_user_string(info.security_info.authentication.eap.ca_cert_filename,
-				sizeof(info.security_info.authentication.eap.ca_cert_filename)) == FALSE)
+		scanf("%s", info.security_info.authentication.eap.ca_cert_filename);
 
 		debug_print("Enter Client Cert filename:\n");
-
-		if (__network_get_user_string(info.security_info.authentication.eap.client_cert_filename,
-				sizeof(info.security_info.authentication.eap.client_cert_filename)) == FALSE)
+		scanf("%s", info.security_info.authentication.eap.client_cert_filename);
 
 		debug_print("Enter private key filename:\n");
-
-		if (__network_get_user_string(info.security_info.authentication.eap.private_key_filename,
-				sizeof(info.security_info.authentication.eap.private_key_filename)) == FALSE)
+		scanf("%s", info.security_info.authentication.eap.private_key_filename);
 
 		debug_print("Enter private key password:\n");
-
-		if (__network_get_user_string(info.security_info.authentication.eap.private_key_passwd,
-				sizeof(info.security_info.authentication.eap.private_key_passwd)) == FALSE)
+		scanf("%s", info.security_info.authentication.eap.private_key_passwd);
 
 		net_open_connection_with_wifi_info(&info);
 	}
@@ -1657,7 +1674,7 @@ static gboolean network_main_gthread(gpointer data)
 
 	case 'm': {
 		int user_sel;
-		debug_print( "Enter API type(1:sync, 2:async) : \n");
+		debug_print("Enter API type(1:sync, 2:async) : \n");
 		scanf("%d", &user_sel);
 
 		if (user_sel != 1 && user_sel != 2) {
@@ -1665,22 +1682,20 @@ static gboolean network_main_gthread(gpointer data)
 			break;
 		}
 
-		debug_print("Input profile Name : \n");
-
-		if (__network_get_user_string(ProfileName, PROFILE_NAME_LEN) == FALSE)
-			break;
+		debug_print("Enter Profile Name: \n");
+		scanf("%s", ProfileName);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
 		if (user_sel == 1) {
 			if (net_set_default_cellular_service_profile(ProfileName) != NET_ERR_NONE) {
-				debug_print("net_set_default_cellular_service_profile() failed.\n");
+				debug_print("Error!! net_set_default_cellular_service_profile() failed.\n");
 				break;
 			}
 		} else {
 			if (net_set_default_cellular_service_profile_async(ProfileName) != NET_ERR_NONE) {
-				debug_print("net_set_default_cellular_service_profile_async() failed.\n");
+				debug_print("Error!! net_set_default_cellular_service_profile_async() failed.\n");
 				break;
 			}
 		}
@@ -1772,16 +1787,14 @@ static gboolean network_main_gthread(gpointer data)
 	case 'p': {
 		char essid[40];
 
-		debug_print( "Enter essid to scan : \n");
-
-		if (__network_get_user_string(essid, 40) == FALSE)
-			break;
+		debug_print("Enter essid to scan : \n");
+		scanf("%39s", essid);
 
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
 		if (net_specific_scan_wifi(essid) != NET_ERR_NONE) {
-			debug_print("net_specific_scan_wifi() failed.\n");
+			debug_print("Error!! net_specific_scan_wifi() failed.\n");
 			break;
 		}
 
@@ -1794,11 +1807,26 @@ static gboolean network_main_gthread(gpointer data)
 		break;
 
 	case 'q': {
+		gettimeofday(&timevar, NULL);
+		start_time = Convert_time2double(timevar);
+
+		if (net_wps_scan_wifi() != NET_ERR_NONE) {
+			debug_print("Error!! net_wps_scan_wifi() failed.\n");
+			break;
+		}
+
+		gettimeofday(&timevar, NULL);
+		finish_time = Convert_time2double(timevar);
+		debug_print("Total time taken = [%f]\n", finish_time - start_time);
+
+		debug_print("net_wps_scan_wifi() success\n");
+	}
+		break;
+
+	case 'r': {
 		char user_str[20];
 		debug_print("Enter network type (wifi/cellular/eth/bt): \n");
-
-		if (__network_get_user_string(user_str, 20) == FALSE)
-			break;
+		scanf("%19s", user_str);
 
 		net_device_t device_type;
 		net_tech_info_t tech_info;
@@ -1833,12 +1861,12 @@ static gboolean network_main_gthread(gpointer data)
 	}
 		break;
 
-	case 'r': {
+	case 's': {
 		int enable;
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		debug_print( "Enter passpoint on/off(0:off, 1:on) : \n");
+		debug_print("Enter passpoint on/off(0:off, 1:on) : \n");
 		scanf("%d", &enable);
 
 		if (net_wifi_set_passpoint(enable) != NET_ERR_NONE) {
@@ -1854,7 +1882,7 @@ static gboolean network_main_gthread(gpointer data)
 	}
 		break;
 
-	case 's': {
+	case 't': {
 		int enabled;
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
@@ -1873,7 +1901,7 @@ static gboolean network_main_gthread(gpointer data)
 	}
 		break;
 
-	case 't': {
+	case 'u': {
 		char ip_addr[40] = {0};
 		char if_name[40] = {0};
 		char gateway[40] = {0};
@@ -1911,7 +1939,7 @@ static gboolean network_main_gthread(gpointer data)
 	}
 		break;
 
-	case 'u': {
+	case 'v': {
 		char ip_addr[40] = {0};
 		char if_name[40] = {0};
 		char gateway[40] = {0};

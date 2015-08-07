@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,9 @@
 #ifndef __NETWORK_PM_WLAN_H__
 #define __NETWORK_PM_WLAN_H__
 
-#include "network-pm-config.h"
 #include <glib.h>
+
+#include "network-pm-config.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -46,6 +47,9 @@ extern "C"
 
 /** Length of essid */
 #define NET_WLAN_ESSID_LEN      128
+
+/** Length of bssid */
+#define NET_WLAN_BSSID_LEN      17
 
 /** 
  * Length of WPS PIN code 

@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -89,6 +89,21 @@ typedef enum
 	NET_STATE_TYPE_DISCONNECT,
 } net_state_type_t;
 
+/**
+ * @enum net_state_error_type_t
+ * This enumeration defines the service error state type.
+ */
+typedef enum
+{
+	NET_STATE_ERROR_NONE			= 0x00,
+	NET_STATE_ERROR_OUT_OF_RANGE	= 0x01,
+	NET_STATE_ERROR_PIN_MISSING		= 0x02,
+	NET_STATE_ERROR_DHCP_FAILED		= 0x03,
+	NET_STATE_ERROR_CONNECT_FAILED	= 0x04,
+	NET_STATE_ERROR_LOGIN_FAILED	= 0x05,
+	NET_STATE_ERROR_AUTH_FAILED		= 0x06,
+	NET_STATE_ERROR_INVALID_KEY		= 0x07,
+} net_error_state_type_t;
 
 /*==================================================================================================
                                  STRUCTURES AND OTHER TYPEDEFS
@@ -101,15 +116,15 @@ typedef enum
 typedef struct
 {
 	/** Specifies a protocol type */
-	net_pdp_type_t	ProtocolType;
+	net_pdp_type_t  ProtocolType;
 	/** Specifies a service type(Internet, MMS, WAP, etc...) */
 	net_service_type_t ServiceType;
 	/** Network Access Point Name */
-	char			Apn[NET_PDP_APN_LEN_MAX+1];
+	char            Apn[NET_PDP_APN_LEN_MAX+1];
 	/** Authentication info of the PDP profile */
-	net_auth_info_t AuthInfo;
+	net_auth_info_t	AuthInfo;
 	/** Browser Home URL or MMS server URL */
-	char			HomeURL[NET_HOME_URL_LEN_MAX+1];
+	char            HomeURL[NET_HOME_URL_LEN_MAX+1];
 	/** Sim Info Mcc */
 	char Mcc[NET_SIM_INFO_LEN+1];
 	/** Sim Info Mnc */
@@ -128,12 +143,11 @@ typedef struct
 	char DefaultConn;
 
 	/** Modem object path for PS cellular profile */
-	char	PSModemPath[NET_PROFILE_NAME_LEN_MAX + 1];
+	char			PSModemPath[NET_PROFILE_NAME_LEN_MAX + 1];
 
 	/** network information */
 	net_dev_info_t net_info;
 } net_pdp_profile_info_t;
-
 
 /**
  * Profile data structures: Ethernet Interface
@@ -159,13 +173,13 @@ typedef struct
 typedef union
 {
 	/** PDP Profile Information */
-	net_pdp_profile_info_t       Pdp;
+	net_pdp_profile_info_t		Pdp;
 	/** Wifi Profile Information */
-	net_wifi_profile_info_t      Wlan;
+	net_wifi_profile_info_t		Wlan;
 	/** Ethernet Profile Information */
-	net_eth_profile_info_t       Ethernet;
+	net_eth_profile_info_t		Ethernet;
 	/** Bluetooth Profile Information */
-	net_bt_profile_info_t        Bluetooth;
+	net_bt_profile_info_t		Bluetooth;
 } net_specific_profile_info_t;
 
 /**
@@ -174,15 +188,17 @@ typedef union
 typedef struct
 {
 	/** Device Type of the profile */
-	net_device_t  	profile_type;
+	net_device_t				profile_type;
 	/** Profile name */
-	char	ProfileName[NET_PROFILE_NAME_LEN_MAX+1];
+	char						ProfileName[NET_PROFILE_NAME_LEN_MAX+1];
 	/** Specific profile information */
-	net_specific_profile_info_t ProfileInfo;
+	net_specific_profile_info_t	ProfileInfo;
 	/** Service state */
-	net_state_type_t        ProfileState;
+	net_state_type_t			ProfileState;
+	/** Service error state */
+	net_error_state_type_t		ProfileErrorState;
 	/** Favourite flag */
-	char Favourite;
+	char						Favourite;
 } net_profile_info_t;
 
 /*

@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,9 +25,8 @@ extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 static __thread net_state_type_t service_state_table[NET_DEVICE_MAX] =
-						{ NET_STATE_TYPE_UNKNOWN, };
+							{ NET_STATE_TYPE_UNKNOWN, };
 static __thread int net_service_error = NET_ERR_NONE;
-static __thread guint gdbus_conn_subscribe_id_connman_svc = 0;
 static __thread guint gdbus_conn_subscribe_id_connman_state = 0;
 static __thread guint gdbus_conn_subscribe_id_connman_error = 0;
 static __thread guint gdbus_conn_subscribe_id_supplicant = 0;
@@ -38,7 +37,7 @@ static int __net_handle_wifi_power_rsp(gboolean value)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	net_event_info_t event_data = {0,};
+	net_event_info_t event_data = { 0, };
 
 	if (value == TRUE) {
 		NetworkInfo.wifi_state = WIFI_ON;
@@ -57,18 +56,19 @@ static int __net_handle_wifi_power_rsp(gboolean value)
 				0, sizeof(network_request_table_t));
 
 		event_data.Event = NET_EVENT_WIFI_POWER_RSP;
-		NETWORK_LOG(NETWORK_LOW, "NET_EVENT_WIFI_POWER_RSP wifi state: %d\n",
+		NETWORK_LOG(NETWORK_LOW, "NET_EVENT_WIFI_POWER_RSP wifi state: %d",
 				NetworkInfo.wifi_state);
 
 		_net_dbus_pending_call_unref();
 	} else {
 		event_data.Event = NET_EVENT_WIFI_POWER_IND;
-		NETWORK_LOG(NETWORK_LOW, "NET_EVENT_WIFI_POWER_IND wifi state: %d\n",
+		NETWORK_LOG(NETWORK_LOW, "NET_EVENT_WIFI_POWER_IND wifi state: %d",
 				NetworkInfo.wifi_state);
 	}
 
 	event_data.Datalength = sizeof(net_wifi_state_t);
 	event_data.Data = &(NetworkInfo.wifi_state);
+
 	_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
@@ -93,7 +93,8 @@ static int __net_handle_specific_scan_resp(GSList *bss_info_list)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	net_event_info_t event_data = {0,};
+	int count = 0;;
+	net_event_info_t event_data = { 0, };
 
 	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
 		memset(&request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN],
@@ -101,17 +102,19 @@ static int __net_handle_specific_scan_resp(GSList *bss_info_list)
 
 		_net_dbus_pending_call_unref();
 
+		count = (int)g_slist_length(bss_info_list);
 		NETWORK_LOG(NETWORK_LOW,
-				"Sending NET_EVENT_SPECIFIC_SCAN_IND"
-				"wifi state: %d\n", NetworkInfo.wifi_state);
-		NETWORK_LOG(NETWORK_LOW, "bss_info_list: 0x%x\n",
-				bss_info_list);
+				"Received the signal: %s with total bss count = %d",
+				NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE,
+				count);
 
 		event_data.Event = NET_EVENT_SPECIFIC_SCAN_IND;
+		event_data.Datalength = count;
 		event_data.Data = bss_info_list;
 
 		_net_client_callback(&event_data);
-	}
+	} else
+		g_slist_free_full(bss_info_list, g_free);
 
 	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
@@ -121,71 +124,175 @@ static int __net_handle_wifi_specific_scan_rsp(GVariant *param)
 {
 	GVariantIter *iter = NULL;
 	GVariant *value = NULL;
-	const char *key = NULL;
+	gchar *key = NULL;
 	const gchar *ssid = NULL;
 	gint32 security = 0;
+	gboolean wps = FALSE;
 	GSList *bss_info_list = NULL;
 	gboolean ssid_found = FALSE;
 	gboolean sec_found = FALSE;
+	gboolean wps_found = FALSE;
 
 	g_variant_get(param, "(a{sv})", &iter);
 
 	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
 		if (g_strcmp0(key, "ssid") == 0 && ssid_found == FALSE) {
 			ssid = g_variant_get_string(value, NULL);
-			NETWORK_LOG(NETWORK_LOW, "Got an ssid: %s", ssid);
+			NETWORK_LOG(NETWORK_LOW, "SSID: %s", ssid);
 			ssid_found = TRUE;
 		}
 		if (g_strcmp0(key, "security") == 0 && sec_found == FALSE) {
-			security = g_variant_get_int16(value);
+			security = g_variant_get_int32(value);
 			NETWORK_LOG(NETWORK_LOW, "with security: %d", security);
 			sec_found = TRUE;
 		}
+		if (g_strcmp0(key, "wps") == 0 && wps_found == FALSE) {
+			wps = g_variant_get_boolean(value);
+			NETWORK_LOG(NETWORK_LOW, "wps supported: %d", wps);
+			wps_found = TRUE;
+		}
 
-		if (ssid_found == TRUE && sec_found == TRUE) {
-			net_wifi_connection_info_t *resp_data = g_try_new0(
-					net_wifi_connection_info_t, 1);
-			g_strlcpy(resp_data->essid, ssid, NET_WLAN_ESSID_LEN);
-			resp_data->security_info.sec_mode = __net_get_wlan_sec_mode(security);
-			bss_info_list = g_slist_append(bss_info_list, resp_data);
+		if (ssid_found == TRUE && sec_found == TRUE && wps_found == TRUE) {
+			struct ssid_scan_bss_info_t *bss = NULL;
+			bss = g_try_new0(struct ssid_scan_bss_info_t, 1);
+			if (bss == NULL) {
+				NETWORK_LOG(NETWORK_ERROR, "Memory allocation error");
 
-			ssid_found = FALSE;
-			sec_found = FALSE;
+				g_slist_free_full(bss_info_list, g_free);
+				g_variant_unref(value);
+				g_free(key);
+				return NET_ERR_UNKNOWN;
+			}
+
+			g_strlcpy(bss->ssid, ssid, NET_WLAN_ESSID_LEN);
+			bss->security = __net_get_wlan_sec_mode(security);
+			bss->wps = (char)wps;
+			bss_info_list = g_slist_append(bss_info_list, bss);
+
+			ssid_found = sec_found = wps_found = FALSE;
 		}
 	}
 	g_variant_iter_free(iter);
 
-	NETWORK_LOG(NETWORK_LOW,
-			"Received the signal: %s with total bss count = %d",
-			NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE,
-			g_slist_length(bss_info_list));
-
 	__net_handle_specific_scan_resp(bss_info_list);
 
-	/* Specific Scan response handled. Release/Destroy the list */
-	g_slist_free_full(bss_info_list, g_free);
+	/* To enhance performance,
+	 * BSS list should be release in a delayed manner in _net_client_callback */
 
 	return NET_ERR_NONE;
 }
 
-static void __net_handle_state_ind(const char* profile_name,
+static int __net_handle_wps_scan_resp(GSList *bss_info_list)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	int count = 0;;
+	net_event_info_t event_data = { 0, };
+
+	if (request_table[NETWORK_REQUEST_TYPE_WPS_SCAN].flag == TRUE) {
+		memset(&request_table[NETWORK_REQUEST_TYPE_WPS_SCAN],
+				0, sizeof(network_request_table_t));
+
+		_net_dbus_pending_call_unref();
+
+		count = (int)g_slist_length(bss_info_list);
+		NETWORK_LOG(NETWORK_LOW,
+				"Received the signal: %s with total bss count = %d",
+				NETCONFIG_SIGNAL_WPS_SCAN_DONE,
+				count);
+
+		event_data.Event = NET_EVENT_WPS_SCAN_IND;
+		event_data.Datalength = count;
+		event_data.Data = bss_info_list;
+
+		_net_client_callback(&event_data);
+	} else
+		g_slist_free_full(bss_info_list, g_free);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
+static int __net_handle_wifi_wps_scan_rsp(GVariant *param)
+{
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	gchar *key = NULL;
+	GSList *bss_info_list = NULL;
+	const gchar *ssid = NULL;
+	const gchar *bssid = NULL;
+	gsize ssid_len;
+	int rssi = -89;
+	int mode = 0;
+	gboolean ssid_found = FALSE;
+	gboolean bssid_found = FALSE;
+	gboolean rssi_found = FALSE;
+	gboolean mode_found = FALSE;
+
+	g_variant_get(param, "(a{sv})", &iter);
+
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "ssid") == 0) {
+			ssid = g_variant_get_fixed_array(value, &ssid_len, sizeof(guchar));
+			ssid_found = TRUE;
+		} else if (g_strcmp0(key, "bssid") == 0) {
+			bssid = g_variant_get_string(value, NULL);
+			bssid_found = TRUE;
+		} else if (g_strcmp0(key, "rssi") == 0) {
+			rssi = g_variant_get_int32(value);
+			rssi_found = TRUE;
+		} else if (g_strcmp0(key, "mode") == 0) {
+			mode = g_variant_get_int32(value);
+			mode_found = TRUE;
+		}
+
+		if (ssid_found == TRUE && bssid_found == TRUE &&
+			rssi_found == TRUE && mode_found == TRUE) {
+			struct wps_scan_bss_info_t *bss = NULL;
+			bss = g_try_new0(struct wps_scan_bss_info_t, 1);
+			if (bss == NULL) {
+				NETWORK_LOG(NETWORK_ERROR, "Memory allocation error");
+
+				g_slist_free_full(bss_info_list, g_free);
+				g_variant_unref(value);
+				g_free(key);
+				return NET_ERR_UNKNOWN;
+			}
+
+			memcpy(bss->ssid, ssid, ssid_len);
+			g_strlcpy(bss->bssid, bssid, NET_WLAN_BSSID_LEN+1);
+			bss->rssi = rssi;
+			bss->mode = mode;
+			bss_info_list = g_slist_append(bss_info_list, bss);
+
+			ssid_found = bssid_found = FALSE;
+			rssi_found = mode_found = FALSE;
+		}
+	}
+	g_variant_iter_free(iter);
+
+	__net_handle_wps_scan_resp(bss_info_list);
+
+	return NET_ERR_NONE;
+}
+
+static void __net_handle_state_ind(const char *profile_name,
 		net_state_type_t profile_state)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	net_event_info_t event_data = {0,};
+	net_event_info_t event_data = { 0, };
 
 	event_data.Error = NET_ERR_NONE;
 	event_data.Event = NET_EVENT_NET_STATE_IND;
 
-	g_strlcpy(event_data.ProfileName, profile_name,
-			sizeof(event_data.ProfileName));
+	g_strlcpy(event_data.ProfileName, profile_name, sizeof(event_data.ProfileName));
 
 	event_data.Datalength = sizeof(net_state_type_t);
 	event_data.Data = &profile_state;
 
 	NETWORK_LOG(NETWORK_LOW,
-			"Sending NET_EVENT_NET_STATE_IND, state: %d, profile name: %s\n",
+			"Sending NET_EVENT_NET_STATE_IND, state: %d, profile name: %s",
 			profile_state, event_data.ProfileName);
 
 	_net_client_callback(&event_data);
@@ -221,6 +328,9 @@ static void __net_handle_failure_ind(const char *profile_name)
 
 		event_data.Event = NET_EVENT_WIFI_WPS_RSP;
 
+		memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION], 0,
+						sizeof(network_request_table_t));
+
 		_net_dbus_pending_call_unref();
 	} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
 			g_strcmp0(profile_name, svc_name3) == 0) {
@@ -246,7 +356,7 @@ static void __net_handle_failure_ind(const char *profile_name)
 
 	net_service_error = NET_ERR_NONE;
 
-	NETWORK_LOG(NETWORK_ERROR, "State failure %d\n", event_data.Error);
+	NETWORK_LOG(NETWORK_ERROR, "State failure %d", event_data.Error);
 	_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
@@ -288,10 +398,10 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 	if (device_type == NET_DEVICE_UNKNOWN)
 		return Error;
 
-	NETWORK_LOG(NETWORK_LOW, "[%s] %s\n", state, sig_path);
+	NETWORK_LOG(NETWORK_LOW, "[%s] %s", state, sig_path);
 
 	if (device_type == NET_DEVICE_WIFI && NetworkInfo.wifi_state == WIFI_OFF) {
-		NETWORK_LOG(NETWORK_LOW, "Wi-Fi is off\n");
+		NETWORK_LOG(NETWORK_LOW, "Wi-Fi is off");
 		return Error;
 	}
 
@@ -327,7 +437,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 				event_data.Event = NET_EVENT_OPEN_RSP;
 
-				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
+				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP");
 
 				_net_dbus_pending_call_unref();
 			} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
@@ -337,18 +447,18 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 				event_data.Event = NET_EVENT_WIFI_WPS_RSP;
 
-				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
+				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP");
 
 				_net_dbus_pending_call_unref();
 			} else {
 				event_data.Event = NET_EVENT_OPEN_IND;
 
-				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_IND\n");
+				NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_IND");
 			}
 
 			net_profile_info_t prof_info;
 			if ((Error = net_get_profile_info(sig_path, &prof_info)) != NET_ERR_NONE) {
-				NETWORK_LOG(NETWORK_ERROR, "net_get_profile_info() failed [%s]\n",
+				NETWORK_LOG(NETWORK_ERROR, "net_get_profile_info() failed [%s]",
 						_net_print_error(Error));
 
 				event_data.Datalength = 0;
@@ -376,6 +486,23 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 		const char *svc_name3 =
 				request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName;
 
+		if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag != TRUE &&
+			request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag != TRUE &&
+			request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag != TRUE)
+		{
+			/** Send Close Ind */
+			event_data.Error = Error;
+			event_data.Event =  NET_EVENT_CLOSE_IND;
+			g_strlcpy(event_data.ProfileName, sig_path, NET_PROFILE_NAME_LEN_MAX+1);
+
+			event_data.Datalength = 0;
+			event_data.Data = NULL;
+
+			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_IND");
+
+			_net_client_callback(&event_data);
+		}
+
 		if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag == TRUE &&
 				strstr(sig_path, svc_name2) != NULL) {
 			memset(&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION], 0,
@@ -389,12 +516,14 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 			event_data.Datalength = 0;
 			event_data.Data = NULL;
 
-			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP\n");
+			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_OPEN_RSP");
 
 			_net_dbus_pending_call_unref();
 
 			_net_client_callback(&event_data);
-		} else if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
+		}
+
+		if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag == TRUE &&
 				g_strcmp0(sig_path, svc_name3) == 0) {
 			memset(&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS], 0,
 					sizeof(network_request_table_t));
@@ -407,11 +536,13 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 			event_data.Datalength = 0;
 			event_data.Data = NULL;
 
-			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP\n");
+			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_WIFI_WPS_RSP");
 			_net_dbus_pending_call_unref();
 
 			_net_client_callback(&event_data);
-		} else if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
+		}
+
+		if (request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE &&
 				g_strcmp0(sig_path, svc_name1) == 0) {
 			memset(&request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION], 0,
 					sizeof(network_request_table_t));
@@ -424,25 +555,12 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 			event_data.Datalength = 0;
 			event_data.Data = NULL;
 
-			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_RSP\n");
+			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_RSP");
 
 			_net_dbus_pending_call_unref();
 
 			_net_client_callback(&event_data);
-		} else {
-			/** Send Close Ind */
-			event_data.Error = Error;
-			event_data.Event =  NET_EVENT_CLOSE_IND;
-			g_strlcpy(event_data.ProfileName, sig_path, NET_PROFILE_NAME_LEN_MAX+1);
-
-			event_data.Datalength = 0;
-			event_data.Data = NULL;
-
-			NETWORK_LOG(NETWORK_LOW, "Sending NET_EVENT_CLOSE_IND\n");
-
-			_net_client_callback(&event_data);
 		}
-
 		break;
 	}
 	case NET_STATE_TYPE_FAILURE:
@@ -482,7 +600,7 @@ static int __net_handle_service_set_error(const char *key, const char *error)
 	if (error == NULL || *error == '\0')
 		return NET_ERR_NONE;
 
-	NETWORK_LOG(NETWORK_LOW, "[%s] %s\n", key, error);
+	NETWORK_LOG(NETWORK_ERROR, "[%s] %s", key, error);
 
 	net_service_error = string2error(error);
 
@@ -491,26 +609,19 @@ static int __net_handle_service_set_error(const char *key, const char *error)
 
 static int __net_handle_scan_done(GVariant *param)
 {
-	__NETWORK_FUNC_ENTER__;
-
 	net_event_info_t event_data = { 0, };
 
-	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE) {
-		NETWORK_LOG(NETWORK_LOW, "Flag for specific scan is TRUE, so ignore this signal\n");
+	if (request_table[NETWORK_REQUEST_TYPE_SPECIFIC_SCAN].flag == TRUE)
 		return NET_ERR_NONE;
-	} else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
+	else if (request_table[NETWORK_REQUEST_TYPE_SCAN].flag == TRUE) {
 		memset(&request_table[NETWORK_REQUEST_TYPE_SCAN], 0,
 				sizeof(network_request_table_t));
 
 		event_data.Event = NET_EVENT_WIFI_SCAN_RSP;
 
 		_net_dbus_pending_call_unref();
-
-		NETWORK_LOG(NETWORK_LOW, "response ScanDone\n");
 	} else {
 		event_data.Event = NET_EVENT_WIFI_SCAN_IND;
-
-		NETWORK_LOG(NETWORK_LOW, "indicate ScanDone\n");
 	}
 
 	event_data.Error = NET_ERR_NONE;
@@ -519,7 +630,6 @@ static int __net_handle_scan_done(GVariant *param)
 
 	_net_client_callback(&event_data);
 
-	__NETWORK_FUNC_EXIT__;
 	return NET_ERR_NONE;
 }
 
@@ -576,6 +686,11 @@ static void __net_connman_service_signal_filter(GDBusConnection *conn,
 
 			__net_handle_service_set_error(key, value);
 		}
+
+		g_free((gchar *)value);
+		g_free((gchar *)key);
+		if (NULL != var)
+			g_variant_unref(var);
 	}
 }
 
@@ -583,10 +698,8 @@ static void __net_supplicant_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
 		const gchar *sig, GVariant *param, gpointer user_data)
 {
-	if (g_strcmp0(sig, SIGNAL_SCAN_DONE) == 0) {
-		NETWORK_LOG(NETWORK_HIGH, "ScanDone signal from wpasupplicant\n");
+	if (g_strcmp0(sig, SIGNAL_SCAN_DONE) == 0)
 		__net_handle_scan_done(param);
-	}
 }
 
 static void __net_netconfig_signal_filter(GDBusConnection *conn,
@@ -599,6 +712,8 @@ static void __net_netconfig_signal_filter(GDBusConnection *conn,
 		__net_handle_wifi_power_rsp(FALSE);
 	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_SPECIFIC_SCAN_DONE) == 0)
 		__net_handle_wifi_specific_scan_rsp(param);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_WPS_SCAN_DONE) == 0)
+		__net_handle_wifi_wps_scan_rsp(param);
 }
 
 static void __net_netconfig_network_signal_filter(GDBusConnection *conn,
@@ -621,27 +736,27 @@ int _net_deregister_signal(void)
 
 	connection = _net_dbus_get_gdbus_conn();
 	if (connection == NULL) {
-		NETWORK_LOG(NETWORK_HIGH, "Already de-registered\n");
+		NETWORK_LOG(NETWORK_ERROR, "Already de-registered");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
 	g_dbus_connection_signal_unsubscribe(connection,
-				gdbus_conn_subscribe_id_connman_svc);
+						gdbus_conn_subscribe_id_connman_state);
 	g_dbus_connection_signal_unsubscribe(connection,
-				gdbus_conn_subscribe_id_supplicant);
+						gdbus_conn_subscribe_id_connman_error);
 	g_dbus_connection_signal_unsubscribe(connection,
-				gdbus_conn_subscribe_id_netconfig_wifi);
+						gdbus_conn_subscribe_id_supplicant);
 	g_dbus_connection_signal_unsubscribe(connection,
-				gdbus_conn_subscribe_id_netconfig);
+						gdbus_conn_subscribe_id_netconfig_wifi);
+	g_dbus_connection_signal_unsubscribe(connection,
+						gdbus_conn_subscribe_id_netconfig);
 
 	Error = _net_dbus_close_gdbus_call();
 	if (Error != NET_ERR_NONE) {
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-
-	NETWORK_LOG(NETWORK_LOW, "Successfully remove signals\n");
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -660,18 +775,40 @@ int _net_subscribe_signal_wifi(void)
 		return NET_ERR_UNKNOWN;
 	}
 
+	/* Create supplicant service connection */
+	gdbus_conn_subscribe_id_supplicant = g_dbus_connection_signal_subscribe(
+			connection,
+			SUPPLICANT_SERVICE,
+			SUPPLICANT_IFACE_INTERFACE,
+			"ScanDone",
+			NULL,
+			NULL,
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__net_supplicant_signal_filter,
+			NULL,
+			NULL);
+
 	/* Create net-config service connection */
 	gdbus_conn_subscribe_id_netconfig_wifi = g_dbus_connection_signal_subscribe(
-						connection,
-						NETCONFIG_SERVICE,
-						NETCONFIG_WIFI_INTERFACE,
-						NULL,
-						NETCONFIG_WIFI_PATH,
-						NULL,
-						G_DBUS_SIGNAL_FLAGS_NONE,
-						__net_netconfig_signal_filter,
-						NULL,
-						NULL);
+			connection,
+			NETCONFIG_SERVICE,
+			NETCONFIG_WIFI_INTERFACE,
+			NULL,
+			NETCONFIG_WIFI_PATH,
+			NULL,
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__net_netconfig_signal_filter,
+			NULL,
+			NULL);
+
+	if (gdbus_conn_subscribe_id_supplicant == 0 ||
+		gdbus_conn_subscribe_id_netconfig_wifi == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed register signals "
+				"supplicant(%d), netconfig_wifi(%d)",
+				gdbus_conn_subscribe_id_supplicant,
+				gdbus_conn_subscribe_id_netconfig_wifi);
+		Error = NET_ERR_NOT_SUPPORTED;
+	}
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -696,58 +833,135 @@ int _net_register_signal(void)
 		return NET_ERR_UNKNOWN;
 	}
 
-	/* Create connman service connection */
-	gdbus_conn_subscribe_id_connman_svc = g_dbus_connection_signal_subscribe(
-						connection,
-						CONNMAN_SERVICE,
-						CONNMAN_SERVICE_INTERFACE,
-						NULL,
-						NULL,
-						NULL,
-						G_DBUS_SIGNAL_FLAGS_NONE,
-						__net_connman_service_signal_filter,
-						NULL,
-						NULL);
+	/* Create connman service state connection */
+	gdbus_conn_subscribe_id_connman_state = g_dbus_connection_signal_subscribe(
+			connection,
+			CONNMAN_SERVICE,
+			CONNMAN_SERVICE_INTERFACE,
+			SIGNAL_PROPERTY_CHANGED,
+			NULL,
+			"State",
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__net_connman_service_signal_filter,
+			NULL,
+			NULL);
 
-	/* Create supplicant service connection */
-	gdbus_conn_subscribe_id_supplicant = g_dbus_connection_signal_subscribe(
-						connection,
-						SUPPLICANT_SERVICE,
-						SUPPLICANT_SERVICE_INTERFACE,
-						NULL,
-						NULL,
-						NULL,
-						G_DBUS_SIGNAL_FLAGS_NONE,
-						__net_supplicant_signal_filter,
-						NULL,
-						NULL);
-
-	/* Create net-config service connection */
-	gdbus_conn_subscribe_id_netconfig = g_dbus_connection_signal_subscribe(
-						connection,
-						NETCONFIG_SERVICE,
-						NETCONFIG_WIFI_INTERFACE,
-						NULL,
-						NETCONFIG_WIFI_PATH,
-						NULL,
-						G_DBUS_SIGNAL_FLAGS_NONE,
-						__net_netconfig_signal_filter,
-						NULL,
-						NULL);
+	/* Create connman service error connection */
+	gdbus_conn_subscribe_id_connman_error = g_dbus_connection_signal_subscribe(
+			connection,
+			CONNMAN_SERVICE,
+			CONNMAN_SERVICE_INTERFACE,
+			SIGNAL_PROPERTY_CHANGED,
+			NULL,
+			"Error",
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__net_connman_service_signal_filter,
+			NULL,
+			NULL);
 
 	/* Create net-config service connection for network */
 	gdbus_conn_subscribe_id_netconfig = g_dbus_connection_signal_subscribe(
-						connection,
-						NETCONFIG_SERVICE,
-						NETCONFIG_NETWORK_INTERFACE,
-						NULL,
-						NETCONFIG_NETWORK_PATH,
-						NULL,
-						G_DBUS_SIGNAL_FLAGS_NONE,
-						__net_netconfig_network_signal_filter,
-						NULL,
-						NULL);
+			connection,
+			NETCONFIG_SERVICE,
+			NETCONFIG_NETWORK_INTERFACE,
+			NULL,
+			NETCONFIG_NETWORK_PATH,
+			NULL,
+			G_DBUS_SIGNAL_FLAGS_NONE,
+			__net_netconfig_network_signal_filter,
+			NULL,
+			NULL);
 
+	if (gdbus_conn_subscribe_id_connman_state == 0 ||
+		gdbus_conn_subscribe_id_connman_error == 0 ||
+		gdbus_conn_subscribe_id_netconfig == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed register signals "
+				"connman_state(%d), connman_error(%d), netconfig(%d)",
+				gdbus_conn_subscribe_id_connman_state,
+				gdbus_conn_subscribe_id_connman_error,
+				gdbus_conn_subscribe_id_netconfig);
+		Error = NET_ERR_NOT_SUPPORTED;
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+
+static int __net_get_all_tech_states(GVariant *msg, net_state_type_t *state_table)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariantIter *iter_main = NULL;
+	GVariantIter *var = NULL;
+	GVariant *value = NULL;
+	gchar *path = NULL;
+	gchar *key = NULL;
+	gboolean data;
+
+	g_variant_get(msg, "(a(oa{sv}))", &iter_main);
+	while (g_variant_iter_loop(iter_main, "(oa{sv})", &path, &var)) {
+
+		if (path == NULL)
+			continue;
+
+		while (g_variant_iter_loop(var, "{sv}", &key, &value)) {
+			if (g_strcmp0(key, "Connected") == 0) {
+				data = g_variant_get_boolean(value);
+				if (!data)
+					continue;
+
+				if (g_str_equal(path, CONNMAN_WIFI_TECHNOLOGY_PREFIX) == TRUE) {
+					*(state_table + NET_DEVICE_WIFI) = NET_STATE_TYPE_READY;
+					NetworkInfo.wifi_state = WIFI_CONNECTED;
+				} else if (g_str_equal(path, CONNMAN_CELLULAR_TECHNOLOGY_PREFIX)
+							== TRUE)
+					*(state_table + NET_DEVICE_CELLULAR) = NET_STATE_TYPE_READY;
+				else if (g_str_equal(path, CONNMAN_ETHERNET_TECHNOLOGY_PREFIX)
+							== TRUE)
+					*(state_table + NET_DEVICE_ETHERNET) = NET_STATE_TYPE_READY;
+				else if (g_str_equal(path, CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX)
+							== TRUE)
+					*(state_table + NET_DEVICE_BLUETOOTH) = NET_STATE_TYPE_READY;
+				else
+					NETWORK_LOG(NETWORK_ERROR, "Invalid technology type");
+			} else if (g_strcmp0(path, CONNMAN_WIFI_TECHNOLOGY_PREFIX) == 0 &&
+					g_strcmp0(key, "Powered") == 0) {
+				data = g_variant_get_boolean(value);
+				if (data == FALSE)
+					NetworkInfo.wifi_state = WIFI_OFF;
+				else if (data == TRUE && NetworkInfo.wifi_state < WIFI_ON)
+					NetworkInfo.wifi_state = WIFI_ON;
+			}
+		}
+	}
+	g_variant_iter_free(iter_main);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+static int __net_dbus_get_all_technology_states(net_state_type_t *state_table)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE,
+			CONNMAN_MANAGER_PATH, CONNMAN_MANAGER_INTERFACE,
+			"GetTechnologies", NULL, &Error);
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get technology info");
+		goto done;
+	}
+
+	Error = __net_get_all_tech_states(message, state_table);
+
+	g_variant_unref(message);
+
+done:
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
@@ -757,46 +971,15 @@ int _net_init_service_state_table(void)
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
-	net_cm_network_status_t network_status;
 
-	Error = _net_dbus_get_network_status(NET_DEVICE_WIFI, &network_status);
+	Error = __net_dbus_get_all_technology_states(&service_state_table[0]);
 	if (Error != NET_ERR_NONE) {
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-
-	if (network_status == NET_STATUS_AVAILABLE)
-		service_state_table[NET_DEVICE_WIFI] = NET_STATE_TYPE_READY;
-
-	Error = _net_dbus_get_network_status(NET_DEVICE_CELLULAR, &network_status);
-	if (Error != NET_ERR_NONE) {
-		__NETWORK_FUNC_EXIT__;
-		return Error;
-	}
-
-	if (network_status == NET_STATUS_AVAILABLE)
-		service_state_table[NET_DEVICE_CELLULAR] = NET_STATE_TYPE_READY;
-
-	Error = _net_dbus_get_network_status(NET_DEVICE_ETHERNET, &network_status);
-	if (Error != NET_ERR_NONE) {
-		__NETWORK_FUNC_EXIT__;
-		return Error;
-	}
-
-	if (network_status == NET_STATUS_AVAILABLE)
-		service_state_table[NET_DEVICE_ETHERNET] = NET_STATE_TYPE_READY;
-
-	Error = _net_dbus_get_network_status(NET_DEVICE_BLUETOOTH, &network_status);
-	if (Error != NET_ERR_NONE) {
-		__NETWORK_FUNC_EXIT__;
-		return Error;
-	}
-
-	if (network_status == NET_STATUS_AVAILABLE)
-		service_state_table[NET_DEVICE_BLUETOOTH] = NET_STATE_TYPE_READY;
 
 	NETWORK_LOG(NETWORK_HIGH, "init service state table. "
-				"wifi:%d, cellular:%d, ethernet:%d, bluetooth:%d\n",
+				"wifi:%d, cellular:%d, ethernet:%d, bluetooth:%d",
 				service_state_table[NET_DEVICE_WIFI],
 				service_state_table[NET_DEVICE_CELLULAR],
 				service_state_table[NET_DEVICE_ETHERNET],

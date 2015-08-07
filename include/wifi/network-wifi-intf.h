@@ -1,13 +1,13 @@
 /*
  * Network Client Library
  *
- * Copyright 2011-2013 Samsung Electronics Co., Ltd
+ * Copyright 2012 Samsung Electronics Co., Ltd
  *
  * Licensed under the Flora License, Version 1.1 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://floralicense.org/license/
+ * http://www.tizenopensource.org/license
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -52,18 +52,13 @@ extern "C" {
 * This enum indicates wifi state
 */
 typedef enum {
-	/** Unknown state */
-	WIFI_UNKNOWN = 0x00,
-	/** Wi-Fi is Off */
-	WIFI_OFF,
-	/** Wi-Fi is On(idle/failure) */
-	WIFI_ON,
-	/** Trying to connect(association/configuration) */
-	WIFI_CONNECTING,
-	/** Wi-Fi is connected to an AP(ready/online) */
-	WIFI_CONNECTED,
-	/** Trying to disconnect(connected, but disconnecting process is on going) */
-	WIFI_DISCONNECTING,
+	WIFI_UNKNOWN		= 0x00, /** Unknown state */
+	WIFI_OFF			= 0x01, /** Wi-Fi is Off */
+	WIFI_ON				= 0x02, /** Wi-Fi is On(idle/failure) */
+	WIFI_ASSOCIATION	= 0x03, /** Trying association */
+	WIFI_CONFIGURATION	= 0x04, /** Trying configuration */
+	WIFI_CONNECTED		= 0x05, /** Wi-Fi is connected */
+	WIFI_DISCONNECTING	= 0x06, /** Trying to disconnect */
 } net_wifi_state_t;
 
 /**
@@ -126,6 +121,13 @@ struct ssid_scan_bss_info_t {
 	char wps;
 };
 
+struct wps_scan_bss_info_t {
+	unsigned char ssid[NET_WLAN_ESSID_LEN + 1];
+	char bssid[NET_WLAN_BSSID_LEN + 1];
+	int rssi;
+	int mode;
+};
+
 /*****************************************************************************
  * 	Typedefs 
  *****************************************************************************/
@@ -151,8 +153,8 @@ struct ssid_scan_bss_info_t {
  * @param[in]    none
  * @param[out]   current_state  Current wifi state
  * @param[out]   profile_name   Profile name of current Wi-Fi state\n
- *                              (valid for WIFI_CONNECTING, WIFI_CONNECTED, WIFI_DISCONNECTING state only)
- *
+ *                              (valid for WIFI_ASSOCIATION, WIFI_CONFIGURATION,\n
+ *                               WIFI_CONNECTED, WIFI_DISCONNECTING state only)
  * @return       NET_ERR_NONE on success, negative values for errors
  */
 
@@ -194,6 +196,21 @@ int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t scan_mode)
 int net_specific_scan_wifi(const char *ssid);
 
 /**
+ * @fn   int net_wps_scan_wifi(void)
+ *
+ * This function sends scan request to NetConfig daemon,
+ *
+ * \par Sync (or) Async:
+ * This is Asynchronous API.
+ *
+ * @param[out]   none
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+
+int net_wps_scan_wifi(void);
+
+/**
  * @fn   int net_wifi_get_passpoint(int *enable)
  *
  * This function requests current passpoint on/off state to NetConfig daemon,
@@ -225,6 +242,25 @@ int net_wifi_get_passpoint(int *enable);
 
 int net_wifi_set_passpoint(int enable);
 
+#if defined TIZEN_TV
+/**
+* @fn	int net_wifi_cancel_wps(void)
+*
+* This function  stops ongoing WPS Provisioning / disconnects
+*	connected access point.
+*
+* \par Sync (or) Async:
+* This is an Sync API.
+*
+* @param[in]	none
+* @param[out]	none
+*
+* @return	   NET_ERR_NONE on success, negative values for errors
+*/
+
+int net_wifi_cancel_wps(void);
+
+#endif
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Asynchronous Function Declaration
  *****************************************************************************/
@@ -247,6 +283,7 @@ int net_wifi_set_passpoint(int enable);
  *
  * @return       NET_ERR_NONE on success, negative values for errors
  */
+
 
 int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_info);
 
@@ -273,14 +310,14 @@ int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_in
 int net_scan_wifi(void);
 
 /**
- * @fn   int net_wifi_power_on(void)
+ * @fn   int net_wifi_power_on(gboolean wifi_picker_test)
  *
  * This function requests wifi power on.
  *
  * \par Sync (or) Async:
  * This is an Asynchronous API.
  *
- * @param[in]    none
+ * @param[in]    wifi_picker_test  whether wifi list popup(picker) display or not
  * @param[out]   none
  *
  * \par Async Response Message:
@@ -290,7 +327,7 @@ int net_scan_wifi(void);
  * @return       NET_ERR_NONE on success, negative values for errors
  */
 
-int net_wifi_power_on(void);
+int net_wifi_power_on(gboolean wifi_picker_test);
 
 /**
  * @fn   int net_wifi_power_off(void)
@@ -366,6 +403,28 @@ int net_check_get_privilege();
 
 int net_check_profile_privilege();
 
+#if defined TIZEN_TV
+/**
+ * @fn   int net_wifi_enroll_wps_without_ssid()
+ *
+ * This function sends enroll wps request to NetConfig daemon,
+ * with wps information.
+ *
+ * \par Sync (or) Async:
+ * This is an Asynchronous API.
+ *
+ * @param[in]    wps_info      wps type
+ * @param[out]   none
+ *
+ * \par Async Response Message:
+ *        NET_EVENT_WIFI_WPS_RSP : enroll wps response will be sent asynchronously to the App in the callback function registered.\n
+ *        refer to net_event_cb_t()
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+int net_wifi_enroll_wps_without_ssid(net_wifi_wps_info_t *wps_info);
+
+#endif
 /**
  * \}
  */
