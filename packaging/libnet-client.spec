@@ -10,7 +10,6 @@ BuildRequires:	pkgconfig(vconf)
 BuildRequires:	pkgconfig(gio-2.0)
 BuildRequires:	pkgconfig(glib-2.0)
 BuildRequires:	pkgconfig(gthread-2.0)
-BuildRequires:	model-build-features
 
 %description
 Network Client library (Shared library)
