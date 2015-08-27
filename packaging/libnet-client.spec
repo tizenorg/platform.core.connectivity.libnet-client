@@ -1,6 +1,6 @@
 Name:		libnet-client
 Summary:	Network Client library (Shared library)
-Version:	1.1.40
+Version:	1.1.41
 Release:	1
 Group:		System/Network
 License:	Flora-1.1
@@ -31,11 +31,11 @@ Network Client library (Development)
 export DUALSIM_CFLAGS+=" -DTIZEN_DUALSIM_ENABLE"
 %endif
 
-%if "%{?tizen_profile_name}" == "wearable"
+%if "%{profile}" == "wearable"
 export WEARABLE_CFLAGS+=" -DTIZEN_WEARABLE"
 %endif
 
-%if "%{?tizen_profile_name}" == "tv"
+%if "%{profile}" == "tv"
 	export TIZEN_TV_CFLAGS+=" -DTIZEN_TV"
 %endif
 
