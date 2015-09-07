@@ -92,25 +92,25 @@ extern "C"
  * length of CA Cert file name
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_CA_CERT_FILENAME_LEN       50
+#define NETPM_WLAN_CA_CERT_FILENAME_LEN       80
 
 /**
  * length of Client Cert file name
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_CLIENT_CERT_FILENAME_LEN   50
+#define NETPM_WLAN_CLIENT_CERT_FILENAME_LEN   80
 
 /**
  * length of private key file name
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_PRIVATE_KEY_FILENAME_LEN   50
+#define NETPM_WLAN_PRIVATE_KEY_FILENAME_LEN   80
 
 /**
  * length of Private key password
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_PRIVATE_KEY_PASSWD_LEN     50
+#define NETPM_WLAN_PRIVATE_KEY_PASSWD_LEN     80
 
 /*==================================================================================================
                                              ENUMS
