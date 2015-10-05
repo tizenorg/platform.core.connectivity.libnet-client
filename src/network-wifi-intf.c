@@ -231,6 +231,16 @@ EXPORT_API int net_wps_scan_wifi(void)
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 }
+EXPORT_API int net_get_wps_pin(char **wps_pin)
+{
+	net_err_t error = NET_ERR_NONE;
+	error = _net_dbus_get_wps_pin(wps_pin);
+
+	if (error != NET_ERR_NONE)
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get wps pin : %d", error);
+
+	return error;
+}
 
 EXPORT_API int net_wifi_get_passpoint(int *enabled)
 {

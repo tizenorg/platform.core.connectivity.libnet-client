@@ -196,6 +196,20 @@ int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t scan_mode)
 int net_specific_scan_wifi(const char *ssid);
 
 /**
+ * @fn   int net_get_wps_pin(void)
+ *
+ * This function get wps pin
+ *
+ * \par Sync (or) Async:
+ * This is an Synchronous API.
+ *
+ * @param[out]   wps pin
+ *
+ * @return       NET_ERR_NONE on success, negative values for errors
+ */
+int net_get_wps_pin(char **wps_pin);
+
+/**
  * @fn   int net_wps_scan_wifi(void)
  *
  * This function sends scan request to NetConfig daemon,
@@ -283,7 +297,6 @@ int net_wifi_cancel_wps(void);
  *
  * @return       NET_ERR_NONE on success, negative values for errors
  */
-
 
 int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_info);
 

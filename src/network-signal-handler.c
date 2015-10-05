@@ -300,7 +300,8 @@ static void __net_handle_state_ind(const char *profile_name,
 	__NETWORK_FUNC_EXIT__;
 }
 
-static void __net_handle_failure_ind(const char *profile_name)
+static void __net_handle_failure_ind(const char *profile_name,
+		net_device_t device_type)
 {
 	__NETWORK_FUNC_ENTER__;
 
@@ -359,6 +360,9 @@ static void __net_handle_failure_ind(const char *profile_name)
 	NETWORK_LOG(NETWORK_ERROR, "State failure %d", event_data.Error);
 	_net_client_callback(&event_data);
 
+	/* Reseting the state back in case of failure state */
+	service_state_table[device_type] = NET_STATE_TYPE_IDLE;
+
 	__NETWORK_FUNC_EXIT__;
 }
 
@@ -415,6 +419,10 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 	switch (new_state) {
 	case NET_STATE_TYPE_IDLE:
+		if (device_type == NET_DEVICE_WIFI &&
+				NetworkInfo.wifi_state == WIFI_CONNECTED) {
+			NetworkInfo.wifi_state = WIFI_ON;
+		}
 	case NET_STATE_TYPE_ASSOCIATION:
 	case NET_STATE_TYPE_CONFIGURATION:
 		__net_handle_state_ind(sig_path, new_state);
@@ -564,7 +572,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 		break;
 	}
 	case NET_STATE_TYPE_FAILURE:
-		__net_handle_failure_ind(sig_path);
+		__net_handle_failure_ind(sig_path, device_type);
 		break;
 
 	default:
@@ -887,7 +895,6 @@ int _net_register_signal(void)
 	return Error;
 }
 
-
 static int __net_get_all_tech_states(GVariant *msg, net_state_type_t *state_table)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -912,17 +919,14 @@ static int __net_get_all_tech_states(GVariant *msg, net_state_type_t *state_tabl
 				if (!data)
 					continue;
 
-				if (g_str_equal(path, CONNMAN_WIFI_TECHNOLOGY_PREFIX) == TRUE) {
+				if (g_strcmp0(path, CONNMAN_WIFI_TECHNOLOGY_PREFIX) == 0) {
 					*(state_table + NET_DEVICE_WIFI) = NET_STATE_TYPE_READY;
 					NetworkInfo.wifi_state = WIFI_CONNECTED;
-				} else if (g_str_equal(path, CONNMAN_CELLULAR_TECHNOLOGY_PREFIX)
-							== TRUE)
+				} else if (g_strcmp0(path, CONNMAN_CELLULAR_TECHNOLOGY_PREFIX) == 0)
 					*(state_table + NET_DEVICE_CELLULAR) = NET_STATE_TYPE_READY;
-				else if (g_str_equal(path, CONNMAN_ETHERNET_TECHNOLOGY_PREFIX)
-							== TRUE)
+				else if (g_strcmp0(path, CONNMAN_ETHERNET_TECHNOLOGY_PREFIX) == 0)
 					*(state_table + NET_DEVICE_ETHERNET) = NET_STATE_TYPE_READY;
-				else if (g_str_equal(path, CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX)
-							== TRUE)
+				else if (g_strcmp0(path, CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX) == 0)
 					*(state_table + NET_DEVICE_BLUETOOTH) = NET_STATE_TYPE_READY;
 				else
 					NETWORK_LOG(NETWORK_ERROR, "Invalid technology type");

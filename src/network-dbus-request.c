@@ -100,6 +100,8 @@ static int __net_netconfig_error_string_to_enum(const char* error)
 		return NET_ERR_SECURITY_RESTRICTED;
 	else if (NULL != strstr(error, ".InProgress"))
 		return NET_ERR_WIFI_DRIVER_LOAD_INPROGRESS;
+	else if (NULL != strstr(error, ".AccessDenied"))
+		return NET_ERR_ACCESS_DENIED;
 	return NET_ERR_UNKNOWN;
 }
 
@@ -411,16 +413,14 @@ static void __net_specific_scan_wifi_reply(GObject *source_object, GAsyncResult 
 		event_data.Datalength = sizeof(net_wifi_state_t);
 		event_data.Data = &(NetworkInfo.wifi_state);
 		event_data.Error = Error;
+
+		_net_dbus_pending_call_unref();
+		_net_client_callback(&event_data);
 	} else {
 		_net_dbus_pending_call_unref();
-
 		__NETWORK_FUNC_EXIT__;
 		return;
 	}
-
-	_net_dbus_pending_call_unref();
-
-	_net_client_callback(&event_data);
 
 	__NETWORK_FUNC_EXIT__;
 }
@@ -1115,6 +1115,10 @@ int _net_dbus_set_eap_config_fields_and_connect(
 		g_variant_builder_add(builder, "{ss}",
 				CONNMAN_CONFIG_FIELD_EAP_METHOD, wifi_info->eap_type);
 
+	if (wifi_info->eap_keymgmt_type)
+		g_variant_builder_add(builder, "{ss}",
+				CONNMAN_CONFIG_FIELD_EAP_KEYMGMT_TYPE, wifi_info->eap_keymgmt_type);
+
 	if (wifi_info->identity)
 		g_variant_builder_add(builder, "{ss}",
 				CONNMAN_CONFIG_FIELD_IDENTITY, wifi_info->identity);
@@ -1153,7 +1157,7 @@ int _net_dbus_set_eap_config_fields_and_connect(
 
 	Error = _net_invoke_dbus_method_nonblock(NETCONFIG_SERVICE,
 			NETCONFIG_WIFI_PATH,
-			NETCONFIG_WIFI_INTERFACE, "CreateConfig", params,
+			NETCONFIG_WIFI_INTERFACE, "CreateEapConfig", params,
 			DBUS_REPLY_TIMEOUT, __net_open_connection_reply);
 
 	__NETWORK_FUNC_EXIT__;
@@ -1225,6 +1229,38 @@ int _net_dbus_set_agent_fields_and_connect(const char *ssid,
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
+}
+
+int _net_dbus_get_wps_pin(char **wps_pin)
+{
+	__NETWORK_FUNC_ENTER__;
+	net_err_t error = NET_ERR_NONE;
+	GVariant *params = NULL;
+	GVariant *reply = NULL;
+	gchar *value = NULL;
+	char *path = NULL;
+
+	params = g_variant_new("(s)", "wlan0");
+	reply = _net_invoke_dbus_method(SUPPLICANT_SERVICE, SUPPLICANT_PATH,
+			SUPPLICANT_INTERFACE, "GetInterface", params, &error);
+	if (reply == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get Wi-Fi interface");
+		return error;
+	}
+	g_variant_get(reply, "(o)", &path);
+
+	reply = _net_invoke_dbus_method(SUPPLICANT_SERVICE, path,
+			SUPPLICANT_INTERFACE ".Interface.WPS", "GetPin", NULL, &error);
+	if (reply == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get wps pin");
+		return error;
+	}
+	g_variant_get(reply, "(s)", &value);
+	*wps_pin = g_strdup_printf("%s", value);
+	g_variant_unref(reply);
+
+	__NETWORK_FUNC_EXIT__;
+	return error;
 }
 
 int _net_dbus_set_agent_wps_pbc_and_connect(const char *profilename)

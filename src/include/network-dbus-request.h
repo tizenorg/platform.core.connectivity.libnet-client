@@ -63,6 +63,7 @@ extern "C" {
 #define CONNMAN_CONFIG_FIELD_CLIENT_CERT_FILE	"ClientCertFile"
 #define CONNMAN_CONFIG_FIELD_PVT_KEY_FILE		"PrivateKeyFile"
 #define CONNMAN_CONFIG_FIELD_PVT_KEY_PASSPHRASE	"PrivateKeyPassphrase"
+#define CONNMAN_CONFIG_FIELD_EAP_KEYMGMT_TYPE 	"KeymgmtType"
 
 /*****************************************************************************
  * 	Global Structures
@@ -82,6 +83,7 @@ typedef struct {
 	char *client_cert_file;
 	char *private_key_file;
 	char *private_key_password;
+	char *eap_keymgmt_type;
 	gboolean is_hidden;
 } net_wifi_connect_service_info_t;
 
@@ -94,6 +96,7 @@ int _net_dbus_get_state(char* state);
 int _net_dbus_get_ethernet_cable_state(int *state);
 int _net_dbus_set_agent_passphrase_and_connect(
 		const char *passphrase, const char *profilename);
+int _net_dbus_get_wps_pin(char **wps_pin);
 int _net_dbus_set_agent_wps_pbc_and_connect(const char *profilename);
 int _net_dbus_set_agent_wps_pin_and_connect(
 		const char *wps_pin, const char *profilename);

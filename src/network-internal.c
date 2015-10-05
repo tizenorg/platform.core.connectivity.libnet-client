@@ -97,6 +97,23 @@ static char *__convert_eap_auth_to_string(gchar eap_auth)
 	}
 }
 
+static char *__convert_eap_keymgmt_type_to_string(gchar eap_keymgmt)
+{
+	switch (eap_keymgmt) {
+	case WLAN_SEC_EAP_KEYMGMT_FT:
+		return "FT";
+
+	case WLAN_SEC_EAP_KEYMGMT_CCKM:
+		return "CCKM";
+
+	case WLAN_SEC_EAP_KEYMGMT_OKC:
+		return "OKC";
+
+	default:
+		return NULL;
+	}
+}
+
 /*****************************************************************************
  * 	Global Functions Definition
  *****************************************************************************/
@@ -248,13 +265,13 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 	gchar *key = NULL;
 	gboolean data;
 
-	if (g_str_equal(tech_state->technology, "wifi") == TRUE)
+	if (g_strcmp0(tech_state->technology, "wifi") == 0)
 		tech_prefix = CONNMAN_WIFI_TECHNOLOGY_PREFIX;
-	else if (g_str_equal(tech_state->technology, "cellular") == TRUE)
+	else if (g_strcmp0(tech_state->technology, "cellular") == 0)
 		tech_prefix = CONNMAN_CELLULAR_TECHNOLOGY_PREFIX;
-	else if (g_str_equal(tech_state->technology, "ethernet") == TRUE)
+	else if (g_strcmp0(tech_state->technology, "ethernet") == 0)
 		tech_prefix = CONNMAN_ETHERNET_TECHNOLOGY_PREFIX;
-	else if (g_str_equal(tech_state->technology, "bluetooth") == TRUE)
+	else if (g_strcmp0(tech_state->technology, "bluetooth") == 0)
 		tech_prefix = CONNMAN_BLUETOOTH_TECHNOLOGY_PREFIX;
 	else {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid technology type");
@@ -265,7 +282,7 @@ int _net_get_tech_state(GVariant *msg, network_tech_state_info_t* tech_state)
 	g_variant_get(msg, "(a(oa{sv}))", &iter_main);
 	while (g_variant_iter_loop(iter_main, "(oa{sv})", &path, &var)) {
 
-		if (path == NULL || g_str_equal(path, tech_prefix) != TRUE)
+		if (path == NULL || g_strcmp0(path, tech_prefix) != 0)
 			continue;
 
 		while (g_variant_iter_loop(var, "{sv}", &key, &value)) {
@@ -341,6 +358,13 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 		wifi_connection_info.passphrase =
 				(char *)wifi_info->security_info.authentication.psk.pskKey;
 		break;
+	case WLAN_SEC_MODE_WPA_FT_PSK:
+		wifi_connection_info.security = "ft_psk";
+		wifi_connection_info.passphrase =
+				(char *)wifi_info->security_info.authentication.psk.pskKey;
+		break;
+
+
 
 	case WLAN_SEC_MODE_IEEE8021X:
 		wifi_connection_info.security = "ieee8021x";
@@ -351,6 +375,9 @@ int _net_open_connection_with_wifi_info(const net_wifi_connection_info_t* wifi_i
 		wifi_connection_info.eap_auth =
 				__convert_eap_auth_to_string(
 						wifi_info->security_info.authentication.eap.eap_auth);
+		wifi_connection_info.eap_keymgmt_type =
+				__convert_eap_keymgmt_type_to_string(
+						wifi_info->security_info.authentication.eap.eap_keymgmt_type);
 
 		if (wifi_info->security_info.authentication.eap.username[0] != '\0')
 			wifi_connection_info.identity =
@@ -559,8 +586,7 @@ void _net_client_callback(net_event_info_t *event_data)
 				}
 
 				memcpy(client->Data, event_data->Data, sizeof(GSList));
-			}
-			else {
+			} else {
 				client->Data = g_try_malloc0(event_data->Datalength);
 				if (client->Data == NULL) {
 					g_free(client);

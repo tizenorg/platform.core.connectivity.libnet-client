@@ -92,25 +92,25 @@ extern "C"
  * length of CA Cert file name
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_CA_CERT_FILENAME_LEN       80
+#define NETPM_WLAN_CA_CERT_FILENAME_LEN       128
 
 /**
  * length of Client Cert file name
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_CLIENT_CERT_FILENAME_LEN   80
+#define NETPM_WLAN_CLIENT_CERT_FILENAME_LEN   128
 
 /**
  * length of private key file name
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_PRIVATE_KEY_FILENAME_LEN   80
+#define NETPM_WLAN_PRIVATE_KEY_FILENAME_LEN   128
 
 /**
  * length of Private key password
  * Used by EAP-TLS, optional for EAP-TTLS and EAP-PEAP
  */
-#define NETPM_WLAN_PRIVATE_KEY_PASSWD_LEN     80
+#define NETPM_WLAN_PRIVATE_KEY_PASSWD_LEN     50
 
 /*==================================================================================================
                                              ENUMS
@@ -133,6 +133,7 @@ typedef enum
 	WLAN_SEC_MODE_WPA_PSK,
 	/** WPA2-PSK */
 	WLAN_SEC_MODE_WPA2_PSK,
+	WLAN_SEC_MODE_WPA_FT_PSK,
 } wlan_security_mode_type_t;
 
 /**
@@ -207,6 +208,19 @@ typedef enum {
 	WLAN_SEC_EAP_AUTH_MD5,
 } wlan_eap_auth_type_t;
 
+/**
+ * @enum wlan_eap_keymgmt_type_t
+ * EAP keymgmt type
+ * @see wlan_eap_info_t
+ */
+typedef enum {
+	WLAN_SEC_EAP_KEYMGMT_UNKNOWN = 0x00,
+	WLAN_SEC_EAP_KEYMGMT_NONE,
+	WLAN_SEC_EAP_KEYMGMT_FT,
+	WLAN_SEC_EAP_KEYMGMT_CCKM,
+	WLAN_SEC_EAP_KEYMGMT_OKC,
+} wlan_eap_keymgmt_type_t;
+
 /*
 ==================================================================================================
                                             MACROS
@@ -280,6 +294,8 @@ typedef struct
 	wlan_eap_type_t eap_type;
 	/** eap phase2 authentication type */
 	wlan_eap_auth_type_t eap_auth;
+	/** eap keymgmt type */
+	wlan_eap_keymgmt_type_t eap_keymgmt_type;
 } wlan_eap_info_t;
 
 /**
@@ -310,6 +326,8 @@ typedef struct
 	wlan_auth_info_t authentication;
 	/** If WPS is supported, then this property will be set to TRUE */
 	char wps_support;
+	/** keymgmt */
+	unsigned int keymgmt;
 } wlan_security_info_t;
 
 /**

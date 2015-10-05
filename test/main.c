@@ -635,13 +635,13 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 	wlan_security_info_t *security_info2 =
 			&profile_info->ProfileInfo.Wlan.security_info;
 	net_pdp_profile_info_t *pdp_info = &profile_info->ProfileInfo.Pdp;
-	char input_str[100] = {0,};
+	char input_str[101] = {0,};
 	int ei = 0;
 
 	if (profile_info->profile_type == NET_DEVICE_WIFI) {
 		debug_print("\nInput Passphrase(Enter for skip) :\n");
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str) - 1] = '\0';
@@ -653,7 +653,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 		debug_print("\nInput Proxy Type(1:direct, 2:auto, 3:manual - current:%d)"
 				" - (Enter for skip) :\n", net_info2->ProxyMethod);
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str) - 1] = '\0';
@@ -679,7 +679,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 					debug_print("\nInput manual Proxy address - "
 							"(Enter for skip) :\n");
 
-				memset(input_str, '\0', 100);
+				memset(input_str, '\0', 101);
 				read(0, input_str, 100);
 
 				if (input_str[0] != '\0' &&
@@ -696,7 +696,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 		debug_print("\nInput IPv4 Address Type dhcp/manual (Enter for skip) :\n");
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str) - 1] = '\0';
@@ -709,7 +709,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 				debug_print("\nInput IP Address (Enter for skip) :\n");
 
-				memset(input_str, '\0', 100);
+				memset(input_str, '\0', 101);
 				read(0, input_str, 100);
 
 				input_str[strlen(input_str) - 1] = '\0';
@@ -724,7 +724,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 				debug_print("\nInput Netmask (Enter for skip) :\n");
 
-				memset(input_str, '\0', 100);
+				memset(input_str, '\0', 101);
 				read(0, input_str, 100);
 
 				input_str[strlen(input_str) - 1] = '\0';
@@ -739,7 +739,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 
 				debug_print("\nInput Gateway (Enter for skip) :\n");
 
-				memset(input_str, '\0', 100);
+				memset(input_str, '\0', 101);
 				read(0, input_str, 100);
 
 				input_str[strlen(input_str)-1] = '\0';
@@ -757,7 +757,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 		for (ei = 0;ei < NET_DNS_ADDR_MAX;ei++) {
 			debug_print("\nInput DNS %d Address(Enter for skip) :\n", ei);
 
-			memset(input_str, '\0', 100);
+			memset(input_str, '\0', 101);
 			read(0, input_str, 100);
 
 			input_str[strlen(input_str)-1] = '\0';
@@ -832,7 +832,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 	} else if (profile_info->profile_type == NET_DEVICE_CELLULAR) {
 		debug_print("\nInput Apn(current:%s) - (Enter for skip) :\n", pdp_info->Apn);
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str)-1] = '\0';
@@ -843,7 +843,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 		debug_print("\nInput Proxy(current:%s) - (Enter for skip) :\n",
 				pdp_info->net_info.ProxyAddr);
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str)-1] = '\0';
@@ -854,7 +854,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 		debug_print("\nInput HomeURL(current:%s) - (Enter for skip) :\n",
 				pdp_info->HomeURL);
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str)-1] = '\0';
@@ -865,7 +865,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 		debug_print("\nInput AuthType(0:None, 1:PAP, 2:CHAP - current:%d)"
 				" - (Enter for skip) :\n", pdp_info->AuthInfo.AuthType);
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
@@ -885,7 +885,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 			debug_print("\nInput AuthId(current:%s) - (Enter for skip) :\n",
 					pdp_info->AuthInfo.UserName);
 
-			memset(input_str, '\0', 100);
+			memset(input_str, '\0', 101);
 			read(0, input_str, 100);
 
 			input_str[strlen(input_str)-1] = '\0';
@@ -897,7 +897,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 			debug_print("\nInput AuthPwd(current:%s) - (Enter for skip) :\n",
 					pdp_info->AuthInfo.Password);
 
-			memset(input_str, '\0', 100);
+			memset(input_str, '\0', 101);
 			read(0, input_str, 100);
 
 			input_str[strlen(input_str)-1] = '\0';
@@ -913,11 +913,11 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 int __network_add_profile_info(net_profile_info_t *profile_info)
 {
 	net_pdp_profile_info_t *pdp_info = &profile_info->ProfileInfo.Pdp;
-	char input_str[100] = {0,};
+	char input_str[101] = {0,};
 
 	debug_print("\nInput Keyword(Profile name) - (Enter for skip) :\n");
 
-	memset(input_str, '\0', 100);
+	memset(input_str, '\0', 101);
 	read(0, input_str, 100);
 
 	input_str[strlen(input_str)-1] = '\0';
@@ -929,7 +929,7 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 	debug_print("\nInput Apn - (Enter for skip) :\n");
 
-	memset(input_str, '\0', 100);
+	memset(input_str, '\0', 101);
 	read(0, input_str, 100);
 
 	input_str[strlen(input_str)-1] = '\0';
@@ -941,7 +941,7 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 	debug_print("\nInput Proxy - (Enter for skip) :\n");
 
-	memset(input_str, '\0', 100);
+	memset(input_str, '\0', 101);
 	read(0, input_str, 100);
 
 	input_str[strlen(input_str)-1] = '\0';
@@ -953,7 +953,7 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 	debug_print("\nInput HomeURL - (Enter for skip) :\n");
 
-	memset(input_str, '\0', 100);
+	memset(input_str, '\0', 101);
 	read(0, input_str, 100);
 
 	input_str[strlen(input_str)-1] = '\0';
@@ -965,7 +965,7 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 	debug_print("\nInput AuthType(0:NONE 1:PAP 2:CHAP) - (Enter for skip) :\n");
 
-	memset(input_str, '\0', 100);
+	memset(input_str, '\0', 101);
 	read(0, input_str, 100);
 
 	if (input_str[0] != '\0' && *input_str != '\n' && *input_str != '\r') {
@@ -986,7 +986,7 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 	    pdp_info->AuthInfo.AuthType == NET_PDP_AUTH_CHAP) {
 		debug_print("\nInput AuthId - (Enter for skip) :\n");
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str)-1] = '\0';
@@ -999,7 +999,7 @@ int __network_add_profile_info(net_profile_info_t *profile_info)
 
 		debug_print("\nInput AuthPwd - (Enter for skip) :\n");
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		input_str[strlen(input_str)-1] = '\0';
@@ -1019,7 +1019,7 @@ static gboolean network_main_gthread(gpointer data)
 	char ProfileName[NET_PROFILE_NAME_LEN_MAX+1] = {0,};
 	int input_int = 0;
 	int net_error = 0;
-	char input_str[100] = { 0, };
+	char input_str[101] = { 0, };
 
 	net_profile_info_t profile_info;
 
@@ -1038,9 +1038,9 @@ static gboolean network_main_gthread(gpointer data)
 		return TRUE;
 
 	debug_print("Event received from stdin \n");
-	char user_input[100];
+	char user_input[101];
 
-	memset(user_input, '\0', 100);
+	memset(user_input, '\0', 101);
 	read(0, user_input, 100);
 
 	if (user_input[0] == '9')
@@ -1406,7 +1406,7 @@ static gboolean network_main_gthread(gpointer data)
 
 	case 'd':
 		debug_print("\nInput profile type - 1:wifi, 2:mobile 3:ethernet 4:bluetooth (Enter for skip):\n");
-		memset(input_str, 0, 100);
+		memset(input_str, 0, 101);
 		read(0, input_str, 100);
 
 		net_device_t deviceType = NET_DEVICE_UNKNOWN;
@@ -1447,7 +1447,7 @@ static gboolean network_main_gthread(gpointer data)
 
 	case 'e':
 		debug_print("\nInput profile Name((Enter for skip) :\n");
-		memset(ProfileName, 0, NET_PROFILE_NAME_LEN_MAX);
+		memset(ProfileName, 0, NET_PROFILE_NAME_LEN_MAX+1);
 		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
 		if (ProfileName[0] == '\0' || *ProfileName == '\n' || *ProfileName == '\r')
@@ -1474,7 +1474,7 @@ static gboolean network_main_gthread(gpointer data)
 
 	case 'f':
 		debug_print("\nInput profile Name(Enter for skip) :\n");
-		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX);
+		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX+1);
 		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
 		if (ProfileName[0] != '\0' &&
@@ -1512,7 +1512,7 @@ static gboolean network_main_gthread(gpointer data)
 	case 'g':
 		debug_print("\nInput profile Name(Enter for skip) :\n");
 
-		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX);
+		memset(ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX+1);
 		read(0, ProfileName, NET_PROFILE_NAME_LEN_MAX);
 
 		gettimeofday(&timevar, NULL);
@@ -1539,7 +1539,7 @@ static gboolean network_main_gthread(gpointer data)
 				"Prepaid MMS:4, Tethering:5, Application:6)"
 				" - (Enter for skip) :\n");
 
-		memset(input_str, '\0', 100);
+		memset(input_str, '\0', 101);
 		read(0, input_str, 100);
 
 		net_service_type_t network_type = NET_SERVICE_INTERNET;
