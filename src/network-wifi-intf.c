@@ -876,3 +876,61 @@ EXPORT_API int net_wifi_enroll_wps_without_ssid(net_wifi_wps_info_t *wps_info)
 	return Error;
 }
 #endif
+
+EXPORT_API int net_wifi_tdls_disconnect(const char* peer_mac_addr)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	if (peer_mac_addr == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "invalid parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	Error = _net_dbus_tdls_disconnect(peer_mac_addr);
+
+	if (Error != NET_ERR_NONE)
+		NETWORK_LOG(NETWORK_ERROR, "_net_dbus_tdls_set_device_type failed\n");
+
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+
+}
+
+EXPORT_API int net_wifi_tdls_connected_peer(char** peer_mac_addr)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+
+	if (peer_mac_addr == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "invalid parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	if (g_atomic_int_get(&NetworkInfo.ref_count) == 0) {
+		NETWORK_LOG(NETWORK_ERROR, "Application is not registered\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	Error = _net_dbus_tdls_connected_peer(peer_mac_addr);
+
+	if (Error != NET_ERR_NONE)
+		NETWORK_LOG(NETWORK_ERROR, "net_wifi_tdls_connected_peer failed\n");
+
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+
+}

@@ -141,6 +141,8 @@ int _net_dbus_set_agent_wps_pin(const char *wps_pin);
 
 #endif
 
+int _net_dbus_tdls_disconnect(const char* peer_mac_addr);
+int _net_dbus_tdls_connected_peer(char** peer_mac_addr);
 
 #ifdef __cplusplus
 }

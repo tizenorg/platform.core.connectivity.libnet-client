@@ -51,11 +51,11 @@ extern "C"
 /** Length of bssid */
 #define NET_WLAN_BSSID_LEN      17
 
-/** 
- * Length of WPS PIN code 
+/**
+ * Length of WPS PIN code
  * WPS PIN code should be 4 or 8 digits
  */
-#define NET_WLAN_MAX_WPSPIN_LEN		8	
+#define NET_WLAN_MAX_WPSPIN_LEN		8
 
 /**
  * Passphrase length should be between 8..63,

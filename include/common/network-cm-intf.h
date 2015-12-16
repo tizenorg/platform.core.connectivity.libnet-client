@@ -126,6 +126,12 @@ typedef enum
 
 	/** Ethernet Cable Detached Event */
 	NET_EVENT_ETHERNET_CABLE_DETACHED,
+
+	/** Wi-Fi TDLS Peer Connected EVENT) */
+	NET_EVENT_TDLS_CONNECTED_IND,
+
+	/** Wi-Fi TDLS Peer Disconnect EVENT) */
+	NET_EVENT_TDLS_DISCONNECTED_IND,
 } net_event_t;
 
 /**

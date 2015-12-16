@@ -701,6 +701,89 @@ static void __net_connman_service_signal_filter(GDBusConnection *conn,
 			g_variant_unref(var);
 	}
 }
+static int __net_handle_wifi_tdls_connected_event(GVariant *param)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	const char *key = NULL;
+	const gchar *sig_value = NULL;
+
+	g_variant_get(param, "(a{sv})", &iter);
+
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "peermac") == 0) {
+			sig_value = g_variant_get_string(value, NULL);
+
+			NETWORK_LOG(NETWORK_ERROR, "TDLS Connected Peer Mac Adress: %s",
+						sig_value);
+		}
+	}
+	g_variant_iter_free(iter);
+
+	net_event_info_t event_data;
+	memset(&event_data, 0, sizeof(event_data));
+
+	event_data.Error = NET_ERR_NONE;
+	event_data.Event = NET_EVENT_TDLS_CONNECTED_IND;
+	event_data.Data = g_strdup(sig_value);
+
+	if(event_data.Data)
+		event_data.Datalength = strlen(event_data.Data);
+	else
+		event_data.Datalength = 0;
+
+	NETWORK_LOG(NETWORK_ERROR,"Sending NET_EVENT_TDLS_CONNECTED_IND");
+	_net_client_callback(&event_data);
+	g_free(event_data.Data);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
+static int __net_handle_wifi_tdls_disconnected_event(GVariant *param)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	const char *key = NULL;
+	const gchar *sig_value = NULL;
+
+	g_variant_get(param, "(a{sv})", &iter);
+
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "peermac") == 0) {
+			sig_value = g_variant_get_string(value, NULL);
+
+			NETWORK_LOG(NETWORK_ERROR, "TDLS Connected Peer Mac Adress: %s",
+						sig_value);
+		}
+	}
+	g_variant_iter_free(iter);
+
+	net_event_info_t event_data;
+	memset(&event_data, 0, sizeof(event_data));
+
+	event_data.Error = NET_ERR_NONE;
+	event_data.Event = NET_EVENT_TDLS_DISCONNECTED_IND;
+	event_data.Data = g_strdup(sig_value);
+
+	if(event_data.Data)
+		event_data.Datalength = strlen(event_data.Data);
+	else
+		event_data.Datalength = 0;
+
+	NETWORK_LOG(NETWORK_ERROR,"Sending NET_EVENT_TDLS_DISCONNECTED_IND");
+	_net_client_callback(&event_data);
+	g_free(event_data.Data);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
+
+
 
 static void __net_supplicant_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
@@ -722,6 +805,10 @@ static void __net_netconfig_signal_filter(GDBusConnection *conn,
 		__net_handle_wifi_specific_scan_rsp(param);
 	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_WPS_SCAN_DONE) == 0)
 		__net_handle_wifi_wps_scan_rsp(param);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_TDLS_CONNECTED) == 0)
+		__net_handle_wifi_tdls_connected_event(param);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_TDLS_DISCONNECTED) == 0)
+		__net_handle_wifi_tdls_disconnected_event(param);
 }
 
 static void __net_netconfig_network_signal_filter(GDBusConnection *conn,

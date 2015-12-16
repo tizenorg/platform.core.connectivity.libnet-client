@@ -44,7 +44,7 @@ extern "C" {
 
 
 /*****************************************************************************
- * 	Global Enums 
+ * 	Global Enums
  *****************************************************************************/
 
 /**
@@ -93,7 +93,7 @@ typedef enum
 typedef struct {
 	/** PBC / PIN */
 	net_wifi_wps_type_t type;
-	
+
 	/** Optional. This pin is needed when the user input PIN code */
 	char pin[NET_WLAN_MAX_WPSPIN_LEN + 1];
 } net_wifi_wps_info_t;
@@ -129,15 +129,15 @@ struct wps_scan_bss_info_t {
 };
 
 /*****************************************************************************
- * 	Typedefs 
+ * 	Typedefs
  *****************************************************************************/
 
 
 /*****************************************************************************
- * 	Global Functions 
+ * 	Global Functions
  *****************************************************************************/
 
-	
+
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Synchronous API Declaration
  *****************************************************************************/
@@ -438,6 +438,10 @@ int net_check_profile_privilege();
 int net_wifi_enroll_wps_without_ssid(net_wifi_wps_info_t *wps_info);
 
 #endif
+
+int net_wifi_tdls_disconnect(const char* peer_mac_addr);
+int net_wifi_tdls_connected_peer(char** peer_mac_addr);
+
 /**
  * \}
  */

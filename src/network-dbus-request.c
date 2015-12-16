@@ -2440,3 +2440,77 @@ int _net_dbus_set_agent_wps_pin(const char *wps_pin)
 	return NET_ERR_NONE;
 }
 #endif
+
+int _net_dbus_tdls_disconnect(const char* peer_mac_addr)
+{
+
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+	GVariant *params = NULL;
+	const char *method = "TdlsDisconnect";
+	gint32 ret = -1;
+
+	params = g_variant_new("(s)", peer_mac_addr);
+
+	message = _net_invoke_dbus_method(
+			NETCONFIG_SERVICE, NETCONFIG_WIFI_PATH,
+			NETCONFIG_WIFI_INTERFACE, method, params, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to TDLS Disconnect Request\n");
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	g_variant_get(message, "(i)", &ret);
+
+	NETWORK_LOG(NETWORK_HIGH, "Status [%d]\n", ret);
+
+	if(ret)
+		Error = NET_ERR_NONE;
+	else
+		Error = NET_ERR_UNKNOWN;
+
+	g_variant_unref(message);
+	__NETWORK_FUNC_EXIT__;
+
+	return Error;
+}
+
+int _net_dbus_tdls_connected_peer(char** peer_mac_addr)
+{
+
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+	const char *method = "TdlsConnectedPeer";
+
+
+	if(NULL == peer_mac_addr) {
+			NETWORK_LOG(NETWORK_ERROR,"Invalid Parameter\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_INVALID_PARAM;
+	}
+
+	message = _net_invoke_dbus_method(
+			NETCONFIG_SERVICE, NETCONFIG_WIFI_PATH,
+			NETCONFIG_WIFI_INTERFACE, method, NULL, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to Get Peer Connected Mac address\n");
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	g_variant_get(message, "(s)", peer_mac_addr);
+
+	NETWORK_LOG(NETWORK_HIGH, "TDLS Peer Mac address [%s]\n", *peer_mac_addr);
+
+	g_variant_unref(message);
+	__NETWORK_FUNC_EXIT__;
+
+	return Error;
+}
