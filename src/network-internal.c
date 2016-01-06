@@ -677,6 +677,8 @@ guint _net_client_callback_add(GSourceFunc func, gpointer user_data)
 
 	guint id;
 	struct managed_idle_data *data;
+	GMainContext *context;
+	GSource *src;
 
 	if (!func) {
 		__NETWORK_FUNC_EXIT__;
@@ -692,8 +694,12 @@ guint _net_client_callback_add(GSourceFunc func, gpointer user_data)
 	data->func = func;
 	data->user_data = user_data;
 
-	id = g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, __net_client_idle_cb, data,
+	context = g_main_context_get_thread_default();
+	src = g_idle_source_new();
+	g_source_set_callback(src, __net_client_idle_cb, data,
 			__net_client_idle_destroy_cb);
+	id = g_source_attach(src, context);
+	g_source_unref(src);
 	if (!id) {
 		g_free(data);
 		__NETWORK_FUNC_EXIT__;
