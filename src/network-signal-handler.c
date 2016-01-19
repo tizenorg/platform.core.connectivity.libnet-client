@@ -783,7 +783,41 @@ static int __net_handle_wifi_tdls_disconnected_event(GVariant *param)
 	return NET_ERR_NONE;
 }
 
+static int __net_handle_wifi_connect_fail_event(GVariant *param)
+{
+	__NETWORK_FUNC_ENTER__;
 
+	net_event_info_t event_data = { 0, };
+	network_request_table_t *open_info =
+			&request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION];
+	network_request_table_t *wps_info =
+			&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS];
+
+	event_data.Datalength = 0;
+	event_data.Data = NULL;
+
+	NETWORK_LOG(NETWORK_HIGH, "Failed to connect WiFi");
+
+	if (open_info->flag == TRUE) {
+		memset(open_info, 0, sizeof(network_request_table_t));
+		event_data.Error = NET_ERR_INVALID_OPERATION;
+		event_data.Event = NET_EVENT_OPEN_RSP;
+		NETWORK_LOG(NETWORK_HIGH, "Sending NET_EVENT_OPEN_RSP");
+	} else if (wps_info->flag == TRUE) {
+		memset(wps_info, 0, sizeof(network_request_table_t));
+		event_data.Error = NET_ERR_INVALID_OPERATION;
+		event_data.Event = NET_EVENT_WIFI_WPS_RSP;
+		NETWORK_LOG(NETWORK_HIGH,"Sending NET_EVENT_WIFI_WPS_RSP");
+	} else {
+		NETWORK_LOG(NETWORK_LOW, "WiFi Connection flag not set");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_NONE;
+	}
+	_net_client_callback(&event_data);
+
+	__NETWORK_FUNC_EXIT__;
+	return NET_ERR_NONE;
+}
 
 static void __net_supplicant_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
@@ -809,6 +843,8 @@ static void __net_netconfig_signal_filter(GDBusConnection *conn,
 		__net_handle_wifi_tdls_connected_event(param);
 	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_TDLS_DISCONNECTED) == 0)
 		__net_handle_wifi_tdls_disconnected_event(param);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_WIFI_CONNECT_FAIL) == 0)
+		__net_handle_wifi_connect_fail_event(param);
 }
 
 static void __net_netconfig_network_signal_filter(GDBusConnection *conn,
