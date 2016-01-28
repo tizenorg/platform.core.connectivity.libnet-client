@@ -915,6 +915,38 @@ done:
 	return Error;
 }
 
+int _net_dbus_get_wifi_state(char **wifi_state)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+	const char *method = "GetWifiState";
+
+	if(NULL == wifi_state) {
+			NETWORK_LOG(NETWORK_ERROR,"Invalid Parameter\n");
+			__NETWORK_FUNC_EXIT__;
+			return NET_ERR_INVALID_PARAM;
+	}
+
+	message = _net_invoke_dbus_method(
+			NETCONFIG_SERVICE, NETCONFIG_WIFI_PATH,
+			NETCONFIG_WIFI_INTERFACE, method, NULL, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get wifi state\n");
+		__NETWORK_FUNC_EXIT__;
+		return Error;
+	}
+
+	g_variant_get(message, "(s)", wifi_state);
+	g_variant_unref(message);
+
+	__NETWORK_FUNC_EXIT__;
+
+	return Error;
+}
+
 int _net_dbus_get_statistics(net_device_t device_type, net_statistics_type_e statistics_type, unsigned long long *size)
 {
 	net_err_t Error = NET_ERR_NONE;

@@ -143,7 +143,7 @@ struct wps_scan_bss_info_t {
  *****************************************************************************/
 
 /**
- * @fn   int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_name_t *profile_name)
+ * @fn   int net_get_wifi_state(net_wifi_state_t *current_state)
  *
  * This function requests current state of wifi.
  *
@@ -158,7 +158,7 @@ struct wps_scan_bss_info_t {
  * @return       NET_ERR_NONE on success, negative values for errors
  */
 
-int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_name_t *profile_name);
+int net_get_wifi_state(net_wifi_state_t *current_state);
 
 /**
  * @fn   int net_wifi_set_background_scan_mode(net_wifi_background_scan_mode_t scan_mode)

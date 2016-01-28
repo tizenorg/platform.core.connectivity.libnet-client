@@ -71,74 +71,49 @@ static int __net_check_profile_privilege()
 /*****************************************************************************
  * 	Local Functions Definition
  *****************************************************************************/
-static net_wifi_state_t __net_get_wifi_service_state(char *profile_name, net_err_t *net_error)
+static net_wifi_state_t __net_get_wifi_connection_state(net_err_t *net_error)
 {
-	int i = 0, profile_count = 0;
 	net_err_t Error = NET_ERR_NONE;
-	net_wifi_state_t wifi_state = NetworkInfo.wifi_state;
-	net_profile_info_t *temp = NULL, *profile_info = NULL;
+	char *wifi_state = NULL;
+	net_wifi_state_t current_state = NetworkInfo.wifi_state;
 
 	__NETWORK_FUNC_ENTER__;
-	Error = _net_get_profile_list(NET_DEVICE_WIFI, &profile_info, &profile_count);
+	Error = _net_dbus_get_wifi_state(&wifi_state);
 
 	if (Error != NET_ERR_NONE) {
-		NETWORK_LOG(NETWORK_ERROR, "Failed to get service list[%s]",
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get wifi state[%s]",
 				_net_print_error(Error));
 
-		NET_MEMFREE(profile_info);
 		*net_error = Error;
 
 		__NETWORK_FUNC_EXIT__;
-		return wifi_state;
+		return current_state;
 	}
 
-	if (profile_count == 0) {
-		wifi_state = WIFI_ON;
-		NET_MEMFREE(profile_info);
-		*net_error = Error;
-
-		__NETWORK_FUNC_EXIT__;
-		return wifi_state;
+	if (g_strcmp0(wifi_state, "unknown") == 0) {
+		current_state = WIFI_UNKNOWN;
+	} else if (g_strcmp0(wifi_state, "deactivated") == 0) {
+		current_state = WIFI_OFF;
+	} else if (g_strcmp0(wifi_state, "disconnected") == 0) {
+		current_state = WIFI_ON;
+	} else if (g_strcmp0(wifi_state, "association") == 0) {
+		current_state = WIFI_ASSOCIATION;
+	} else if (g_strcmp0(wifi_state, "configuration") == 0) {
+		current_state = WIFI_CONFIGURATION;
+	} else if (g_strcmp0(wifi_state, "connected") == 0) {
+		current_state = WIFI_CONNECTED;
 	}
 
-	/* Assign 'profile_info' to 'temp' to free memory at the end */
-	temp = profile_info;
-	for (i = 0; i < profile_count; i++) {
-		switch (profile_info->ProfileState) {
-		case NET_STATE_TYPE_ASSOCIATION:
-			wifi_state = WIFI_ASSOCIATION;
-			g_strlcpy(profile_name, profile_info->ProfileName,
-					sizeof(profile_info->ProfileName));
-			break;
-		case NET_STATE_TYPE_CONFIGURATION:
-			wifi_state = WIFI_CONFIGURATION;
-			g_strlcpy(profile_name, profile_info->ProfileName,
-					sizeof(profile_info->ProfileName));
-			break;
-		case NET_STATE_TYPE_READY:
-		case NET_STATE_TYPE_ONLINE:
-			wifi_state = WIFI_CONNECTED;
-			g_strlcpy(profile_name, profile_info->ProfileName,
-					sizeof(profile_info->ProfileName));
-			break;
-		case NET_STATE_TYPE_UNKNOWN:
-		case NET_STATE_TYPE_IDLE:
-		case NET_STATE_TYPE_FAILURE:
-		case NET_STATE_TYPE_DISCONNECT:
-			break;
-		}
-		profile_info++;
-	}
+	g_free(wifi_state);
 
-	if (wifi_state == WIFI_CONNECTED &&
+	if (current_state == WIFI_CONNECTED &&
 	    request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag == TRUE)
-		wifi_state = WIFI_DISCONNECTING;
+		current_state = WIFI_DISCONNECTING;
 
-	NET_MEMFREE(temp);
 	*net_error = Error;
 
 	__NETWORK_FUNC_EXIT__;
-	return wifi_state;
+	return current_state;
 }
 
 /*****************************************************************************
@@ -703,11 +678,10 @@ EXPORT_API int net_wifi_cancel_wps(void)
 /*****************************************************************************
  * 	ConnMan Wi-Fi Client Interface Sync Function Definition
  *****************************************************************************/
-EXPORT_API int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_name_t *profile_name)
+EXPORT_API int net_get_wifi_state(net_wifi_state_t *current_state)
 {
 	__NETWORK_FUNC_ENTER__;
 
-	net_wifi_state_t wifi_state;
 	net_err_t Error = NET_ERR_NONE;
 
 	if (NetworkInfo.ref_count < 1) {
@@ -716,22 +690,7 @@ EXPORT_API int net_get_wifi_state(net_wifi_state_t *current_state, net_profile_n
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
-	if (profile_name == NULL) {
-		NETWORK_LOG(NETWORK_ERROR, "profile_name is NULL");
-		return NET_ERR_INVALID_PARAM;
-	}
-
-	memset(profile_name, 0, sizeof(net_profile_name_t));
-
-	wifi_state = _net_get_wifi_state(&Error);
-
-	if (wifi_state == WIFI_OFF) {
-		*current_state = WIFI_OFF;
-		__NETWORK_FUNC_EXIT__;
-		return NET_ERR_NONE;
-	}
-
-	*current_state = __net_get_wifi_service_state(profile_name->ProfileName, &Error);
+	*current_state = __net_get_wifi_connection_state(&Error);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;

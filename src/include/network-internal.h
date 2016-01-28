@@ -171,8 +171,14 @@ extern "C" {
 		} \
 	} while(0)
 
-#define __NETWORK_FUNC_ENTER__	/* NETWORK_LOG(NETWORK_LOW, "Entering (%s)", __func__)*/
-#define __NETWORK_FUNC_EXIT__	/* NETWORK_LOG(NETWORK_LOW, "Quit (%s)", __func__)*/
+#define NERWORK_LOG_RED "\033[0;31m"
+#define NERWORK_LOG_GREEN "\033[0;32m"
+#define NERWORK_LOG_BROWN "\033[0;33m"
+#define NERWORK_LOG_BLUE "\033[0;34m"
+#define NERWORK_LOG_END "\033[0;m"
+#define __NETWORK_FUNC_ENTER__ NETWORK_LOG(NETWORK_LOW, NERWORK_LOG_GREEN"Entering (%s)" NERWORK_LOG_END, __func__);
+#define __NETWORK_FUNC_EXIT__  NETWORK_LOG(NETWORK_LOW, NERWORK_LOG_RED"Quit (%s)" NERWORK_LOG_END, __func__);
+
 
 /*****************************************************************************
  * 	Global Enums
