@@ -233,8 +233,8 @@ typedef struct
 	char ConnectedTechnology;
 	char DefaultTechnology;
 	/* Connman 1.x */
-	char Connected;
-	char Powered;
+	unsigned char Connected;
+	unsigned char Powered;
 } network_tech_state_info_t;
 
 /**
