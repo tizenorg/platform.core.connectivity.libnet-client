@@ -812,7 +812,7 @@ EXPORT_API int net_get_active_essid(net_essid_t *essid)
 		Error = NET_ERR_NO_SERVICE;
 	} else if (active_profile_info.profile_type == NET_DEVICE_WIFI) {
 		wlan_info = &active_profile_info.ProfileInfo.Wlan;
-		memcpy(essid->essid, wlan_info->essid, NET_WLAN_ESSID_LEN+1);
+		memcpy(essid->essid, wlan_info->essid, sizeof(essid->essid) - 1);
 	} else
 		Error = NET_ERR_UNKNOWN;
 
