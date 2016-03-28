@@ -552,13 +552,13 @@ static char *__net_make_group_name(const char *ssid,
 		const char *net_mode, const char *sec)
 {
 	char *buf = NULL;
-	char *pbuf = NULL;
 	const char *hidden_str = "hidden";
 	const char *g_sec;
-	char buf_tmp[32] = { 0, };
+	char ssid_hex[NET_WLAN_ESSID_LEN * 2 + 1] = { 0, };
 	int i;
 	int ssid_len = 0;
 	int actual_len = 0;
+	int buf_len = 0;
 
 	if (net_mode == NULL || sec == NULL)
 		return NULL;
@@ -579,23 +579,20 @@ static char *__net_make_group_name(const char *ssid,
 	else
 		g_sec = sec;
 
-	buf = g_try_malloc0(actual_len + strlen(net_mode) + strlen(sec) + 3);
+	buf_len = actual_len + strlen(net_mode) + strlen(g_sec) + 4;
+
+	buf = g_try_malloc0(buf_len);
 	if (buf == NULL)
 		return NULL;
 
 	if (NULL != ssid) {
-		pbuf = buf;
-		for (i = 0; i < ssid_len; i++) {
-			g_snprintf(pbuf, 3, "%02x", ssid[i]);
-			pbuf += 2;
-		}
-	} else
-		g_strlcat(buf, hidden_str,
-				actual_len + strlen(net_mode) + strlen(sec) + 3);
+		for (i = 0; i < ssid_len; i++) 
+			g_snprintf(ssid_hex + i * 2, 3, "%02x", ssid[i]);
+	} else {
+		g_snprintf(ssid_hex, strlen(hidden_str) + 1, "%s", hidden_str);
+	}
 
-	g_snprintf(buf_tmp, 32, "_%s_%s", net_mode, g_sec);
-	g_strlcat(buf, buf_tmp,
-			actual_len + strlen(net_mode) + strlen(sec) + 3);
+	g_snprintf(buf, buf_len, "_%s_%s_%s", ssid_hex, net_mode, g_sec);
 
 	NETWORK_LOG(NETWORK_LOW, "Group name: %s", buf);
 
