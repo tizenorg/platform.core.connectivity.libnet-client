@@ -950,6 +950,12 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 
 		g_variant_get(variant, "as", &iter);
 		while (g_variant_iter_loop(iter, "s", &value)) {
+			/* In Tizen connman's Nameservers property has format as below
+			 * Nameservers = [ <DNS Config Type>, <DNS Addr 1>, <DNS Addr 2>.... ]
+			 * DNS Config Type values can be "dhcp" or "manual" and should not
+			 * be treated as IP Address, so ignore values for DNS Config Type */
+			if (g_strcmp0(value, "dhcp") == 0 || g_strcmp0(value, "manual") == 0)
+				continue;
 			__net_extract_ip(value, &net_info->DnsAddr[dnsCount]);
 
 			dnsCount++;
@@ -968,6 +974,13 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 
 		g_variant_get(variant, "as", &iter);
 		while (g_variant_iter_loop(iter, "s", &value)) {
+			/* In Tizen connman's Nameservers.Configuration property has format as below
+			 * Nameservers.Configuration = [ <DNS Config Type>, <DNS Addr 1>, <DNS Addr 2>.... ]
+			 * DNS Config Type values can be "dhcp", "manual" or "unknown" and should not
+			 * be treated as IP Address, so ignore values for DNS Config Type */
+			if (g_strcmp0(value, "dhcp") == 0 || g_strcmp0(value, "manual") == 0
+					|| g_strcmp0(value, "unknown") == 0)
+				continue;
 			__net_extract_ip(value, &net_info->DnsAddr[dnsCount]);
 
 			dnsCount++;
