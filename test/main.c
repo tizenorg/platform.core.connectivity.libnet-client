@@ -39,7 +39,7 @@
 
 #define Convert_time2double(timevar) ((double)timevar.tv_sec+(double)timevar.tv_usec/1000000.0)
 
-#define	MAIN_MEMFREE(x)	do {if (x != NULL) free(x); x = NULL;} while(0)
+#define	MAIN_MEMFREE(x)	do {if (x != NULL) free(x); x = NULL; } while (0)
 
 #define PROFILE_NAME_LEN 256
 #define FORMAT_SIZE 100
@@ -61,7 +61,7 @@ static void __print_profile_list(int num_of_profile,
 static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_type_t print_type);
 static void __network_print_ipaddress(net_addr_t* ip_address);
 static void __network_print_ipaddress6(net_addr_t* ip_address6);
-static void __network_evt_cb (net_event_info_t*  event_cb, void* user_data);
+static void __network_evt_cb(net_event_info_t* event_cb, void* user_data);
 
 static int __network_get_user_string(char *buf, int buf_size)
 {
@@ -288,7 +288,7 @@ static void __network_print_profile(net_profile_info_t* ProfInfo, profile_print_
 		debug_print("Profile Device Name = [%s]\n", net_info->DevName);
 		debug_print("Profile DNS Count = [%d]\n", net_info->DnsCount);
 
-		for (di = 0;di < net_info->DnsCount;di++)
+		for (di = 0; di < net_info->DnsCount; di++)
 			debug_print("Profile DNS Address %d = [%d.%d.%d.%d]\n",
 					di+1, dns[0], dns[1], dns[2], dns[3]);
 
@@ -349,7 +349,7 @@ static void __print_profile_list(int num_of_profile,
 
 	if (num_of_profile > 0 && profile_table != NULL) {
 		int ci = 0;
-		for (ci = 0;ci < num_of_profile;ci++)
+		for (ci = 0; ci < num_of_profile; ci++)
 			__network_print_profile(profile_table + ci, print_type);
 	}
 }
@@ -557,7 +557,7 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 				debug_print("Wi-Fi State : Disconnect, profile name : %s\n",
 						event_cb->ProfileName);
 				break;
-			default :
+			default:
 				debug_print("Wi-Fi State : unknown\n");
 				break;
 			}
@@ -610,7 +610,7 @@ static void __network_evt_cb(net_event_info_t* event_cb, void* user_data)
 		debug_print("Got Set cellular default profile Rsp : %d\n", event_cb->Error);
 		break;
 
-	default :
+	default:
 		debug_print("Unknown Event\n\n");
 		break;
 	}
@@ -623,7 +623,7 @@ static gboolean __network_check_address_type(int address_family, const char *add
 	int err = 0;
 
 	err = inet_pton(address_family, address, buf);
-	if(err > 0)
+	if (err > 0)
 		return TRUE;
 
 	return FALSE;
@@ -754,7 +754,7 @@ int __network_modify_profile_info(net_profile_info_t *profile_info)
 			}
 		}
 
-		for (ei = 0;ei < NET_DNS_ADDR_MAX;ei++) {
+		for (ei = 0; ei < NET_DNS_ADDR_MAX; ei++) {
 			debug_print("\nInput DNS %d Address(Enter for skip) :\n", ei);
 
 			memset(input_str, '\0', 101);
@@ -1078,9 +1078,9 @@ static gboolean network_main_gthread(gpointer data)
 		debug_print("t	- Get passpoint state\n");
 		debug_print("u	- Add IPv6 route\n");
 		debug_print("v	- Remove IPv6 route\n");
-		debug_print("z 	- Exit \n");
+		debug_print("z	- Exit \n");
 
-		debug_print("ENTER 	- Show options menu.......\n");
+		debug_print("ENTER	- Show options menu.......\n");
 	}
 
 	switch (user_input[0]) {
@@ -1104,7 +1104,7 @@ static gboolean network_main_gthread(gpointer data)
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_wifi_power_off() != NET_ERR_NONE ) {
+		if (net_wifi_power_off() != NET_ERR_NONE) {
 			debug_print("net_wifi_power_off() failed.\n");
 			break;
 		}
@@ -1120,7 +1120,7 @@ static gboolean network_main_gthread(gpointer data)
 		gettimeofday(&timevar, NULL);
 		start_time = Convert_time2double(timevar);
 
-		if (net_scan_wifi() != NET_ERR_NONE ) {
+		if (net_scan_wifi() != NET_ERR_NONE) {
 			debug_print("net_scan_wifi() failed.\n");
 			break;
 		}
@@ -1265,7 +1265,7 @@ static gboolean network_main_gthread(gpointer data)
 			debug_print("wlanstate : WIFI_DISCONNECTING, profile name : %s\n",
 					profile_name.ProfileName);
 			break;
-		default :
+		default:
 			debug_print("wlanstate : Unknown\n");
 			break;
 		}
@@ -1278,7 +1278,7 @@ static gboolean network_main_gthread(gpointer data)
 		int flag = FALSE;
 
 		flag = net_is_connected();
-		debug_print("[%s]\n", (flag == TRUE)? "connected":"not connected");
+		debug_print("[%s]\n", (flag == TRUE) ? "connected" : "not connected");
 
 		gettimeofday(&timevar, NULL);
 		finish_time = Convert_time2double(timevar);
@@ -1315,7 +1315,7 @@ static gboolean network_main_gthread(gpointer data)
 		}
 
 		debug_print("[%s]\n", (NET_STATUS_AVAILABLE == NetworkStatus) ?
-				"NET_STATUS_AVAILABLE":"NET_STATUS_UNAVAILABLE");
+				"NET_STATUS_AVAILABLE" : "NET_STATUS_UNAVAILABLE");
 
 		gettimeofday(&timevar, NULL);
 		finish_time = Convert_time2double(timevar);
@@ -1717,9 +1717,9 @@ static gboolean network_main_gthread(gpointer data)
 		if (__network_get_user_string(ip_addr, 40) == FALSE)
 			break;
 
-		if(__network_check_address_type(AF_INET, ip_addr))
+		if (__network_check_address_type(AF_INET, ip_addr))
 			address_family = AF_INET;
-		else if(__network_check_address_type(AF_INET6, ip_addr))
+		else if (__network_check_address_type(AF_INET6, ip_addr))
 			address_family = AF_INET6;
 		else
 			debug_print("Invalid IP address\n");
@@ -1755,9 +1755,9 @@ static gboolean network_main_gthread(gpointer data)
 		if (__network_get_user_string(ip_addr, 40) == FALSE)
 			break;
 
-		if(__network_check_address_type(AF_INET, ip_addr))
+		if (__network_check_address_type(AF_INET, ip_addr))
 			address_family = AF_INET;
-		else if(__network_check_address_type(AF_INET6, ip_addr))
+		else if (__network_check_address_type(AF_INET6, ip_addr))
 			address_family = AF_INET6;
 		else
 			debug_print("Invalid IP address\n");
@@ -1852,8 +1852,8 @@ static gboolean network_main_gthread(gpointer data)
 			break;
 		}
 
-		debug_print("[%s]\n", (tech_info.powered) ? "Power : ON":"Power : OFF");
-		debug_print("[%s]\n", (tech_info.connected) ? "Connected":"Not connected");
+		debug_print("[%s]\n", (tech_info.powered) ? "Power : ON" : "Power : OFF");
+		debug_print("[%s]\n", (tech_info.connected) ? "Connected" : "Not connected");
 
 		gettimeofday(&timevar, NULL);
 		finish_time = Convert_time2double(timevar);
@@ -1980,7 +1980,7 @@ static gboolean network_main_gthread(gpointer data)
 	case 'z':
 		debug_print("Exiting...!!!\n");
 
-		if (net_deregister_client () != NET_ERR_NONE)
+		if (net_deregister_client() != NET_ERR_NONE)
 			debug_print("net_deregister_client() failed.\n");
 		else
 			debug_print("net_deregister_client() success\n");
@@ -1999,7 +1999,7 @@ int main(int argc, char *argv[])
 {
 	GMainLoop* mainloop = NULL;
 
-	if (net_register_client ((net_event_cb_t)__network_evt_cb, NULL) != NET_ERR_NONE) {
+	if (net_register_client((net_event_cb_t)__network_evt_cb, NULL) != NET_ERR_NONE) {
 		debug_print("net_register_client() failed.\n");
 		return 0;
 	}

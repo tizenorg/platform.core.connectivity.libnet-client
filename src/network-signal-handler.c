@@ -24,8 +24,8 @@
 extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
-static __thread net_state_type_t service_state_table[NET_DEVICE_MAX] =
-							{ NET_STATE_TYPE_UNKNOWN, };
+static __thread net_state_type_t service_state_table[NET_DEVICE_MAX] = {
+							NET_STATE_TYPE_UNKNOWN, };
 static __thread int net_service_error = NET_ERR_NONE;
 static __thread guint gdbus_conn_subscribe_id_connman_state = 0;
 static __thread guint gdbus_conn_subscribe_id_connman_error = 0;
@@ -496,8 +496,7 @@ static int __net_handle_service_state_changed(const gchar *sig_path,
 
 		if (request_table[NETWORK_REQUEST_TYPE_OPEN_CONNECTION].flag != TRUE &&
 			request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].flag != TRUE &&
-			request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag != TRUE)
-		{
+			request_table[NETWORK_REQUEST_TYPE_CLOSE_CONNECTION].flag != TRUE) {
 			/** Send Close Ind */
 			event_data.Error = Error;
 			event_data.Event =  NET_EVENT_CLOSE_IND;
@@ -660,7 +659,7 @@ static int __net_handle_ethernet_cable_state_rsp(GVariant *param)
 	g_variant_iter_free(iter);
 
 	net_event_info_t event_data;
-	if(g_strcmp0(sig_value, "ATTACHED") == 0) {
+	if (g_strcmp0(sig_value, "ATTACHED") == 0) {
 			event_data.Event = NET_EVENT_ETHERNET_CABLE_ATTACHED;
 			event_data.Error = NET_ERR_NONE;
 	} else {
@@ -729,12 +728,12 @@ static int __net_handle_wifi_tdls_connected_event(GVariant *param)
 	event_data.Event = NET_EVENT_TDLS_CONNECTED_IND;
 	event_data.Data = g_strdup(sig_value);
 
-	if(event_data.Data)
+	if (event_data.Data)
 		event_data.Datalength = strlen(event_data.Data);
 	else
 		event_data.Datalength = 0;
 
-	NETWORK_LOG(NETWORK_ERROR,"Sending NET_EVENT_TDLS_CONNECTED_IND");
+	NETWORK_LOG(NETWORK_ERROR, "Sending NET_EVENT_TDLS_CONNECTED_IND");
 	_net_client_callback(&event_data);
 	g_free(event_data.Data);
 
@@ -770,12 +769,12 @@ static int __net_handle_wifi_tdls_disconnected_event(GVariant *param)
 	event_data.Event = NET_EVENT_TDLS_DISCONNECTED_IND;
 	event_data.Data = g_strdup(sig_value);
 
-	if(event_data.Data)
+	if (event_data.Data)
 		event_data.Datalength = strlen(event_data.Data);
 	else
 		event_data.Datalength = 0;
 
-	NETWORK_LOG(NETWORK_ERROR,"Sending NET_EVENT_TDLS_DISCONNECTED_IND");
+	NETWORK_LOG(NETWORK_ERROR, "Sending NET_EVENT_TDLS_DISCONNECTED_IND");
 	_net_client_callback(&event_data);
 	g_free(event_data.Data);
 
@@ -807,7 +806,7 @@ static int __net_handle_wifi_connect_fail_event(GVariant *param)
 		memset(wps_info, 0, sizeof(network_request_table_t));
 		event_data.Error = NET_ERR_INVALID_OPERATION;
 		event_data.Event = NET_EVENT_WIFI_WPS_RSP;
-		NETWORK_LOG(NETWORK_HIGH,"Sending NET_EVENT_WIFI_WPS_RSP");
+		NETWORK_LOG(NETWORK_HIGH, "Sending NET_EVENT_WIFI_WPS_RSP");
 	} else {
 		NETWORK_LOG(NETWORK_LOW, "WiFi Connection flag not set");
 		__NETWORK_FUNC_EXIT__;
@@ -856,7 +855,7 @@ static void __net_netconfig_network_signal_filter(GDBusConnection *conn,
 }
 
 /*****************************************************************************
- * 	Global Functions
+ * Global Functions
  *****************************************************************************/
 int _net_deregister_signal(void)
 {

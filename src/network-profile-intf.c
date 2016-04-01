@@ -27,7 +27,7 @@
 #define DBUS_OBJECT_PATH_MAX	150
 
 /*****************************************************************************
- * 	Local Functions Declaration
+ * Local Functions Declaration
  *****************************************************************************/
 static int __net_extract_wifi_info(GVariantIter *array, net_profile_info_t* ProfInfo);
 static int __net_extract_service_info(const char* ProfileName,
@@ -47,7 +47,7 @@ extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
- * 	Local Functions Definition
+ * Local Functions Definition
  *****************************************************************************/
 static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_info_t *ProfInfo)
 {
@@ -99,7 +99,7 @@ static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_inf
 
 	net_info->DnsCount = 0;
 
-	for (i = 0;i < NET_DNS_ADDR_MAX;i++) {
+	for (i = 0; i < NET_DNS_ADDR_MAX; i++) {
 		net_info->DnsAddr[i].Type = NET_ADDR_IPV4;
 		net_info->DnsAddr[i].Data.Ipv4.s_addr = 0;
 	}
@@ -560,7 +560,7 @@ static int __net_extract_all_services(GVariantIter *array,
 			ProfInfo.profile_type = device_type;
 			g_strlcpy(ProfInfo.ProfileName, obj, NET_PROFILE_NAME_LEN_MAX);
 
-			switch(device_type) {
+			switch (device_type) {
 			case NET_DEVICE_WIFI:
 				g_strlcpy(ProfInfo.ProfileInfo.Wlan.net_info.ProfileName,
 						obj, NET_PROFILE_NAME_LEN_MAX);
@@ -861,18 +861,18 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 						net_info->IpConfigType = NET_IP_CONFIG_TYPE_OFF;
 
 				} else if (g_strcmp0(subKey, "Address") == 0 &&
-				           net_info->IpAddr.Data.Ipv4.s_addr == 0) {
+							net_info->IpAddr.Data.Ipv4.s_addr == 0) {
 					value = g_variant_get_string(var, NULL);
 
 					__net_extract_ip(value, &net_info->IpAddr);
 				} else if (g_strcmp0(subKey, "Netmask") == 0 &&
-				           net_info->SubnetMask.Data.Ipv4.s_addr == 0) {
+							net_info->SubnetMask.Data.Ipv4.s_addr == 0) {
 					value = g_variant_get_string(var, NULL);
 
 					__net_extract_ip(value, &net_info->SubnetMask);
 					net_info->BNetmask = TRUE;
 				} else if (g_strcmp0(subKey, "Gateway") == 0 &&
-				           net_info->GatewayAddr.Data.Ipv4.s_addr == 0) {
+							net_info->GatewayAddr.Data.Ipv4.s_addr == 0) {
 					value = g_variant_get_string(var, NULL);
 
 					__net_extract_ip(value, &net_info->GatewayAddr);
@@ -945,7 +945,7 @@ static int __net_extract_common_info(const char *key, GVariant *variant, net_pro
 			}
 		}
 		g_variant_iter_free(iter);
-	} else if(g_strcmp0(key, "Nameservers") == 0) {
+	} else if (g_strcmp0(key, "Nameservers") == 0) {
 		int dnsCount = 0;
 
 		g_variant_get(variant, "as", &iter);
@@ -1452,7 +1452,7 @@ static int __net_extract_mobile_info(GVariantIter *array, net_profile_info_t *Pr
 #endif
 		} else
 			Error = __net_extract_common_info(key, var, ProfInfo);
-			if(Error != NET_ERR_NONE)
+			if (Error != NET_ERR_NONE)
 				NETWORK_LOG(NETWORK_ERROR, "fail to extract common info err(%d)", Error);
 	}
 
@@ -2060,11 +2060,11 @@ static int __net_modify_ethernet_profile(const char* ProfileName,
 	if ((ex_net_info->IpConfigType != net_info->IpConfigType) ||
 		(net_info->IpConfigType == NET_IP_CONFIG_TYPE_STATIC &&
 		 (net_info->IpAddr.Data.Ipv4.s_addr
-		 			!= ex_net_info->IpAddr.Data.Ipv4.s_addr ||
+					!= ex_net_info->IpAddr.Data.Ipv4.s_addr ||
 		  net_info->SubnetMask.Data.Ipv4.s_addr
-		  			!= ex_net_info->SubnetMask.Data.Ipv4.s_addr ||
+					!= ex_net_info->SubnetMask.Data.Ipv4.s_addr ||
 		  net_info->GatewayAddr.Data.Ipv4.s_addr
-		  			!= ex_net_info->GatewayAddr.Data.Ipv4.s_addr))) {
+					!= ex_net_info->GatewayAddr.Data.Ipv4.s_addr))) {
 		Error = _net_dbus_set_profile_ipv4(ProfInfo, profilePath);
 
 		if (Error != NET_ERR_NONE) {
@@ -2081,7 +2081,7 @@ static int __net_modify_ethernet_profile(const char* ProfileName,
 			break;
 		}
 
-		if(net_info->DnsAddr[i].Type == NET_ADDR_IPV4) {
+		if (net_info->DnsAddr[i].Type == NET_ADDR_IPV4) {
 			char old_dns[NETPM_IPV4_STR_LEN_MAX+1] = "";
 			char new_dns[NETPM_IPV4_STR_LEN_MAX+1] = "";
 			g_strlcpy(old_dns,
@@ -2279,7 +2279,7 @@ int _net_check_profile_name(const char* ProfileName)
 	stringLen = strlen(ProfileName);
 
 	if (strncmp(profileHeader, ProfileName, strlen(profileHeader)) == 0) {
-		for (i = 0;i < stringLen;i++) {
+		for (i = 0; i < stringLen; i++) {
 			if (isgraph(ProfileName[i]) == 0) {
 				NETWORK_LOG(NETWORK_ERROR, "Profile name is invalid");
 				__NETWORK_FUNC_EXIT__;
@@ -2398,7 +2398,7 @@ int _net_get_default_profile_info(net_profile_info_t *profile_info)
 	g_variant_get(message, "(a(oa{sv}))", &iter);
 	Error = __net_extract_default_profile(iter, profile_info);
 
-	g_variant_iter_free (iter);
+	g_variant_iter_free(iter);
 	g_variant_unref(message);
 
 	__NETWORK_FUNC_EXIT__;
@@ -2488,7 +2488,7 @@ EXPORT_API int net_reset_profile(int type, int sim_id)
 
 
 /*****************************************************************************
- * 	ConnMan Wi-Fi Client Interface Sync API Definition
+ * ConnMan Wi-Fi Client Interface Sync API Definition
  *****************************************************************************/
 EXPORT_API int net_add_profile(net_service_type_t network_type, net_profile_info_t *prof_info)
 {
