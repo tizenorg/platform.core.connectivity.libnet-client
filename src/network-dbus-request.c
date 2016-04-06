@@ -24,12 +24,12 @@
 #include "network-dbus-request.h"
 
 /*****************************************************************************
- * 	Macros and Typedefs
+ * Macros and Typedefs
  *****************************************************************************/
 #define DBUS_REPLY_TIMEOUT (120 * 1000)
 
 /*****************************************************************************
- * 	Extern Variables
+ * Extern Variables
  *****************************************************************************/
 extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
@@ -333,7 +333,7 @@ static void __net_reset_cellular_reply(GObject *source_object, GAsyncResult *res
 
 	NETWORK_LOG(NETWORK_LOW, "__net_reset_cellular_reply() called");
 
-	conn = G_DBUS_CONNECTION (source_object);
+	conn = G_DBUS_CONNECTION(source_object);
 	dbus_result = g_dbus_connection_call_finish(conn, res, &error);
 	if (error != NULL) {
 		Error = __net_error_string_to_enum(error->message);
@@ -608,7 +608,7 @@ static int __net_dbus_set_agent_field_and_connect(
 	GVariant *params = NULL;
 	GVariantBuilder *builder;
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 	g_variant_builder_add(builder, "{sv}", key, g_variant_new_string(value));
 
 	params = g_variant_new("(o@a{sv})",
@@ -625,7 +625,7 @@ static int __net_dbus_set_agent_field_and_connect(
 }
 
 /*****************************************************************************
- * 	Global Functions Definition
+ * Global Functions Definition
  *****************************************************************************/
 GVariant *_net_invoke_dbus_method(const char *dest, const char *path,
 		const char *interface_name, const char *method,
@@ -920,8 +920,8 @@ int _net_dbus_get_wifi_state(char **wifi_state)
 	GVariant *message = NULL;
 	const char *method = "GetWifiState";
 
-	if(NULL == wifi_state) {
-			NETWORK_LOG(NETWORK_ERROR,"Invalid Parameter\n");
+	if (NULL == wifi_state) {
+			NETWORK_LOG(NETWORK_ERROR, "Invalid Parameter\n");
 			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_INVALID_PARAM;
 	}
@@ -1099,8 +1099,8 @@ int _net_dbus_get_ethernet_cable_state(int *state)
 	net_err_t Error = NET_ERR_NONE;
 	GVariant *message = NULL;
 
-	if(state == NULL) {
-		NETWORK_LOG(NETWORK_ERROR,"Invalid Parameter\n");
+	if (state == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Parameter\n");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
@@ -1133,7 +1133,7 @@ int _net_dbus_set_eap_config_fields_and_connect(
 	GVariant *params = NULL;
 	GVariantBuilder *builder;
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{ss}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{ss}"));
 	g_variant_builder_add(builder, "{ss}", CONNMAN_CONFIG_FIELD_TYPE, "wifi");
 
 	if (wifi_info->ssid)
@@ -1234,7 +1234,7 @@ int _net_dbus_set_agent_fields_and_connect(const char *ssid,
 	GVariant *params = NULL;
 	GVariantBuilder *builder;
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 	g_variant_builder_add(builder, "{sv}", NETCONFIG_AGENT_FIELD_SSID,
 			g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, ssid,
 					strlen(ssid), sizeof(guchar)));
@@ -1486,7 +1486,7 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 
 	GVariant *message = NULL;
 
-	NETWORK_LOG(NETWORK_HIGH, "profile_name: [%s]",profile_name);
+	NETWORK_LOG(NETWORK_HIGH, "profile_name: [%s]", profile_name);
 
 	if ((prof_info == NULL) || (profile_name == NULL) || (strlen(profile_name) == 0)) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid argument");
@@ -1519,7 +1519,7 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 	SECURE_NETWORK_LOG(NETWORK_LOW, "ip: %s, netmask: %s, gateway: %s",
 			ipaddress, netmask, gateway);
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 
 	if (profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_DYNAMIC ||
 	    profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_AUTO_IP) {
@@ -1534,17 +1534,15 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 
 		g_variant_builder_add(builder, "{sv}", prop_method, g_variant_new_string(manual_method));
 
-		if (strlen(ipaddress) >= NETPM_IPV4_STR_LEN_MIN) {
+		if (strlen(ipaddress) >= NETPM_IPV4_STR_LEN_MIN)
 			g_variant_builder_add(builder, "{sv}", prop_address, g_variant_new_string(ipaddress));
-		}
 
-		if (strlen(netmask) >= NETPM_IPV4_STR_LEN_MIN) {
+		if (strlen(netmask) >= NETPM_IPV4_STR_LEN_MIN)
 			g_variant_builder_add(builder, "{sv}", prop_netmask, g_variant_new_string(netmask));
-		}
 
-		if (strlen(gateway) >= NETPM_IPV4_STR_LEN_MIN) {
+		if (strlen(gateway) >= NETPM_IPV4_STR_LEN_MIN)
 			g_variant_builder_add(builder, "{sv}", prop_gateway, g_variant_new_string(gateway));
-		}
+
 	} else {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid argument");
 		__NETWORK_FUNC_EXIT__;
@@ -1558,7 +1556,7 @@ int _net_dbus_set_profile_ipv4(net_profile_info_t* prof_info, char* profile_name
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, profile_name,
 			CONNMAN_SERVICE_INTERFACE, "SetProperty", params,
 			&Error);
-	if(message == NULL) {
+	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to set IPv4 Property");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
@@ -1605,9 +1603,9 @@ int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if(prof_info->profile_type == NET_DEVICE_WIFI)
+	if (prof_info->profile_type == NET_DEVICE_WIFI)
 		profile_net_info = &(prof_info->ProfileInfo.Wlan.net_info);
-	else if(prof_info->profile_type == NET_DEVICE_ETHERNET)
+	else if (prof_info->profile_type == NET_DEVICE_ETHERNET)
 		profile_net_info = &(prof_info->ProfileInfo.Ethernet.net_info);
 	else {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid Profile Type\n");
@@ -1625,7 +1623,7 @@ int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name
 	NETWORK_LOG(NETWORK_HIGH, "ipaddress : %s, prefix_len : %s, gateway :"
 			" %s\n", ip6_ptr, prlen_ptr, gw6_ptr);
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 
 	if (profile_net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_DYNAMIC ||
 		profile_net_info->IpConfigType6 == NET_IP_CONFIG_TYPE_AUTO_IP) {
@@ -1676,7 +1674,7 @@ int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, profile_name,
 			CONNMAN_SERVICE_INTERFACE, "SetProperty", params,
 			&Error);
-	if(message == NULL) {
+	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to set IPv6 Property");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
@@ -1718,7 +1716,7 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
-	if(profile_net_info->DnsCount > NET_DNS_ADDR_MAX ) {
+	if (profile_net_info->DnsCount > NET_DNS_ADDR_MAX) {
 			NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
 			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_INVALID_PARAM;
@@ -1738,10 +1736,9 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 
 	if (profile_net_info->IpConfigType == NET_IP_CONFIG_TYPE_STATIC) {
 
-		builder = g_variant_builder_new(G_VARIANT_TYPE ("as"));
-		for (i = 0; i < profile_net_info->DnsCount; i++) {
+		builder = g_variant_builder_new(G_VARIANT_TYPE("as"));
+		for (i = 0; i < profile_net_info->DnsCount; i++)
 			g_variant_builder_add(builder, "s", dns_address[i]);
-		}
 
 		params = g_variant_new("(sv)", prop_nameserver_configuration, g_variant_builder_end(builder));
 		g_variant_builder_unref(builder);
@@ -1749,7 +1746,7 @@ int _net_dbus_set_profile_dns(net_profile_info_t* prof_info, char* profile_name)
 		message = _net_invoke_dbus_method(CONNMAN_SERVICE, profile_name,
 				CONNMAN_SERVICE_INTERFACE, "SetProperty", params,
 				&Error);
-		if(message == NULL) {
+		if (message == NULL) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to set "
 					"Nameservers.Configuration");
 			__NETWORK_FUNC_EXIT__;
@@ -1808,9 +1805,9 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 			profile_net_info->ProxyAddr, NET_PROXY_LEN_MAX+1);
 
 	SECURE_NETWORK_LOG(NETWORK_LOW, "method: %d, proxy address: %s, Profile Name %s",
-			profile_net_info->ProxyMethod, proxy_address,profile_net_info->ProfileName);
+			profile_net_info->ProxyMethod, proxy_address, profile_net_info->ProfileName);
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{sv}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 
 	switch (profile_net_info->ProxyMethod) {
 	case NET_PROXY_TYPE_AUTO:
@@ -1831,7 +1828,7 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 
 	if (profile_net_info->ProxyMethod == NET_PROXY_TYPE_MANUAL &&
 			proxy_address[0] != '\0') {
-		builder_sub = g_variant_builder_new(G_VARIANT_TYPE ("as"));
+		builder_sub = g_variant_builder_new(G_VARIANT_TYPE("as"));
 		g_variant_builder_add(builder_sub, "s", proxy_address);
 		g_variant_builder_add(builder, "{sv}", prop_servers, g_variant_builder_end(builder_sub));
 		g_variant_builder_unref(builder_sub);
@@ -1843,7 +1840,7 @@ int _net_dbus_set_proxy(net_profile_info_t* prof_info, char* profile_name)
 	message = _net_invoke_dbus_method(CONNMAN_SERVICE, profile_name,
 			CONNMAN_SERVICE_INTERFACE, "SetProperty", params,
 			&Error);
-	if(message == NULL) {
+	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to set Proxy Configuration");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
@@ -1896,7 +1893,7 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 	}
 #endif
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{ss}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{ss}"));
 
 	g_snprintf(buff_svc_type, 10, "%d", prof_info->ProfileInfo.Pdp.ServiceType);
 	temp_ptr = buff_svc_type;
@@ -2043,7 +2040,7 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{ss}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{ss}"));
 
 
 	g_snprintf(buff_svc_type, 10, "%d", prof_info->ProfileInfo.Pdp.ServiceType);
@@ -2124,7 +2121,7 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 	message = _net_invoke_dbus_method(TELEPHONY_SERVICE, profile_name,
 			TELEPHONY_PROFILE_INTERFACE, "ModifyProfile", params,
 			&Error);
-	if(message == NULL) {
+	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to Modify Profile");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
@@ -2223,7 +2220,7 @@ int _net_dbus_get_passpoint(int *enabled)
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE,
 			NETCONFIG_WIFI_PATH, NETCONFIG_WIFI_INTERFACE,
 			"GetPasspoint", NULL, &Error);
-	if(message == NULL) {
+	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to Get Passpoint");
 		__NETWORK_FUNC_EXIT__;
 		return Error;
@@ -2269,10 +2266,10 @@ static void __net_wps_cancel_reply(GObject *source_object,
 	NETWORK_LOG(NETWORK_LOW, "__net_wps_cancel_wifi_reply() called\n");
 
 	GDBusConnection *conn = NULL;
-	GVariant *dbus_result =NULL;
+	GVariant *dbus_result = NULL;
 	GError *error = NULL;
 
-	conn = G_DBUS_CONNECTION (source_object);
+	conn = G_DBUS_CONNECTION(source_object);
 	dbus_result = g_dbus_connection_call_finish(conn, res, &error);
 
 	if (error != NULL) {
@@ -2316,7 +2313,7 @@ static int __net_dbus_set_agent_field(const char *key, const char *value)
 
 	char path[CONNMAN_MAX_BUFLEN] = NETCONFIG_WIFI_PATH;
 
-	builder = g_variant_builder_new(G_VARIANT_TYPE ("a{ss}"));
+	builder = g_variant_builder_new(G_VARIANT_TYPE("a{ss}"));
 	g_variant_builder_add(builder, "{ss}", key, value);
 
 	params = g_variant_new("(@a{ss})", g_variant_builder_end(builder));
@@ -2352,7 +2349,7 @@ static void __net_wps_connect_wifi_reply(GObject *source_object,
 			&request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS];
 	memset(&event_data, 0, sizeof(event_data));
 
-	conn = G_DBUS_CONNECTION (source_object);
+	conn = G_DBUS_CONNECTION(source_object);
 	dbus_result = g_dbus_connection_call_finish(conn, res, &error);
 
 	if (error != NULL) {
@@ -2401,7 +2398,7 @@ int _net_dbus_open_connection_without_ssid()
 
 	Error = _net_invoke_dbus_method_nonblock(NETCONFIG_SERVICE,
 			NETCONFIG_WIFI_PATH, NETCONFIG_TV_PROFILE_INTERFACE,
-			"RequestWpsConnect", params,DBUS_REPLY_TIMEOUT,
+			"RequestWpsConnect", params, DBUS_REPLY_TIMEOUT,
 			__net_wps_connect_wifi_reply);
 
 	__NETWORK_FUNC_EXIT__;
@@ -2409,8 +2406,8 @@ int _net_dbus_open_connection_without_ssid()
 }
 
 
-int _net_dbus_open_pin_connection_without_ssid(const char *pin){
-
+int _net_dbus_open_pin_connection_without_ssid(const char *pin)
+{
 	__NETWORK_FUNC_ENTER__;
 
 	net_err_t Error = NET_ERR_NONE;
@@ -2420,7 +2417,7 @@ int _net_dbus_open_pin_connection_without_ssid(const char *pin){
 
 	Error = _net_invoke_dbus_method_nonblock(NETCONFIG_SERVICE,
 			NETCONFIG_WIFI_PATH, NETCONFIG_TV_PROFILE_INTERFACE,
-			"RequestWpsConnect", params,DBUS_REPLY_TIMEOUT,
+			"RequestWpsConnect", params, DBUS_REPLY_TIMEOUT,
 			__net_wps_connect_wifi_reply);
 
 
@@ -2497,7 +2494,7 @@ int _net_dbus_tdls_disconnect(const char* peer_mac_addr)
 
 	NETWORK_LOG(NETWORK_HIGH, "Status [%d]\n", ret);
 
-	if(ret)
+	if (ret)
 		Error = NET_ERR_NONE;
 	else
 		Error = NET_ERR_UNKNOWN;
@@ -2518,8 +2515,8 @@ int _net_dbus_tdls_connected_peer(char** peer_mac_addr)
 	const char *method = "TdlsConnectedPeer";
 
 
-	if(NULL == peer_mac_addr) {
-			NETWORK_LOG(NETWORK_ERROR,"Invalid Parameter\n");
+	if (NULL == peer_mac_addr) {
+			NETWORK_LOG(NETWORK_ERROR, "Invalid Parameter\n");
 			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_INVALID_PARAM;
 	}

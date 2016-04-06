@@ -25,7 +25,7 @@
 #include "network-signal-handler.h"
 
 /*****************************************************************************
- * 	Extern Variables
+ * Extern Variables
  *****************************************************************************/
 extern __thread network_info_t NetworkInfo;
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
@@ -69,7 +69,7 @@ static int __net_check_profile_privilege()
 }
 
 /*****************************************************************************
- * 	Local Functions Definition
+ * Local Functions Definition
  *****************************************************************************/
 static net_wifi_state_t __net_get_wifi_connection_state(net_err_t *net_error)
 {
@@ -90,19 +90,18 @@ static net_wifi_state_t __net_get_wifi_connection_state(net_err_t *net_error)
 		return current_state;
 	}
 
-	if (g_strcmp0(wifi_state, "unknown") == 0) {
+	if (g_strcmp0(wifi_state, "unknown") == 0)
 		current_state = WIFI_UNKNOWN;
-	} else if (g_strcmp0(wifi_state, "deactivated") == 0) {
+	else if (g_strcmp0(wifi_state, "deactivated") == 0)
 		current_state = WIFI_OFF;
-	} else if (g_strcmp0(wifi_state, "disconnected") == 0) {
+	else if (g_strcmp0(wifi_state, "disconnected") == 0)
 		current_state = WIFI_ON;
-	} else if (g_strcmp0(wifi_state, "association") == 0) {
+	else if (g_strcmp0(wifi_state, "association") == 0)
 		current_state = WIFI_ASSOCIATION;
-	} else if (g_strcmp0(wifi_state, "configuration") == 0) {
+	else if (g_strcmp0(wifi_state, "configuration") == 0)
 		current_state = WIFI_CONFIGURATION;
-	} else if (g_strcmp0(wifi_state, "connected") == 0) {
+	else if (g_strcmp0(wifi_state, "connected") == 0)
 		current_state = WIFI_CONNECTED;
-	}
 
 	g_free(wifi_state);
 
@@ -117,7 +116,7 @@ static net_wifi_state_t __net_get_wifi_connection_state(net_err_t *net_error)
 }
 
 /*****************************************************************************
- * 	ConnMan Wi-Fi Client Interface Async API Definition
+ * ConnMan Wi-Fi Client Interface Async API Definition
  *****************************************************************************/
 EXPORT_API int net_specific_scan_wifi(const char *ssid)
 {
@@ -292,7 +291,7 @@ EXPORT_API int net_wifi_set_passpoint(int enable)
 }
 
 /*****************************************************************************
- * 	ConnMan Wi-Fi Client Interface Async API Definition
+ * ConnMan Wi-Fi Client Interface Async API Definition
  *****************************************************************************/
 EXPORT_API int net_open_connection_with_wifi_info(const net_wifi_connection_info_t *wifi_info)
 {
@@ -377,8 +376,7 @@ EXPORT_API int net_wifi_power_on(gboolean wifi_picker_test)
 			NETWORK_LOG(NETWORK_ERROR, "Wi-Fi is powered on already!");
 			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_ALREADY_EXISTS;
-		}
-		else if (Error != NET_ERR_NONE) {
+		} else if (Error != NET_ERR_NONE) {
 			NETWORK_LOG(NETWORK_ERROR, "Failed to get Wi-Fi state");
 			__NETWORK_FUNC_EXIT__;
 			return Error;
@@ -493,7 +491,7 @@ EXPORT_API int net_wifi_power_off(void)
 	request_table[NETWORK_REQUEST_TYPE_WIFI_POWER].flag = TRUE;
 
 	Error = _net_dbus_remove_wifi_driver();
-	if (Error != NET_ERR_NONE ) {
+	if (Error != NET_ERR_NONE) {
 		NETWORK_LOG(NETWORK_ERROR,
 				"Failed to request Wi-Fi power on/off. Error [%s]",
 				_net_print_error(Error));
@@ -655,9 +653,8 @@ EXPORT_API int net_wifi_cancel_wps(void)
 		return NET_ERR_INVALID_OPERATION;
 	}
 
-	if(request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName[0] != '\0') {
+	if (request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName[0] != '\0')
 		net_delete_profile(request_table[NETWORK_REQUEST_TYPE_ENROLL_WPS].ProfileName);
-	}
 
 	Error = _net_dbus_cancel_wps();
 	if (Error != NET_ERR_NONE) {
@@ -676,7 +673,7 @@ EXPORT_API int net_wifi_cancel_wps(void)
 
 
 /*****************************************************************************
- * 	ConnMan Wi-Fi Client Interface Sync Function Definition
+ * ConnMan Wi-Fi Client Interface Sync Function Definition
  *****************************************************************************/
 EXPORT_API int net_get_wifi_state(net_wifi_state_t *current_state)
 {
@@ -802,22 +799,22 @@ EXPORT_API int net_wifi_enroll_wps_without_ssid(net_wifi_wps_info_t *wps_info)
 		}
 	} else if (wps_info->type == WIFI_WPS_PIN) {
 		Error = _net_dbus_set_agent_wps_pin(wps_info->pin);
-		if (NET_ERR_NONE != Error){
+		if (NET_ERR_NONE != Error) {
 			NETWORK_LOG(NETWORK_ERROR,
 					"_net_dbus_set_agent_wps_pin() failed\n");
 			__NETWORK_FUNC_EXIT__;
 			return NET_ERR_INVALID_OPERATION;
 		}
-	}else {
+	} else {
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}
 
-	if(wps_info->type == WIFI_WPS_PBC) {
+	if (wps_info->type == WIFI_WPS_PBC) {
 		Error = _net_dbus_open_connection_without_ssid();
-	} else if(wps_info->type == WIFI_WPS_PIN) {
+	} else if (wps_info->type == WIFI_WPS_PIN) {
 		Error = _net_dbus_open_pin_connection_without_ssid(wps_info->pin);
-	}else{
+	} else{
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_INVALID_PARAM;
 	}

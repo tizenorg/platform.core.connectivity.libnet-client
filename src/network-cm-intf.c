@@ -22,12 +22,12 @@
 #include "network-signal-handler.h"
 
 /*****************************************************************************
- * 	Extern Variables
+ * Extern Variables
  *****************************************************************************/
 extern __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX];
 
 /*****************************************************************************
- * 	Global Variables
+ * Global Variables
  *****************************************************************************/
 __thread network_info_t NetworkInfo = { 0, };
 
@@ -78,7 +78,7 @@ static int __net_add_route(const char *ip_addr, const char *interface, int addre
 	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
 	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
 
-	if(address_family == AF_INET) {
+	if (address_family == AF_INET) {
 		g_snprintf(netmask, INET_ADDRSTRLEN, "255.255.255.255");
 		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, NULL, address_family);
 	}
@@ -123,7 +123,7 @@ static int __net_remove_route(const char *ip_addr, const char *interface, int ad
 	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
 	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
 
-	if(address_family == AF_INET) {
+	if (address_family == AF_INET) {
 		g_snprintf(netmask, INET_ADDRSTRLEN, "255.255.255.255");
 		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, NULL, address_family);
 	}
@@ -168,9 +168,8 @@ static int __net_add_route_ipv6(const char *ip_addr, const char *interface, int 
 	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
 	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
 
-	if(address_family == AF_INET6) {
+	if (address_family == AF_INET6)
 		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, gateway, address_family);
-	}
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
 			NETCONFIG_NETWORK_INTERFACE, "AddRoute", params, &Error);
@@ -212,7 +211,7 @@ static int __net_remove_route_ipv6(const char *ip_addr, const char *interface, i
 	g_snprintf(dest_ip, INET6_ADDRSTRLEN, "%s", ip_addr);
 	g_snprintf(if_name, strlen(interface) + 1, "%s", interface);
 
-	if(address_family == AF_INET6)
+	if (address_family == AF_INET6)
 		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, gateway, address_family);
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
@@ -325,7 +324,7 @@ static void __net_abort_open_connection(const char *profile_name)
 }
 
 /*****************************************************************************
- * 	ConnMan Client Common Interface API Definition
+ * ConnMan Client Common Interface API Definition
  *****************************************************************************/
 /**
  * @fn  EXPORT_API int net_register_client(net_event_cb_t event_cb, void *user_data)
@@ -531,7 +530,7 @@ EXPORT_API int net_deregister_client_ext(net_device_t client_type)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 active_profile_info 	The information of active(default) network profile.
+ * @param[out]   active_profile_info The information of active(default) network profile.
  */
 EXPORT_API int net_get_active_net_info(net_profile_info_t *active_profile_info)
 {
@@ -553,7 +552,7 @@ EXPORT_API int net_get_active_net_info(net_profile_info_t *active_profile_info)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 ip_address 	Ip address of active(default) network profile.
+ * @param[out]   ip_address Ip address of active(default) network profile.
  */
 EXPORT_API int net_get_active_ipaddress(net_addr_t *ip_address)
 {
@@ -586,7 +585,7 @@ EXPORT_API int net_get_active_ipaddress(net_addr_t *ip_address)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 ip_address6 	Ip address of active(default) network profile.
+ * @param[out]   ip_address6 Ip address of active(default) network profile.
  */
 EXPORT_API int net_get_active_ipaddress6(net_addr_t *ip_address6)
 {
@@ -620,7 +619,7 @@ EXPORT_API int net_get_active_ipaddress6(net_addr_t *ip_address6)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 netmask 	Netmask of active(default) network profile.
+ * @param[out]   netmask Netmask of active(default) network profile.
  */
 EXPORT_API int net_get_active_netmask(net_addr_t *netmask)
 {
@@ -689,7 +688,7 @@ EXPORT_API int net_get_active_prefixlen6(int *prefixlen6)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 gateway 	Gateway address of active(default) network profile.
+ * @param[out]   gateway Gateway address of active(default) network profile.
  */
 EXPORT_API int net_get_active_gateway(net_addr_t *gateway)
 {
@@ -722,7 +721,7 @@ EXPORT_API int net_get_active_gateway(net_addr_t *gateway)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 gateway6 	Gateway IPv6 address of active(default) network profile.
+ * @param[out]   gateway6 Gateway IPv6 address of active(default) network profile.
  */
 EXPORT_API int net_get_active_gateway6(net_addr_t *gateway6)
 {
@@ -755,7 +754,7 @@ EXPORT_API int net_get_active_gateway6(net_addr_t *gateway6)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 dns 	DNS address of active(default) network profile.
+ * @param[out]   dns DNS address of active(default) network profile.
  */
 EXPORT_API int net_get_active_dns(net_addr_t *dns)
 {
@@ -788,7 +787,7 @@ EXPORT_API int net_get_active_dns(net_addr_t *dns)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 essid 	ESSID of active(default) network profile.
+ * @param[out]   essid ESSID of active(default) network profile.
  */
 EXPORT_API int net_get_active_essid(net_essid_t *essid)
 {
@@ -828,7 +827,7 @@ EXPORT_API int net_get_active_essid(net_essid_t *essid)
  *
  * @return       int - NET_ERR_NONE on success, negative values for errors
  * @param[in]    none
- * @param[out] 	 proxy 	Proxy of active(default) network profile.
+ * @param[out]   proxy Proxy of active(default) network profile.
  */
 EXPORT_API int net_get_active_proxy(net_proxy_t *proxy)
 {
@@ -956,7 +955,7 @@ EXPORT_API int net_get_statistics(net_device_t device_type, net_statistics_type_
 {
 	net_err_t Error = NET_ERR_NONE;
 
-	if ((Error = _net_dbus_get_statistics(device_type, statistics_type, size)) != NET_ERR_NONE )
+	if ((Error = _net_dbus_get_statistics(device_type, statistics_type, size)) != NET_ERR_NONE)
 		NETWORK_LOG(NETWORK_ERROR, "Failed to get statistics. error: %s",
 				_net_print_error(Error));
 
@@ -967,7 +966,7 @@ EXPORT_API int net_set_statistics(net_device_t device_type, net_statistics_type_
 {
 	net_err_t Error = NET_ERR_NONE;
 
-	if ((Error = _net_dbus_set_statistics(device_type, statistics_type)) != NET_ERR_NONE )
+	if ((Error = _net_dbus_set_statistics(device_type, statistics_type)) != NET_ERR_NONE)
 		NETWORK_LOG(NETWORK_ERROR, "Failed to set statistics. error: %s",
 				_net_print_error(Error));
 
@@ -1042,7 +1041,7 @@ EXPORT_API int net_remove_route_ipv6(const char *ip_addr, const char *interface,
 {
 	net_err_t Error = NET_ERR_NONE;
 
-	if (ip_addr == NULL || strlen(ip_addr) < 3 || interface == NULL || gateway == NULL || strlen(interface) == 0 ) {
+	if (ip_addr == NULL || strlen(ip_addr) < 3 || interface == NULL || gateway == NULL || strlen(interface) == 0) {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid parameter\n");
 
 		__NETWORK_FUNC_EXIT__;
@@ -1085,7 +1084,7 @@ EXPORT_API int net_get_ethernet_cable_state(int *state)
 }
 
 /*****************************************************************************
- * 	ConnMan Wi-Fi Client Interface Async Function Definition
+ * ConnMan Wi-Fi Client Interface Async Function Definition
  *****************************************************************************/
 /**
  * @fn   EXPORT_API int net_open_connection_with_profile(const char *profile_name)

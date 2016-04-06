@@ -36,12 +36,12 @@ struct managed_idle_data {
 };
 
 /*****************************************************************************
- * 	Extern Global Variables
+ * Extern Global Variables
  *****************************************************************************/
 extern __thread network_info_t NetworkInfo;
 
 /*****************************************************************************
- * 	Global Variables
+ * Global Variables
  *****************************************************************************/
 __thread network_request_table_t request_table[NETWORK_REQUEST_TYPE_MAX] = { { 0, }, };
 
@@ -115,7 +115,7 @@ static char *__convert_eap_keymgmt_type_to_string(gchar eap_keymgmt)
 }
 
 /*****************************************************************************
- * 	Global Functions Definition
+ * Global Functions Definition
  *****************************************************************************/
 
 char* _net_print_error(net_err_t error)
@@ -791,7 +791,7 @@ int _net_dbus_create_gdbus_call(void)
 		return NET_ERR_APP_ALREADY_REGISTERED;
 	}
 
-#if !GLIB_CHECK_VERSION(2,36,0)
+#if !GLIB_CHECK_VERSION(2, 36, 0)
 	g_type_init();
 #endif
 
