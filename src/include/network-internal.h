@@ -246,6 +246,10 @@ typedef struct
 	char ProfileName[NET_PROFILE_NAME_LEN_MAX+1];
 	/** Service type of this profile context */
 	net_service_type_t ServiceType;
+	/** Pdn type of this profile context */
+	net_pdn_type_e PdnType;
+	/** Roam Pdn type of this profile context */
+	net_pdn_type_e RoamPdnType;
 	/** Network Access Point Name */
 	char Apn[NET_PDP_APN_LEN_MAX+1];
 	/** Authentication info of the PDP profile */

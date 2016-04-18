@@ -66,6 +66,18 @@ typedef enum
 } net_pdp_type_t;
 
 /**
+ * @enum net_pdn_type_e
+ * This enumeration defines the pdn type.
+ */
+typedef enum
+{
+	NET_PDN_TYPE_UNKNOWN	= 0x00,
+	NET_PDN_TYPE_IPV4		= 0x02,
+	NET_PDN_TYPE_IPV6		= 0x05,
+	NET_PDN_TYPE_IPV4_IPV6	= 0x06,
+} net_pdn_type_e;
+
+/**
  * @enum net_state_type_t
  * This enumeration defines the service state type.
  */
@@ -117,6 +129,10 @@ typedef struct
 {
 	/** Specifies a protocol type */
 	net_pdp_type_t  ProtocolType;
+	/** Specifies a pdn type */
+	net_pdn_type_e	PdnType;
+	/** Specifies a roam pdn type */
+	net_pdn_type_e	RoamPdnType;
 	/** Specifies a service type(Internet, MMS, WAP, etc...) */
 	net_service_type_t ServiceType;
 	/** Network Access Point Name */

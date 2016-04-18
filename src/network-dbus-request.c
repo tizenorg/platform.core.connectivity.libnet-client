@@ -586,7 +586,7 @@ static char *__net_make_group_name(const char *ssid,
 		return NULL;
 
 	if (NULL != ssid) {
-		for (i = 0; i < ssid_len; i++) 
+		for (i = 0; i < ssid_len; i++)
 			g_snprintf(ssid_hex + i * 2, 3, "%02x", ssid[i]);
 	} else {
 		g_snprintf(ssid_hex, strlen(hidden_str) + 1, "%s", hidden_str);
@@ -1866,7 +1866,11 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 	const char *auth_id = "auth_id";
 	const char *apn = "apn";
 	const char *keyword = "profile_name";
+	const char *pdp_protocol = "pdp_protocol";
+	const char *roam_pdp_protocol = "roam_pdp_protocol";
 
+	char buff_pdn_type[10] = "";
+	char buff_roam_pdn_type[10] = "";
 	char buff_svc_type[10] = "";
 	char buff_auth_type[10] = "";
 	char *temp_ptr = NULL;
@@ -1938,6 +1942,26 @@ int _net_dbus_add_pdp_profile(net_profile_info_t *prof_info)
 		temp_ptr = prof_info->ProfileInfo.Pdp.Apn;
 
 		g_variant_builder_add(builder, "{ss}", apn, temp_ptr);
+	}
+
+	if (prof_info->ProfileInfo.Pdp.PdnType == NET_PDN_TYPE_IPV4 ||
+		prof_info->ProfileInfo.Pdp.PdnType == NET_PDN_TYPE_IPV6 ||
+	    prof_info->ProfileInfo.Pdp.PdnType == NET_PDN_TYPE_IPV4_IPV6) {
+		g_snprintf(buff_pdn_type, 10, "%d",
+						prof_info->ProfileInfo.Pdp.PdnType);
+		temp_ptr = buff_pdn_type;
+
+		g_variant_builder_add(builder, "{ss}", pdp_protocol, temp_ptr);
+	}
+
+	if (prof_info->ProfileInfo.Pdp.RoamPdnType == NET_PDN_TYPE_IPV4 ||
+		prof_info->ProfileInfo.Pdp.RoamPdnType == NET_PDN_TYPE_IPV6 ||
+	    prof_info->ProfileInfo.Pdp.RoamPdnType == NET_PDN_TYPE_IPV4_IPV6) {
+		g_snprintf(buff_roam_pdn_type, 10, "%d",
+						prof_info->ProfileInfo.Pdp.RoamPdnType);
+		temp_ptr = buff_roam_pdn_type;
+
+		g_variant_builder_add(builder, "{ss}", roam_pdp_protocol, temp_ptr);
 	}
 
 	if (strlen(prof_info->ProfileInfo.Pdp.Keyword) > 0) {
@@ -2025,7 +2049,11 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 	const char *default_conn = "default_internet_conn";
 	const char *hidden = "hidden";
 	const char *editable = "editable";
+	const char *pdp_protocol = "pdp_protocol";
+	const char *roam_pdp_protocol = "roam_pdp_protocol";
 
+	char buff_pdn_type[10] = "";
+	char buff_roam_pdn_type[10] = "";
 	char buff_svc_type[10] = "";
 	char buff_auth_type[10] = "";
 	char *temp_ptr = NULL;
@@ -2086,6 +2114,26 @@ int _net_dbus_modify_pdp_profile(net_profile_info_t *prof_info, const char *prof
 		temp_ptr = prof_info->ProfileInfo.Pdp.Apn;
 
 		g_variant_builder_add(builder, "{ss}", apn, temp_ptr);
+	}
+
+	if (prof_info->ProfileInfo.Pdp.PdnType == NET_PDN_TYPE_IPV4 ||
+		prof_info->ProfileInfo.Pdp.PdnType == NET_PDN_TYPE_IPV6 ||
+	    prof_info->ProfileInfo.Pdp.PdnType == NET_PDN_TYPE_IPV4_IPV6) {
+		g_snprintf(buff_pdn_type, 10, "%d",
+						prof_info->ProfileInfo.Pdp.PdnType);
+		temp_ptr = buff_pdn_type;
+
+		g_variant_builder_add(builder, "{ss}", pdp_protocol, temp_ptr);
+	}
+
+	if (prof_info->ProfileInfo.Pdp.RoamPdnType == NET_PDN_TYPE_IPV4 ||
+		prof_info->ProfileInfo.Pdp.RoamPdnType == NET_PDN_TYPE_IPV6 ||
+	    prof_info->ProfileInfo.Pdp.RoamPdnType == NET_PDN_TYPE_IPV4_IPV6) {
+		g_snprintf(buff_roam_pdn_type, 10, "%d",
+						prof_info->ProfileInfo.Pdp.RoamPdnType);
+		temp_ptr = buff_roam_pdn_type;
+
+		g_variant_builder_add(builder, "{ss}", roam_pdp_protocol, temp_ptr);
 	}
 
 	if (strlen(prof_info->ProfileInfo.Pdp.Keyword) > 0) {

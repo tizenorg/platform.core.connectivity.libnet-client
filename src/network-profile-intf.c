@@ -82,6 +82,8 @@ static int __net_pm_init_profile_info(net_device_t profile_type, net_profile_inf
 		ProfInfo->profile_type = NET_DEVICE_CELLULAR;
 		ProfInfo->ProfileInfo.Pdp.ProtocolType = NET_PDP_TYPE_NONE;
 		ProfInfo->ProfileInfo.Pdp.ServiceType = NET_SERVICE_UNKNOWN;
+		ProfInfo->ProfileInfo.Pdp.PdnType = NET_PDN_TYPE_UNKNOWN;
+		ProfInfo->ProfileInfo.Pdp.RoamPdnType = NET_PDN_TYPE_UNKNOWN;
 		ProfInfo->ProfileInfo.Pdp.AuthInfo.AuthType = NET_PDP_AUTH_NONE;
 		ProfInfo->ProfileInfo.Pdp.IsStatic = FALSE;
 		ProfInfo->ProfileInfo.Pdp.Roaming = FALSE;
@@ -138,6 +140,8 @@ static int __net_telephony_init_profile_info(net_telephony_profile_info_t* ProfI
 
 	memset(ProfInfo->ProfileName, '\0', NET_PROFILE_NAME_LEN_MAX+1);
 	ProfInfo->ServiceType = NET_SERVICE_UNKNOWN;
+	ProfInfo->PdnType= NET_PDN_TYPE_UNKNOWN;
+	ProfInfo->RoamPdnType= NET_PDN_TYPE_UNKNOWN;
 	memset(ProfInfo->Apn, '\0', NET_PDP_APN_LEN_MAX+1);
 
 	ProfInfo->AuthInfo.AuthType = NET_PDP_AUTH_NONE;
@@ -203,6 +207,30 @@ static int __net_telephony_get_profile_info(net_profile_name_t* ProfileName, net
 		} else if (g_strcmp0(key, "apn") == 0) {
 			if (value != NULL)
 				g_strlcpy(ProfileInfo->Apn, value, NET_PDP_APN_LEN_MAX);
+		} else if (g_strcmp0(key, "pdp_protocol") == 0) {
+			net_pdn_type_e pdnType = NET_PDN_TYPE_UNKNOWN;
+
+			if (value != NULL)
+				pdnType = atoi(value);
+
+			if (pdnType == NET_PDN_TYPE_IPV4)
+				ProfileInfo->PdnType = NET_PDN_TYPE_IPV4;
+			else if (pdnType == NET_PDN_TYPE_IPV6)
+				ProfileInfo->PdnType = NET_PDN_TYPE_IPV6;
+			else if (pdnType == NET_PDN_TYPE_IPV4_IPV6)
+				ProfileInfo->PdnType = NET_PDN_TYPE_IPV4_IPV6;
+		} else if (g_strcmp0(key, "roam_pdp_protocol") == 0) {
+			net_pdn_type_e roamPdnType = NET_PDN_TYPE_UNKNOWN;
+
+			if (value != NULL)
+				roamPdnType = atoi(value);
+
+			if (roamPdnType == NET_PDN_TYPE_IPV4)
+				ProfileInfo->RoamPdnType = NET_PDN_TYPE_IPV4;
+			else if (roamPdnType == NET_PDN_TYPE_IPV6)
+				ProfileInfo->RoamPdnType = NET_PDN_TYPE_IPV6;
+			else if (roamPdnType == NET_PDN_TYPE_IPV4_IPV6)
+				ProfileInfo->RoamPdnType = NET_PDN_TYPE_IPV4_IPV6;
 		} else if (g_strcmp0(key, "auth_type") == 0) {
 			net_auth_type_t authType = NET_PDP_AUTH_NONE;
 
@@ -1500,6 +1528,8 @@ static int __net_extract_mobile_info(GVariantIter *array, net_profile_info_t *Pr
 						telephony_profinfo.HomeURL, NET_HOME_URL_LEN_MAX);
 
 			ProfInfo->ProfileInfo.Pdp.AuthInfo.AuthType = telephony_profinfo.AuthInfo.AuthType;
+			ProfInfo->ProfileInfo.Pdp.PdnType = telephony_profinfo.PdnType;
+			ProfInfo->ProfileInfo.Pdp.RoamPdnType = telephony_profinfo.RoamPdnType;
 
 			if (strlen(telephony_profinfo.AuthInfo.UserName) > 0)
 				g_strlcpy(ProfInfo->ProfileInfo.Pdp.AuthInfo.UserName,
