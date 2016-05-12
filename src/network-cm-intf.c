@@ -80,7 +80,7 @@ static int __net_add_route(const char *ip_addr, const char *interface, int addre
 
 	if (address_family == AF_INET) {
 		g_snprintf(netmask, INET_ADDRSTRLEN, "255.255.255.255");
-		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, NULL, address_family);
+		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, "", address_family);
 	}
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
@@ -125,7 +125,7 @@ static int __net_remove_route(const char *ip_addr, const char *interface, int ad
 
 	if (address_family == AF_INET) {
 		g_snprintf(netmask, INET_ADDRSTRLEN, "255.255.255.255");
-		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, NULL, address_family);
+		params = g_variant_new("(ssssi)", dest_ip, netmask, if_name, "", address_family);
 	}
 
 	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
