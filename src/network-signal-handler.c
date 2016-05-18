@@ -351,7 +351,12 @@ static void __net_handle_failure_ind(const char *profile_name,
 	g_strlcpy(event_data.ProfileName,
 			profile_name, NET_PROFILE_NAME_LEN_MAX+1);
 
-	event_data.Error = net_service_error;
+	if (net_service_error != NET_ERR_NONE)
+		event_data.Error = net_service_error;
+	else {
+		event_data.Error = NET_ERR_CONNECTION_CONNECT_FAILED;
+		NETWORK_LOG(NETWORK_ERROR, "Event error defined %d", event_data.Error);
+	}
 	event_data.Datalength = 0;
 	event_data.Data = NULL;
 
@@ -677,6 +682,8 @@ static void __net_connman_service_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
 		const gchar *sig, GVariant *param, gpointer user_data)
 {
+	__NETWORK_FUNC_ENTER__;
+
 	const char *key = NULL;
 	const char *value = NULL;
 	GVariant *var;
@@ -699,6 +706,8 @@ static void __net_connman_service_signal_filter(GDBusConnection *conn,
 		if (NULL != var)
 			g_variant_unref(var);
 	}
+
+	__NETWORK_FUNC_EXIT__;
 }
 static int __net_handle_wifi_tdls_connected_event(GVariant *param)
 {
