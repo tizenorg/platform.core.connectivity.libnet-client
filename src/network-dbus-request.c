@@ -2588,3 +2588,65 @@ int _net_dbus_tdls_connected_peer(char** peer_mac_addr)
 
 	return Error;
 }
+
+int _net_dbus_device_policy_get_wifi(int *state)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+
+	if (state == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "DevicePolicyGetWifi", NULL, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get wifi device policy\n");
+		return Error;
+	}
+
+	g_variant_get(message, "(i)", state);
+
+	NETWORK_LOG(NETWORK_LOW, "Wifi device policy state [%d]\n", *state);
+
+	g_variant_unref(message);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}
+
+int _net_dbus_device_policy_get_wifi_profile(int *state)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	net_err_t Error = NET_ERR_NONE;
+	GVariant *message = NULL;
+
+	if (state == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Invalid Parameter\n");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_INVALID_PARAM;
+	}
+
+	message = _net_invoke_dbus_method(NETCONFIG_SERVICE, NETCONFIG_NETWORK_PATH,
+			NETCONFIG_NETWORK_INTERFACE, "DevicePolicyGetWifiProfile", NULL, &Error);
+
+	if (message == NULL) {
+		NETWORK_LOG(NETWORK_ERROR, "Failed to get wifi device policy\n");
+		return Error;
+	}
+
+	g_variant_get(message, "(i)", state);
+
+	NETWORK_LOG(NETWORK_LOW, "Wifi profile device policy state [%d]\n", *state);
+
+	g_variant_unref(message);
+
+	__NETWORK_FUNC_EXIT__;
+	return Error;
+}

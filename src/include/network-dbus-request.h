@@ -145,6 +145,9 @@ int _net_dbus_set_agent_wps_pin(const char *wps_pin);
 int _net_dbus_tdls_disconnect(const char* peer_mac_addr);
 int _net_dbus_tdls_connected_peer(char** peer_mac_addr);
 
+int _net_dbus_device_policy_get_wifi(int *state);
+int _net_dbus_device_policy_get_wifi_profile(int *state);
+
 #ifdef __cplusplus
 }
 #endif

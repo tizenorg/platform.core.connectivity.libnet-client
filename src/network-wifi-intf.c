@@ -364,6 +364,12 @@ EXPORT_API int net_wifi_power_on(gboolean wifi_picker_test)
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
+	if (!net_get_device_policy_wifi()) {
+		NETWORK_LOG(NETWORK_ERROR, "Wifi profile device policy restricts");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_SECURITY_RESTRICTED;
+	}
+
 	vconf_get_int(VCONFKEY_MOBILE_HOTSPOT_MODE, &hotspot_state);
 	if (hotspot_state & VCONFKEY_MOBILE_HOTSPOT_MODE_WIFI) {
 		NETWORK_LOG(NETWORK_ERROR, "Wi-Fi hotspot is enabled!");
@@ -889,4 +895,40 @@ EXPORT_API int net_wifi_tdls_connected_peer(char** peer_mac_addr)
 	__NETWORK_FUNC_EXIT__;
 	return Error;
 
+}
+
+EXPORT_API int net_get_device_policy_wifi(void)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	int state = _net_get_dpm_wifi_state();
+	if (state == -1) {
+		net_err_t Error = _net_dbus_device_policy_get_wifi(&state);
+		if (Error != NET_ERR_NONE)
+			NETWORK_LOG(NETWORK_ERROR, "_net_dbus_device_policy_get_wifi failed\n");
+		else
+			_net_set_dpm_wifi_state(state);
+	}
+
+	NETWORK_LOG(NETWORK_LOW, "Wifi device policy state [%d]\n", state);
+
+	__NETWORK_FUNC_EXIT__;
+	return state;
+}
+
+EXPORT_API int net_get_device_policy_wifi_profile(void)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	int state = _net_get_dpm_wifi_profile_state();
+	if (state == -1) {
+		net_err_t Error = _net_dbus_device_policy_get_wifi_profile(&state);
+		if (Error != NET_ERR_NONE)
+			NETWORK_LOG(NETWORK_ERROR, "_net_dbus_device_policy_get_wifi_profile failed\n");
+		else
+			_net_set_dpm_wifi_profile_state(state);
+	}
+
+	__NETWORK_FUNC_EXIT__;
+	return state;
 }

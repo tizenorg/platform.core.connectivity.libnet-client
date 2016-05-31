@@ -39,6 +39,11 @@ int _net_deregister_signal(void);
 int _net_register_signal(void);
 int _net_subscribe_signal_wifi(void);
 int _net_init_service_state_table(void);
+int _net_get_dpm_wifi_state(void);
+void _net_set_dpm_wifi_state(int state);
+int _net_get_dpm_wifi_profile_state(void);
+void _net_set_dpm_wifi_profile_state(int state);
+
 
 #ifdef __cplusplus
 }

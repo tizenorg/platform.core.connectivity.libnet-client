@@ -398,7 +398,7 @@ int net_wifi_enroll_wps(const char *profile_name, net_wifi_wps_info_t *wps_info)
  * @return       NET_ERR_NONE on success, negative values for errors
  */
 
-int net_check_get_privilege();
+int net_check_get_privilege(void);
 
 /**
  * @fn   int net_check_profile_privilege()
@@ -414,7 +414,7 @@ int net_check_get_privilege();
  * @return       NET_ERR_NONE on success, negative values for errors
  */
 
-int net_check_profile_privilege();
+int net_check_profile_privilege(void);
 
 #if defined TIZEN_TV
 /**
@@ -441,6 +441,9 @@ int net_wifi_enroll_wps_without_ssid(net_wifi_wps_info_t *wps_info);
 
 int net_wifi_tdls_disconnect(const char* peer_mac_addr);
 int net_wifi_tdls_connected_peer(char** peer_mac_addr);
+
+int net_get_device_policy_wifi(void);
+int net_get_device_policy_wifi_profile(void);
 
 /**
  * \}

@@ -115,7 +115,7 @@ typedef enum
 	/** Reset default cellular profile Response Event */
 	NET_EVENT_CELLULAR_RESET_DEFAULT_RSP,
 
-	/** Wi-Fi interface Scanning Indication Event*/
+	/** Wi-Fi interface Scanning Indication Event */
 	NET_EVENT_WIFI_SCANNING_IND,
 
 	/** Wi-Fi interface Scan Indication Event(WPS scan) */
@@ -127,10 +127,10 @@ typedef enum
 	/** Ethernet Cable Detached Event */
 	NET_EVENT_ETHERNET_CABLE_DETACHED,
 
-	/** Wi-Fi TDLS Peer Connected EVENT) */
+	/** Wi-Fi TDLS Peer Connected EVENT */
 	NET_EVENT_TDLS_CONNECTED_IND,
 
-	/** Wi-Fi TDLS Peer Disconnect EVENT) */
+	/** Wi-Fi TDLS Peer Disconnect EVENT */
 	NET_EVENT_TDLS_DISCONNECTED_IND,
 } net_event_t;
 

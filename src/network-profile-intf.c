@@ -22,6 +22,7 @@
 #include <arpa/inet.h>
 
 #include "network-internal.h"
+#include "network-signal-handler.h"
 #include "network-dbus-request.h"
 
 #define DBUS_OBJECT_PATH_MAX	150
@@ -2683,6 +2684,12 @@ EXPORT_API int net_modify_profile(const char* profile_name, net_profile_info_t* 
 		NETWORK_LOG(NETWORK_ERROR, "Application is not registered");
 		__NETWORK_FUNC_EXIT__;
 		return NET_ERR_APP_NOT_REGISTERED;
+	}
+
+	if (!_net_get_dpm_wifi_profile_state()) {
+		NETWORK_LOG(NETWORK_ERROR, "Wifi profile device policy restricts");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_SECURITY_RESTRICTED;
 	}
 
 	Error = net_get_profile_info(profile_name, &exProfInfo);

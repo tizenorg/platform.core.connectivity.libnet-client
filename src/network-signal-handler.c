@@ -32,6 +32,8 @@ static __thread guint gdbus_conn_subscribe_id_connman_error = 0;
 static __thread guint gdbus_conn_subscribe_id_supplicant = 0;
 static __thread guint gdbus_conn_subscribe_id_netconfig_wifi = 0;
 static __thread guint gdbus_conn_subscribe_id_netconfig = 0;
+static __thread int net_dpm_wifi_state = -1;
+static __thread int net_dpm_wifi_profile_state = -1;
 
 static int __net_handle_wifi_power_rsp(gboolean value)
 {
@@ -678,6 +680,62 @@ static int __net_handle_ethernet_cable_state_rsp(GVariant *param)
 	return NET_ERR_NONE;
 }
 
+static int __net_handle_network_dpm_wifi_event(GVariant *param)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	const char *key = NULL;
+	const gchar *sig_value = NULL;
+
+	g_variant_get(param, "(a{sv})", &iter);
+
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "key") == 0) {
+			sig_value = g_variant_get_string(value, NULL);
+			NETWORK_LOG(NETWORK_LOW, "Wifi device policy : %s",
+						sig_value);
+			if (g_strcmp0(sig_value, "allowed") == 0)
+				net_dpm_wifi_state = TRUE;
+			else
+				net_dpm_wifi_state = FALSE;
+		}
+	}
+	g_variant_iter_free(iter);
+
+	return NET_ERR_NONE;
+	__NETWORK_FUNC_EXIT__;
+}
+
+static int __net_handle_network_dpm_wifi_profile_event(GVariant *param)
+{
+	__NETWORK_FUNC_ENTER__;
+
+	GVariantIter *iter = NULL;
+	GVariant *value = NULL;
+	const char *key = NULL;
+	const gchar *sig_value = NULL;
+
+	g_variant_get(param, "(a{sv})", &iter);
+
+	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
+		if (g_strcmp0(key, "key") == 0) {
+			sig_value = g_variant_get_string(value, NULL);
+			NETWORK_LOG(NETWORK_LOW, "Wifi profile device policy : %s",
+						sig_value);
+			if (g_strcmp0(sig_value, "allowed") == 0)
+				net_dpm_wifi_profile_state = TRUE;
+			else
+				net_dpm_wifi_profile_state = FALSE;
+		}
+	}
+	g_variant_iter_free(iter);
+
+	return NET_ERR_NONE;
+	__NETWORK_FUNC_EXIT__;
+}
+
 static void __net_connman_service_signal_filter(GDBusConnection *conn,
 		const gchar *name, const gchar *path, const gchar *interface,
 		const gchar *sig, GVariant *param, gpointer user_data)
@@ -861,11 +919,36 @@ static void __net_netconfig_network_signal_filter(GDBusConnection *conn,
 {
 	if (g_strcmp0(sig, NETCONFIG_SIGNAL_ETHERNET_CABLE_STATE) == 0)
 		__net_handle_ethernet_cable_state_rsp(param);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_DPM_WIFI) == 0)
+		__net_handle_network_dpm_wifi_event(param);
+	else if (g_strcmp0(sig, NETCONFIG_SIGNAL_DPM_WIFI_PROFILE) == 0)
+		__net_handle_network_dpm_wifi_profile_event(param);
 }
 
 /*****************************************************************************
  * Global Functions
  *****************************************************************************/
+
+int _net_get_dpm_wifi_state(void)
+{
+	return net_dpm_wifi_state;
+}
+
+void _net_set_dpm_wifi_state(int state)
+{
+	net_dpm_wifi_state = state;
+}
+
+gboolean _net_get_dpm_wifi_profile_state()
+{
+	return net_dpm_wifi_profile_state;
+}
+
+void _net_set_dpm_wifi_profile_state(int state)
+{
+	net_dpm_wifi_profile_state = state;
+}
+
 int _net_deregister_signal(void)
 {
 	__NETWORK_FUNC_ENTER__;
