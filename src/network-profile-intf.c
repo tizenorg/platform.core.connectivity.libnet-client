@@ -2686,6 +2686,12 @@ EXPORT_API int net_modify_profile(const char* profile_name, net_profile_info_t* 
 		return NET_ERR_APP_NOT_REGISTERED;
 	}
 
+	if (!_net_get_dpm_wifi_state()) {
+		NETWORK_LOG(NETWORK_ERROR, "Wifi device policy restricts");
+		__NETWORK_FUNC_EXIT__;
+		return NET_ERR_SECURITY_RESTRICTED;
+	}
+
 	if (!_net_get_dpm_wifi_profile_state()) {
 		NETWORK_LOG(NETWORK_ERROR, "Wifi profile device policy restricts");
 		__NETWORK_FUNC_EXIT__;
