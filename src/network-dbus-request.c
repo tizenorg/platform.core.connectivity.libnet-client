@@ -1585,11 +1585,10 @@ int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name
 
 	char ipaddr6[INET6_ADDRSTRLEN];
 	char gwaddr6[INET6_ADDRSTRLEN];
-	char prefixlen[INET6_ADDRSTRLEN];
 
 	char *ip6_ptr = ipaddr6;
 	char *gw6_ptr = gwaddr6;
-	char *prlen_ptr = prefixlen;
+	int prefix_length = 0;
 
 	net_err_t Error = NET_ERR_NONE;
 	GVariant *params = NULL;
@@ -1617,11 +1616,10 @@ int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name
 			INET6_ADDRSTRLEN);
 	inet_ntop(AF_INET6, &profile_net_info->GatewayAddr6.Data.Ipv6, gwaddr6,
 			INET6_ADDRSTRLEN);
-	g_snprintf(prefixlen, INET6_ADDRSTRLEN, "%d",
-			profile_net_info->PrefixLen6);
+	prefix_length = profile_net_info->PrefixLen6;
 
-	NETWORK_LOG(NETWORK_HIGH, "ipaddress : %s, prefix_len : %s, gateway :"
-			" %s\n", ip6_ptr, prlen_ptr, gw6_ptr);
+	NETWORK_LOG(NETWORK_HIGH, "ipaddress : %s, prefix_len : %d, gateway :"
+			" %s\n", ip6_ptr, prefix_length, gw6_ptr);
 
 	builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 
@@ -1647,20 +1645,19 @@ int _net_dbus_set_profile_ipv6(net_profile_info_t* prof_info, char* profile_name
 			g_variant_builder_add(builder, "{sv}", prop_address,
 					g_variant_new_string(ip6_ptr));
 		}
-
 		if (profile_net_info->PrefixLen6 <= NETPM_IPV6_MAX_PREFIX_LEN) {
 			g_variant_builder_add(builder, "{sv}", prop_prefixlen,
-					g_variant_new_string(prlen_ptr));
+					g_variant_new_byte(prefix_length));
 		}
 
 		if (strlen(gwaddr6) >= NETPM_IPV6_STR_LEN_MIN) {
 			g_variant_builder_add(builder, "{sv}", prop_gateway,
 					g_variant_new_string(gw6_ptr));
 		}
-		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s %s %s %s %s"
+		NETWORK_LOG(NETWORK_HIGH, "DBus Message 2/2: %s %s %s %s %s %d"
 				" %s %s\n", prop_method, manual_method,
 				prop_address, ipaddr6, prop_prefixlen,
-				prefixlen, prop_gateway, gwaddr6);
+				prefix_length, prop_gateway, gwaddr6);
 	} else {
 		NETWORK_LOG(NETWORK_ERROR, "Invalid argument\n");
 		__NETWORK_FUNC_EXIT__;
