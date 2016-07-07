@@ -32,7 +32,7 @@
  *****************************************************************************/
 static int __net_extract_wifi_info(GVariantIter *array, net_profile_info_t* ProfInfo);
 static int __net_extract_service_info(const char* ProfileName,
-		GVariant *message, net_profile_info_t* ProfInfo);
+		GVariantIter *iter, net_profile_info_t* ProfInfo);
 static int __net_extract_services(GVariantIter *message, net_device_t device_type,
 		net_profile_info_t** profile_info, int* profile_count);
 static int __net_extract_ip(const gchar *value, net_addr_t *ipAddr);
@@ -1588,7 +1588,7 @@ static int __net_extract_bluetooth_info(GVariantIter *array, net_profile_info_t*
 }
 
 static int __net_extract_service_info(
-		const char* ProfileName, GVariant *message,
+		const char* ProfileName, GVariantIter *iter,
 		net_profile_info_t* ProfInfo)
 {
 	__NETWORK_FUNC_ENTER__;
@@ -1596,10 +1596,8 @@ static int __net_extract_service_info(
 	net_err_t Error = NET_ERR_NONE;
 	net_device_t profileType = NET_DEVICE_UNKNOWN;
 	gchar *key = NULL;
-	GVariantIter *iter = NULL;
 	GVariant *value = NULL;
 
-	g_variant_get(message, "(a{sv})", &iter);
 	while (g_variant_iter_loop(iter, "{sv}", &key, &value)) {
 		const gchar *tech = NULL;
 
@@ -1620,9 +1618,6 @@ static int __net_extract_service_info(
 			break;
 		}
 	}
-	g_variant_iter_free(iter);
-
-	g_variant_get(message, "(a{sv})", &iter);
 
 	if (profileType == NET_DEVICE_WIFI) {
 		if ((Error = __net_pm_init_profile_info(NET_DEVICE_WIFI, ProfInfo)) != NET_ERR_NONE) {
@@ -1689,7 +1684,6 @@ static int __net_extract_service_info(
 		__NETWORK_FUNC_EXIT__;
 		return Error;
 	}
-	g_variant_iter_free(iter);
 
 	__NETWORK_FUNC_EXIT__;
 	return Error;
@@ -1702,15 +1696,29 @@ static int __net_get_profile_info(
 
 	net_err_t Error = NET_ERR_NONE;
 	GVariant *message = NULL;
+	GVariantIter *iter = NULL;
+	GVariantIter *service = NULL;
+	gchar *path = NULL;
 
-	message = _net_invoke_dbus_method(CONNMAN_SERVICE, ProfileName,
-			CONNMAN_SERVICE_INTERFACE, "GetProperties", NULL, &Error);
+	message = _net_invoke_dbus_method(CONNMAN_SERVICE, CONNMAN_MANAGER_PATH,
+			CONNMAN_MANAGER_INTERFACE, "GetServices", NULL,
+			&Error);
 	if (message == NULL) {
 		NETWORK_LOG(NETWORK_ERROR, "Failed to get profile");
 		goto done;
 	}
 
-	Error = __net_extract_service_info(ProfileName, message, ProfInfo);
+	g_variant_get(message, "(a(oa{sv}))", &iter);
+	while (g_variant_iter_loop(iter, "(oa{sv})", &path, &service)) {
+		if (g_strcmp0(ProfileName, path) == 0) {
+			Error = __net_extract_service_info(ProfileName, service,
+						ProfInfo);
+			g_variant_iter_free(service);
+			g_free(path);
+			break;
+		}
+	}
+	g_variant_iter_free(iter);
 	g_variant_unref(message);
 
 done:
