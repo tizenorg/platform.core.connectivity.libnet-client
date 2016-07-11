@@ -1208,7 +1208,7 @@ static int __net_update_connected_wifi_info(net_profile_info_t* ProfInfo)
 
 			bssid =
 				g_variant_get_fixed_array(value, &bssid_len, sizeof(guchar));
-			if (bssid_len == 6)
+			if (bssid && bssid_len == 6)
 				snprintf(ProfInfo->ProfileInfo.Wlan.bssid, 18,
 						"%02x:%02x:%02x:%02x:%02x:%02x",
 						bssid[0], bssid[1], bssid[2],
